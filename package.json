@@ -1,0 +1,45 @@
+{
+  "name": "esm",
+  "version": "3.0.0",
+  "buildDate": "2026-07-07",
+  "description": "ESM desktop application wrapped in Electron",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.sts.esm",
+    "productName": "ESM",
+    "artifactName": "ESM-Setup-${version}.exe",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!**/.git",
+      "!**/node_modules/**",
+      "!**/dist/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/esm-icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "allowScripts": {
+    "electron@34.5.8": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

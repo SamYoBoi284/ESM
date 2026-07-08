@@ -1,0 +1,17 @@
+appId: com.sts.esm
+productName: ESM
+artifactName: ESM-Setup-${version}.exe
+files:
+  - "**/*"
+  - "!**/.git"
+  - "!**/node_modules/**"
+  - "!**/dist/**"
+win:
+  target:
+    - nsis
+  icon: favicon2.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

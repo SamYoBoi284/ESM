@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>HoS || STS ESM</title>
+
+    <link rel="icon" type="image/png" href="favicon2.png">
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase -->
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- RelayDesk -->
+    <script defer src="firebase.js"></script>
+    <script defer src="utils.js"></script>
+    <script defer src="notificationmanager.js"></script>
+    <script defer src="queue.js"></script>
+    <script defer src="permissions.js"></script>
+    <script defer src="shifts.js"></script>
+    <script defer src="auth.js"></script>
+    <script defer src="firstlogin.js"></script>
+    <script defer src="presence.js"></script>
+    <script defer src="status.js"></script>
+    <script defer src="shiftautomation.js"></script>
+    <script defer src="timers.js"></script>
+    <script defer src="colleagues.js"></script>
+    <script defer src="admin.js"></script>
+    <script defer src="admin-extras.js"></script>
+    <script defer src="monthlystats.js"></script>
+    <script defer src="reports.js"></script>
+    <script defer src="announcements.js"></script>
+    <script defer src="audit.js"></script>
+    <script defer src="workspace.js"></script>
+    <script defer src="loadhistory.js"></script>
+    <script defer src="myhistory.js"></script>
+    <script defer src="chat.js"></script>
+    <script defer src="overtime.js"></script>
+    <script defer src="disputes.js"></script>
+    <script defer src="userguide.js"></script>
+    <script defer src="adminguide.js"></script>
+    <script defer src="settings.js"></script>
+    <script defer src="devpanel.js"></script>
+    <script defer src="app.js"></script>
+
+</head>
+
+<body>
+
+<!-- ================================= -->
+<!-- TOP BAR -->
+<!-- ================================= -->
+
+<header class="topBar">
+
+    <button id="topBarSettingsBtn" class="topBarSettingsBtn" type="button" title="Settings (Ctrl + ,)">
+        ⚙️
+    </button>
+
+    <div id="clock">🇺🇸 --:--:--</div>
+
+    <div id="damascusClock" title="Damascus, Syria (UTC+3)">🇸🇾 --:--:--</div>
+
+    <div class="topBarCenterGroup">
+
+        <div id="miniTimersLeft" class="miniTimerGroup">
+            <span class="miniTimer">💼 <span id="miniWorkTimer">00:00:00</span></span>
+            <span class="miniTimer">☕ <span id="miniBreakTimer">00:00:00</span></span>
+        </div>
+
+        <div id="connectionStatus" class="connected">
+            🟢 Connected
+        </div>
+
+        <div id="miniTimersRight" class="miniTimerGroup">
+            <span class="miniTimer">🚶 <span id="miniAwayTimer">00:00:00</span></span>
+            <span class="miniTimer">🕐 <span id="miniOvertimeTimer">00:00:00</span></span>
+        </div>
+
+    </div>
+
+    <div id="date">Loading...</div>
+
+</header>
+
+
+
+<!-- ================================= -->
+<!-- LOGIN -->
+<!-- ================================= -->
+
+<section id="loginScreen" class="screen">
+
+    <div class="card loginCard">
+
+        <h1>HoS | STS ESM Release V1.1.5</h1>
+
+        <p class="subtitle">
+            STS Employee Status Monitor
+        </p>
+
+        <hr>
+
+        <label for="codeInput">Employee Code</label>
+
+        <input
+            id="codeInput"
+            type="text"
+            placeholder="Example: A0XX"
+            autocomplete="off"
+            spellcheck="false">
+
+        <label for="pinInput">PIN</label>
+
+        <input
+            id="pinInput"
+            type="password"
+            placeholder="4 Digit PIN"
+            autocomplete="current-password">
+
+        <button id="loginBtn" type="button">
+
+            Login
+
+        </button>
+
+        <button id="forgotPinBtn" class="forgotPinBtn" type="button">
+            Forgot PIN?
+        </button>
+
+        <button id="openUserGuideBtn" class="guideOpenBtn" type="button">
+            📖 User Guide
+        </button>
+
+        <p id="loginMsg"></p>
+
+    </div>
+
+</section>
+
+
+
+<!-- ================================= -->
+<!-- USER GUIDE -->
+<!-- ================================= -->
+
+<section id="userGuideScreen" class="screen guideScreen hidden">
+
+    <div class="card guideCard">
+
+        <div class="guideHeader">
+
+            <div class="guideHeaderTop">
+                <h1 class="guideTitle" data-en="📖 User Guide" data-ar="📖 دليل المستخدم">📖 User Guide</h1>
+                <button id="guideBackBtn" class="smallButton guideBackBtn" type="button">← Back to Login</button>
+            </div>
+
+            <p class="subtitle guideSubtitle" data-en="Employee Status Monitor / ESM Release V1.1.5" data-ar="نظام مراقبة حالة الموظف / ESM Release V1.1.5">
+                Employee Status Monitor / ESM Release V1.1.5
+            </p>
+
+            <div class="guideControls">
+                <input
+                    id="guideSearchInput"
+                    type="text"
+                    class="guideSearchInput"
+                    data-placeholder-en="🔎 Search the guide..."
+                    data-placeholder-ar="🔎 ابحث في الدليل..."
+                    placeholder="🔎 Search the guide...">
+
+                <div class="guideLangToggle" role="group" aria-label="Language">
+                    <button id="guideLangEnBtn" class="smallButton guideLangBtn active" type="button">English</button>
+                    <button id="guideLangArBtn" class="smallButton guideLangBtn" type="button">العربية</button>
+                </div>
+            </div>
+
+            <nav id="guideToc" class="guideToc"></nav>
+
+        </div>
+
+        <div id="guideBody" class="guideBody"></div>
+
+        <p id="guideNoResults" class="guideNoResults hidden" data-en="No sections match your search." data-ar="لا توجد أقسام مطابقة لبحثك.">
+            No sections match your search.
+        </p>
+
+        <hr>
+
+        <button type="button" class="esmCreditLink" data-en="Created by the STS Team, for the STS Team." data-ar="من إعداد فريق STS، لفريق STS.">
+            Created by the STS Team, for the STS Team.
+        </button>
+
+    </div>
+
+</section>
+
+
+
+<!-- ================================= -->
+<!-- FIRST LOGIN WIZARD (Phase 10) -->
+<!-- ================================= -->
+
+<section id="wizardScreen" class="screen hidden">
+
+    <div class="card wizardCard">
+
+        <p id="wizardProgress" class="wizardProgress">Step 1 of 6</p>
+
+        <div id="wizardStep_welcome" class="wizardStep">
+            <h1>👋 Welcome to ESM</h1>
+            <p class="subtitle">Let's get your account set up. This will only take a minute.</p>
+            <button type="button" class="wizardContinueBtn">Get Started</button>
+        </div>
+
+        <div id="wizardStep_theme" class="wizardStep hidden">
+            <h1>🎨 Choose Theme</h1>
+            <p class="subtitle">You can always change this later in Settings.</p>
+            <div class="wizardOptionRow">
+                <button type="button" class="wizardThemeOption active" data-theme="dark">🌙 Dark</button>
+                <button type="button" class="wizardThemeOption" data-theme="light">☀️ Light</button>
+                <button type="button" class="wizardThemeOption" data-theme="auto">🕐 Auto</button>
+            </div>
+            <button type="button" class="wizardContinueBtn">Continue</button>
+        </div>
+
+        <div id="wizardStep_language" class="wizardStep hidden">
+            <h1>🌐 Choose Language</h1>
+            <p class="subtitle">Full language support is coming in a future update — this just saves your preference for now.</p>
+            <div class="wizardOptionRow">
+                <button type="button" class="wizardLangOption active" data-lang="en">English</button>
+                <button type="button" class="wizardLangOption" data-lang="ar">العربية</button>
+            </div>
+            <button type="button" class="wizardContinueBtn">Continue</button>
+        </div>
+
+        <div id="wizardStep_notifications" class="wizardStep hidden">
+            <h1>🔔 Notification Preferences</h1>
+            <p class="subtitle">You can fine-tune individual categories later in Settings.</p>
+
+            <label class="wizardToggleRow">
+                <input type="checkbox" id="wizardNotifDesktop" checked>
+                Desktop notifications
+            </label>
+
+            <label class="wizardToggleRow">
+                <input type="checkbox" id="wizardNotifSound" checked>
+                Notification sounds
+            </label>
+
+            <button type="button" class="wizardContinueBtn">Continue</button>
+        </div>
+
+        <div id="wizardStep_pin" class="wizardStep hidden">
+            <h1>🔒 Set Your PIN</h1>
+            <p class="subtitle">Choose a 4-digit PIN you'll use to log in from now on.</p>
+
+            <label for="wizardPinInput">New PIN</label>
+            <input id="wizardPinInput" type="password" placeholder="4 Digit PIN" autocomplete="new-password">
+
+            <label for="wizardPinConfirmInput">Confirm PIN</label>
+            <input id="wizardPinConfirmInput" type="password" placeholder="Re-enter PIN" autocomplete="new-password">
+
+            <button id="wizardPinSubmitBtn" type="button">Set PIN</button>
+            <p id="wizardPinMsg"></p>
+        </div>
+
+        <div id="wizardStep_done" class="wizardStep hidden">
+            <h1>✅ All Set!</h1>
+            <p class="subtitle">Your account is ready to go.</p>
+            <button id="wizardFinishBtn" type="button">Go to Dashboard</button>
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- ================================= -->
+<!-- EMPLOYEE DASHBOARD -->
+<!-- ================================= -->
+
+<section id="dashboardScreen" class="screen dashboard hidden">
+
+    <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
+
+    <div class="dashboardLayout">
+
+        <!-- ================================= -->
+        <!-- REPORT FORMATTER (moved here, Phase 5) -->
+        <!-- ================================= -->
+
+        <div class="reportFormatterColumn">
+            <!-- Static placeholder for the Report Formatter panel (workspace.js's
+                 reportFormatter.mount() looks for this exact ID first, and fills
+                 it in, instead of falling back to its dynamic-anchor logic).
+                 Kept here so wrapping the sections above into a grid doesn't
+                 change where mount() decides to inject the panel. -->
+            <div id="reportFormatterPanel"></div>
+        </div>
+
+        <!-- MAIN DASHBOARD -->
+        <!-- ================================= -->
+
+        <div class="card">
+
+            <h1>Employee Status Monitor / ESM</h1>
+
+            <p id="userLabel" class="subtitle">
+                User
+            </p>
+
+            <p id="roleLabel" class="roleLabel"></p>
+
+            <select id="roleSelect">
+                <option value="Dispatch">Dispatch</option>
+                <option value="Safety Employee">Safety Employee</option>
+                <option value="Dispatch + Safety">Dispatch + Safety</option>
+            </select>
+
+            <hr>
+
+            <div id="statusText" class="status onDuty">
+                🟢 On Duty
+            </div>
+
+            <div class="buttonGrid">
+
+                <button id="onDutyBtn">🟢 On Duty</button>
+
+                <button id="breakBtn">🟡 Break</button>
+
+                <button id="awayBtn">🟣 Away</button>
+
+                <button id="offDutyBtn">🔴 Off Duty</button>
+
+                <button id="endShiftBtn">⚫ End Shift</button>
+
+                <button id="requestOvertimeBtn">🕐 Request Overtime</button>
+
+                <button id="loadHistoryBtn" type="button">📜 Load History</button>
+
+                <button id="todaysTimersToggleBtn" type="button">🕐 Today's Timers ▾</button>
+
+                <button id="monthlyStatsToggleBtn" type="button">📊 Monthly Statistics ▾</button>
+
+            </div>
+
+            <hr>
+
+            <div id="todaysTimersDropdown" class="todaysTimersDropdown hidden">
+
+            <h2 class="sectionTitle" id="todaysTimersDragHandle">
+
+                🖐️ Today's Timers
+
+            </h2>
+
+            <div class="timerGrid">
+
+                <div class="timerCard">
+
+                    <h3>💼 Work</h3>
+
+                    <span id="workTimer">
+
+                        00:00:00
+
+                    </span>
+
+                </div>
+
+                <div class="timerCard">
+
+                    <h3>☕ Break</h3>
+
+                    <span id="breakTimer">
+
+                        00:00:00
+
+                    </span>
+
+                </div>
+
+                <div class="timerCard">
+
+                    <h3>🚶 Away</h3>
+
+                    <span id="awayTimer">
+
+                        00:00:00
+
+                    </span>
+
+                </div>
+
+                <div class="timerCard overtimeCard">
+
+                    <h3>🕐 Overtime</h3>
+
+                    <span id="overtimeTimer">
+
+                        00:00:00
+
+                    </span>
+
+                </div>
+
+            </div>
+
+            </div> <!-- /todaysTimersDropdown -->
+
+            <div id="monthlyStatsDropdown" class="todaysTimersDropdown monthlyStatsDropdown hidden">
+
+            <h2 class="sectionTitle" id="monthlyStatsDragHandle">
+
+                📊 Monthly Statistics — <span id="monthlyStatsMonthLabel">This Month</span>
+
+            </h2>
+
+            <p class="monthlyStatsHint">
+                Company-wide totals — every employee combined. Cancelled and
+                disputed loads aren't counted; edited loads are.
+            </p>
+
+            <div class="monthlyStatsSummary">
+
+                <div class="timerCard">
+                    <h3>📦 Total Loads</h3>
+                    <span id="monthlyStatsTotalLoads">0</span>
+                </div>
+
+                <div class="timerCard">
+                    <h3>💰 Total Revenue</h3>
+                    <span id="monthlyStatsTotalRevenue">$0</span>
+                </div>
+
+            </div>
+
+            <hr>
+
+            <div id="monthlyStatsPerEmployee" class="monthlyStatsPerEmployee">
+                <div class="workspaceEmpty">Loading...</div>
+            </div>
+
+            <hr>
+
+            <div class="monthlyStatsFooter">
+                <div>Overall Total Booked Loads: <b id="monthlyStatsFooterLoads">0</b></div>
+                <div>Overall Total Revenue: <b id="monthlyStatsFooterRevenue">$0</b></div>
+            </div>
+
+            </div> <!-- /monthlyStatsDropdown -->
+
+            </div> <!-- closes .card (pre-existing structural quirk, kept as-is) -->
+
+        <aside class="workspacePanel">
+
+            <div class="workspaceCard">
+
+                <h2>📝 Workspace</h2>
+
+                <hr>
+
+                <div class="workspaceGrid">
+
+                    <div class="workspaceGridItem">
+                        <h3>⏳ Shift Remaining</h3>
+                        <div id="shiftCountdown" class="shiftCountdown">09:00:00</div>
+                        <div id="shiftEndedAt"></div>
+                    </div>
+
+                    <div class="workspaceGridItem">
+                        <div class="workspaceHeader" data-badge-category="chat">
+                            <h3>💬 Team Chat <span id="chatUnreadBadge" class="notifBadge hidden" data-badge-display="chat">0</span></h3>
+                            <button id="newChatBtn" class="smallButton">+ New</button>
+                        </div>
+
+                        <div id="chatList" class="chatList"></div>
+
+                        <div id="chatWindow" class="chatWindowBox hidden">
+
+                            <div class="chatWindowHeader">
+                                <span id="chatWindowTitle">Chat</span>
+                                <button id="chatCloseBtn">✖</button>
+                            </div>
+
+                            <div id="chatMessages" class="chatMessages"></div>
+
+                            <div class="chatInputRow">
+                                <textarea id="chatInput" rows="1" placeholder="Type a message..."></textarea>
+                                <button id="chatSendBtn">Send</button>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="workspaceGridItem">
+                        <div class="workspaceHeader">
+                            <h3>📢 Announcements <span id="announcementUnreadBadge" class="announcementBadge hidden">0</span></h3>
+                        </div>
+
+                        <div id="announcementList" class="announcementList">
+                            <div class="workspaceEmpty">No announcements yet.</div>
+                        </div>
+
+                        <button id="reportDelayBtn" class="smallButton fullWidthButton">
+                            📨 Explain a Late Clock-in / Extended Away
+                        </button>
+
+                        <button id="requestOffDayBtn" class="smallButton fullWidthButton">
+                            🗓️ Request Off-Day Change
+                        </button>
+
+                        <div id="offDayRequestStatus" class="offDayRequestStatus hidden"></div>
+                    </div>
+
+                    <div class="workspaceGridItem">
+                        <div class="workspaceHeader" data-badge-category="overtime">
+                            <h3>🕐 Overtime Reason <span id="overtimeUnreadBadge" class="notifBadge hidden" data-badge-display="overtime">0</span></h3>
+                        </div>
+
+                        <textarea
+                            id="overtimeReasonInput"
+                            class="workspaceNotes"
+                            placeholder="Reason for staying past your shift (traffic, backlog, covering a colleague, etc.)"></textarea>
+                    </div>
+
+                    <div class="workspaceGridItem">
+                        <div class="workspaceHeader">
+
+                            <h3>📒 Personal Notes</h3>
+
+                            <span id="workspaceSaveStatus">
+
+                                Ready
+
+                            </span>
+
+                        </div>
+
+                        <textarea
+
+                            id="workspaceNotes"
+
+                            class="workspaceNotes"
+
+                            placeholder="Write reminders, carrier notes, follow-ups, ongoing tasks..."></textarea>
+                    </div>
+
+                    <div class="workspaceGridItem">
+                        <div class="workspaceHeader" data-badge-category="load">
+
+                            <h3>📦 Booked Loads <span id="loadUnreadBadge" class="notifBadge hidden" data-badge-display="load">0</span></h3>
+
+                            <button id="addLoadBtn" class="smallButton">
+
+                                + Add
+
+                            </button>
+
+                        </div>
+
+                        <div id="loadToolbar" class="loadToolbar">
+                            <select id="loadSortSelect" class="loadToolbarSelect" title="Sort loads">
+                                <option value="Newest">Sort: Newest</option>
+                                <option value="VRID">Sort: VRID</option>
+                                <option value="Price">Sort: Price</option>
+                            </select>
+                            <select id="loadFilterDept" class="loadToolbarSelect" title="Filter by department"></select>
+                            <select id="loadFilterDriver" class="loadToolbarSelect" title="Filter by driver"></select>
+                            <select id="loadFilterVrid" class="loadToolbarSelect" title="Filter by VRID type"></select>
+                            <button id="toggleCompletedLoadsBtn" class="smallButton loadToolbarToggle hidden" type="button">Show completed</button>
+                        </div>
+
+                        <div id="bookedLoads" class="bookedLoads">
+
+                            <div class="workspaceEmpty">
+
+                                No booked loads.
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div> <!-- /workspaceGrid -->
+
+            </div>
+
+        </aside>
+
+        <div id="performanceCard" class="performanceCard">
+
+                <h2 class="sectionTitle">
+                    📈 Personal Performance
+                </h2>
+
+                <div class="performanceScore">
+
+                <div id="performanceGrade">
+                    🟢 Excellent
+                </div>
+
+                <div id="performanceValue">
+                    100 / 100
+                </div>
+
+            </div>
+
+            <div class="performanceBar">
+
+                <div id="performanceFill"></div>
+
+            </div>
+
+            <div class="performanceStats">
+
+                <div>
+                    💼 Work
+                    <span id="workPercent">0%</span>
+                </div>
+
+                <div>
+                    ☕ Break
+                    <span id="breakPercent">0%</span>
+                </div>
+
+                <div>
+                    🚶 Away
+                    <span id="awayPercent">0%</span>
+                </div>
+
+            </div>
+
+            <div id="performanceLoads" class="performanceLoads">
+                📦 Loads Booked This Month: --
+            </div>
+
+            <hr>
+
+            <h2 class="sectionTitle">
+
+                STS Team
+
+            </h2>
+
+            <div id="colleaguesBox"></div>
+
+            <hr>
+
+            <div class="footerBar">
+
+                Last Update:
+
+                <strong id="lastChange">
+
+                    🇺🇸 -- &nbsp;|&nbsp; 🇸🇾 --
+
+                </strong>
+
+            </div>
+
+            <hr>
+
+            <button id="myHistoryBtn" class="smallButton" type="button">
+                📅 My Past Shifts
+            </button>
+
+            <hr>
+
+            <button id="openUserGuideDashboardBtn" class="smallButton" type="button">
+                📖 Help / User Guide
+            </button>
+
+            <hr>
+
+            <button id="adminPanelAccessBtn" class="hidden" type="button" data-badge-category="admin">
+                🛠 Admin Panel <span id="adminUnreadBadge" class="notifBadge hidden" data-badge-display="admin">0</span>
+            </button>
+
+            <hr>
+
+            <button id="devPanelAccessBtn" class="hidden" type="button">
+                🧑‍💻 Developer Panel
+            </button>
+
+            <hr>
+
+            <button id="logoutBtn" type="button">
+
+                🚪 Logout
+
+            </button>
+
+            <button type="button" class="esmCreditLink esmDashboardCredit">
+                Created by the STS Team, for the STS Team.
+            </button>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ================================= -->
+<!-- SETTINGS SCREEN -->
+<!-- ================================= -->
+
+<section id="settingsScreen" class="screen hidden">
+
+    <div class="card settingsCard">
+
+        <div class="settingsHeader">
+
+            <div class="guideHeaderTop">
+                <h1 class="guideTitle">⚙️ Settings</h1>
+                <button id="settingsBackBtn" class="smallButton guideBackBtn" type="button">← Back</button>
+            </div>
+
+            <p class="subtitle guideSubtitle">
+                Configure desktop behavior, notifications, chat, and appearance.
+            </p>
+
+        </div>
+
+        <div class="settingsLayout">
+
+            <aside class="settingsSidebar">
+                <button class="settingsTab active" type="button" data-section="general">General</button>
+                <button class="settingsTab" type="button" data-section="appearance">Appearance</button>
+                <button class="settingsTab" type="button" data-section="notifications">Notifications</button>
+                <button class="settingsTab" type="button" data-section="chat">Chat</button>
+                <button class="settingsTab" type="button" data-section="load">Load Management</button>
+                <button class="settingsTab" type="button" data-section="shift">Shift</button>
+                <button class="settingsTab" type="button" data-section="shortcuts">Keyboard Shortcuts</button>
+                <button class="settingsTab" type="button" data-section="about">About</button>
+            </aside>
+
+            <div class="settingsContent">
+
+                <section id="settings-general" class="settingsSection">
+                    <h2>General</h2>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="launchAtStartup"> Launch ESM when Windows starts</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="minimizeToTray"> Minimize to system tray instead of closing</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="confirmBeforeCloseWhileOnDuty"> Confirm before closing while On Duty</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLogin"> Remember login</label>
+
+                    <div class="settingsButtonRow">
+                        <button id="clearCacheBtn" class="settingsActionButton" type="button">Clear local cache</button>
+                        <button id="resetSettingsBtn" class="settingsActionButton" type="button">Reset all settings to default</button>
+                    </div>
+                </section>
+
+                <section id="settings-appearance" class="settingsSection hidden">
+                    <h2>Appearance</h2>
+
+                    <label class="settingsLabel" for="themeSelect">Theme</label>
+                    <select id="themeSelect" class="settingsInput settingsSelect" data-setting="theme">
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                        <option value="auto">Auto (based on Damascus time)</option>
+                    </select>
+
+                    <label class="settingsLabel" for="accentColorSelect">Accent Color</label>
+                    <select id="accentColorSelect" class="settingsInput settingsSelect" data-setting="accentColor">
+                        <option value="blue">Blue</option>
+                        <option value="purple">Purple</option>
+                        <option value="green">Green</option>
+                        <option value="orange">Orange</option>
+                        <option value="red">Red</option>
+                    </select>
+
+                    <label class="settingsLabel" for="uiScaleSelect">UI Scale</label>
+                    <select id="uiScaleSelect" class="settingsInput settingsSelect" data-setting="uiScale" data-type="number">
+                        <option value="60">60%</option>
+                        <option value="65">65%</option>
+                        <option value="70">70%</option>
+                        <option value="75">75%</option>
+                        <option value="80">80%</option>
+                        <option value="85">85%</option>
+                        <option value="90">90%</option>
+                        <option value="100">100%</option>
+                        <option value="110">110%</option>
+                        <option value="125">125%</option>
+                        <option value="150">150%</option>
+                    </select>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlMouseWheel"> Support Ctrl + Mouse Wheel zoom</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlPlusMinusZero"> Support Ctrl + Plus / Minus / 0 shortcuts</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="saveZoomLevel"> Save zoom level permanently</label>
+                </section>
+
+                <section id="settings-notifications" class="settingsSection hidden">
+                    <h2>Notifications</h2>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enableDesktopNotifications"> Enable Windows desktop notifications (master switch)</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enableNotificationSounds"> Enable notification sounds (master switch)</label>
+
+                    <p class="settingsHint" style="margin-top:16px;margin-bottom:4px;">Fine-tune per category. Desktop/Sound also require the master switches above to be on. Badge shows an unread count on the related panel.</p>
+
+                    <div class="notifCategoryGrid">
+                        <div class="notifCategoryGridHeader">
+                            <span></span><span>Desktop</span><span>Sound</span><span>Badge</span>
+                        </div>
+
+                        <div class="notifCategoryRow">
+                            <span class="notifCategoryLabel">💬 Chat</span>
+                            <input type="checkbox" class="settingsInput" data-setting="notifChatDesktop">
+                            <input type="checkbox" class="settingsInput" data-setting="notifChatSound">
+                            <input type="checkbox" class="settingsInput" data-setting="notifChatBadge">
+                        </div>
+
+                        <div class="notifCategoryRow">
+                            <span class="notifCategoryLabel">📢 Announcements</span>
+                            <input type="checkbox" class="settingsInput" data-setting="notifAnnouncementsDesktop">
+                            <input type="checkbox" class="settingsInput" data-setting="notifAnnouncementsSound">
+                            <input type="checkbox" class="settingsInput" data-setting="notifAnnouncementsBadge">
+                        </div>
+
+                        <div class="notifCategoryRow">
+                            <span class="notifCategoryLabel">📦 Load updates</span>
+                            <input type="checkbox" class="settingsInput" data-setting="notifLoadDesktop">
+                            <input type="checkbox" class="settingsInput" data-setting="notifLoadSound">
+                            <input type="checkbox" class="settingsInput" data-setting="notifLoadBadge">
+                        </div>
+
+                        <div class="notifCategoryRow">
+                            <span class="notifCategoryLabel">🕐 Overtime</span>
+                            <input type="checkbox" class="settingsInput" data-setting="notifOvertimeDesktop">
+                            <input type="checkbox" class="settingsInput" data-setting="notifOvertimeSound">
+                            <input type="checkbox" class="settingsInput" data-setting="notifOvertimeBadge">
+                        </div>
+
+                        <div class="notifCategoryRow">
+                            <span class="notifCategoryLabel">🚶 Away reminders</span>
+                            <input type="checkbox" class="settingsInput" data-setting="notifAwayDesktop">
+                            <input type="checkbox" class="settingsInput" data-setting="notifAwaySound">
+                            <input type="checkbox" class="settingsInput" data-setting="notifAwayBadge">
+                        </div>
+
+                        <div class="notifCategoryRow">
+                            <span class="notifCategoryLabel">⏰ Shift reminders</span>
+                            <input type="checkbox" class="settingsInput" data-setting="notifShiftDesktop">
+                            <input type="checkbox" class="settingsInput" data-setting="notifShiftSound">
+                            <input type="checkbox" class="settingsInput" data-setting="notifShiftBadge">
+                        </div>
+
+                        <div class="notifCategoryRow">
+                            <span class="notifCategoryLabel">🛠 Admin alerts</span>
+                            <input type="checkbox" class="settingsInput" data-setting="notifAdminDesktop">
+                            <input type="checkbox" class="settingsInput" data-setting="notifAdminSound">
+                            <input type="checkbox" class="settingsInput" data-setting="notifAdminBadge">
+                        </div>
+                    </div>
+                </section>
+
+                <section id="settings-chat" class="settingsSection hidden">
+                    <h2>Chat</h2>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enterToSendMessages"> Enter to send messages</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="ctrlEnterToSend"> Ctrl+Enter to send</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoScrollChat"> Auto-scroll to newest message</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="showUnreadPreview"> Show a message preview in the unread badge tooltip</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="muteChatWhileOpen"> Don't notify for messages in the chat I'm currently viewing</label>
+                </section>
+
+                <section id="settings-load" class="settingsSection hidden">
+                    <h2>Load Management</h2>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="confirmBeforeDeletingLoads"> Confirm before deleting loads</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="highlightRecentlyEditedLoads"> Highlight recently edited loads</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="highlightNewlyBookedLoads"> Highlight newly booked loads</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoCollapseCompletedLoads"> Auto-collapse completed loads (loads left over from a previous shift)</label>
+
+                    <label class="settingsLabel" for="defaultLoadSortingSelect">Default load sorting</label>
+                    <select id="defaultLoadSortingSelect" class="settingsInput settingsSelect" data-setting="defaultLoadSorting">
+                        <option value="Newest">Newest</option>
+                        <option value="VRID">VRID</option>
+                        <option value="Price">Price</option>
+                    </select>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLastLoadSort"> Remember last-used sort order</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLastLoadFilters"> Remember last-used filters</label>
+                </section>
+
+                <section id="settings-shift" class="settingsSection hidden">
+                    <h2>Shift</h2>
+
+                    <label class="settingsLabel" for="shiftReminderTimingSelect">Shift reminder timing</label>
+                    <select id="shiftReminderTimingSelect" class="settingsInput settingsSelect" data-setting="shiftReminderTiming" data-type="number">
+                        <option value="0">Disabled</option>
+                        <option value="15">15 min</option>
+                        <option value="30">30 min</option>
+                    </select>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="extendedAwayReminder"> Extended Away reminder</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="breakReminder"> Break reminder</label>
+                </section>
+
+                <section id="settings-shortcuts" class="settingsSection hidden">
+                    <h2>Keyboard Shortcuts</h2>
+                    <div class="shortcutList">
+                        <div><strong>Ctrl + N</strong> → New Load (press again to cancel)</div>
+                        <div><strong>Ctrl + H</strong> → Load History (press again to close)</div>
+                        <div><strong>Ctrl + K</strong> → Open the last chat you had open (press again to close it; starts a New Chat if none)</div>
+                        <div><strong>Ctrl + ,</strong> → Settings (press again to close)</div>
+                        <div><strong>Esc</strong> → Close current modal</div>
+                        <div><strong>Ctrl + Shift + M</strong> → Admin Panel (press again to return to Dashboard) (admins)</div>
+                        <div><strong>Ctrl + Shift + D</strong> → Developer Panel (press again to return to Dashboard) (developers only)</div>
+                    </div>
+                </section>
+
+                <section id="settings-about" class="settingsSection hidden">
+                    <h2>About</h2>
+                    <p id="settingsAboutText">ESM (Employee Status Monitor)</p>
+                    <p>Version: <strong id="settingsVersion"></strong></p>
+                    <p>Build date: <strong id="settingsBuildDate"></strong></p>
+
+                    <div class="settingsButtonRow">
+                        <button id="viewReleaseNotesBtn" class="settingsActionButton" type="button">📋 Release Notes</button>
+                    </div>
+
+                    <hr>
+
+                    <h3>Credits</h3>
+                    <div id="settingsCreditsText"></div>
+
+                    <hr>
+
+                    <h3>Updates</h3>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoCheckForUpdates"> Automatically check for updates</label>
+                    <p>Current version: <strong id="settingsCurrentVersion"></strong></p>
+                    <div class="settingsButtonRow">
+                        <button id="checkForUpdatesBtn" class="settingsActionButton" type="button">Check Now</button>
+                    </div>
+                    <p id="updateCheckResult" class="settingsHint"></p>
+                </section>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ================================= -->
+<!-- ADMIN GUIDE -->
+<!-- ================================= -->
+
+<section id="adminGuideScreen" class="screen guideScreen hidden">
+
+    <div class="card guideCard">
+
+        <div class="guideHeader">
+
+            <div class="guideHeaderTop">
+                <h1 class="guideTitle">📘 Admin Guide</h1>
+                <button id="adminGuideBackBtn" class="smallButton guideBackBtn" type="button">← Back to Admin</button>
+            </div>
+
+            <p class="subtitle guideSubtitle">
+                Complete quick-reference guide for daily admin actions
+            </p>
+
+            <div class="guideControls">
+                <input
+                    id="adminGuideSearchInput"
+                    type="text"
+                    class="guideSearchInput"
+                    placeholder="🔎 Search the admin guide...">
+            </div>
+
+            <nav id="adminGuideToc" class="guideToc"></nav>
+
+        </div>
+
+        <div id="adminGuideBody" class="guideBody"></div>
+
+        <p id="adminGuideNoResults" class="guideNoResults hidden">
+            No sections match your search.
+        </p>
+
+        <hr>
+
+        <button type="button" class="esmCreditLink" data-en="Created by the STS Team, for the STS Team." data-ar="من إعداد فريق STS، لفريق STS.">
+            Created by the STS Team, for the STS Team.
+        </button>
+
+    </div>
+
+</section>
+
+<!-- ================================= -->
+<!-- ADMIN DASHBOARD -->
+<!-- ================================= -->
+
+<section id="adminScreen" class="screen admin hidden">
+
+    <div class="adminLayout">
+
+        <!-- ================================= -->
+        <!-- LEFT SIDE: STATS + DRILLDOWN STACK -->
+        <!-- ================================= -->
+
+        <div class="statsWrapper">
+
+            <!-- ========================= -->
+            <!-- STATISTICS CARD -->
+            <!-- ========================= -->
+
+            <aside class="card statsCard">
+
+                <div class="adminStatsCard" id="adminStatsCard">
+
+                    <div class="adminStatsHeader">
+                        <h2>📊 Statistics</h2>
+                        <button id="statsRefreshBtn" class="smallButton">🔄 Refresh</button>
+                    </div>
+
+                    <hr>
+
+                    <div id="statsTotalLoads">Loads: 0</div>
+                    <div id="statsLoadsBreakdown" class="hidden loadsBreakdownBox"></div>
+                    <div id="statsActiveUsers">Active: 0</div>
+
+                    <hr>
+
+                    <div id="statsPerUser"></div>
+
+                    <hr>
+
+                    <button onclick="exportAdminStats()">
+                        📤 Export Stats
+                    </button>
+
+                    <button id="statsClearBtn" class="dangerButton" onclick="clearStatistics()">
+                        🧹 Clear Stats
+                    </button>
+
+                </div>
+
+            </aside>
+
+            <!-- ========================= -->
+            <!-- ALERTS CARD -->
+            <!-- ========================= -->
+
+            <aside class="card alertsCard">
+                <h2>🚨 Alerts</h2>
+                <hr>
+                <div id="lateAlerts"></div>
+                <hr>
+                <div id="idleAlerts"></div>
+                <hr>
+                <div id="breakAlerts"></div>
+                <hr>
+                <div id="overtimeAlerts"></div>
+                <hr>
+                <div id="offDayChangeAlerts"></div>
+            </aside>
+
+            <!-- ========================= -->
+            <!-- DRILLDOWN PANEL -->
+            <!-- (hidden until user click) -->
+            <!-- ========================= -->
+
+            <aside id="userDrillPanel" class="card drillPanel hidden">
+
+                <div class="drillHeader">
+
+                    <h3 id="drillUserTitle">
+                        User Analytics
+                    </h3>
+
+                    <button onclick="closeUserDrilldown()">
+                        ✖
+                    </button>
+
+                </div>
+
+                <hr>
+
+                <div id="drillLiveSection"></div>
+
+                <hr>
+
+                <div id="drillOvertimeSection"></div>
+
+                <hr>
+
+                <div id="drillStatsSection"></div>
+
+                <hr>
+
+                <div id="drillShiftStack"></div>
+
+            </aside>
+
+        </div>
+
+        
+            <!-- ================================= -->
+            <!-- MAIN ADMIN PANEL -->
+            <!-- ================================= -->
+
+            <div class="card adminMainCard">
+
+                <h1>ESM Admin</h1>
+
+                <p class="subtitle">
+                    Live Control Center
+                </p>
+
+                <div id="adminStatusText" class="status offDuty">
+                    🔴 Offline
+                </div>
+
+                <hr>
+
+                <div class="adminStatusButtons">
+
+                    <button id="adminOnlineBtn" type="button">
+                        🟢 Online
+                    </button>
+
+                    <button id="adminOfflineBtn" type="button">
+                        🔴 Offline
+                    </button>
+
+                </div>
+
+                <button id="openAdminGuideBtn" class="smallButton adminGuideOpenBtn" type="button">
+                    📘 Admin Guide
+                </button>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- LOAD HISTORY (admin entry point) -->
+                <!-- ================================= -->
+
+                <div class="auditHeaderBar">
+                    <h3>📜 Load History</h3>
+                    <button id="adminLoadHistoryBtn" class="smallButton" type="button">
+                        🔍 Search Loads
+                    </button>
+                </div>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- AUDIT LOG -->
+                <!-- ================================= -->
+
+                <div class="auditHeaderBar">
+
+                    <h3>📜 Audit Log</h3>
+
+                    <div class="auditButtons">
+
+                        <button id="auditRefreshBtn">
+                            🔄 Refresh
+                        </button>
+
+                        <button id="clearAuditBtn">
+                            🗑 Clear Log
+                        </button>
+
+                    </div>
+
+                    <div class="auditFilters">
+
+                        <select id="auditFilterUser">
+                            <option value="">All Users</option>
+                        </select>
+
+                        <select id="auditFilterAction">
+                            <option value="">All Actions</option>
+                        </select>
+
+                        <input id="auditFilterFrom" type="date">
+                        <input id="auditFilterTo" type="date">
+
+                        <button id="auditFilterApplyBtn" class="smallButton">Filter</button>
+                        <button id="auditFilterClearBtn" class="smallButton">Clear</button>
+
+                    </div>
+
+                    <div id="auditLog"></div>
+
+                </div>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- SHIFT HISTORY -->
+                <!-- ================================= -->
+
+                <section class="adminSection">
+
+                    <h3>📅 Shift History</h3>
+
+                    <div id="shiftHistoryList"></div>
+
+                    <br>
+
+                    <button id="clearShiftHistoryBtn">
+                        🗑 Clear Shift History
+                    </button>
+
+                    <br><br>
+
+                    <button id="rebuildShiftHistoryBtn">
+                        🔁 Refresh Shifts
+                    </button>
+
+                    <br><br>
+
+                    <button id="exportShiftHistoryBtn">
+                        📤 Export History
+                    </button>
+
+                </section>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- REPORT GENERATOR -->
+                <!-- ================================= -->
+
+                <section class="adminSection" id="reportGeneratorSection">
+
+                    <h3>📊 Report Generator</h3>
+
+                    <div class="reportControls">
+
+                        <select id="reportPeriodSelect">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+
+                        <input id="reportDateInput" type="date">
+
+                        <button id="reportGenerateBtn">📊 Generate Report</button>
+
+                    </div>
+
+                    <p class="reportHint">
+                        Covers employees, loads, attendance, late %, away %, audit summary
+                        and top performers for the period you pick — then export as PDF or CSV.
+                    </p>
+
+                </section>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- MONTHLY ARCHIVE (permanent record of every -->
+                <!-- completed month from Monthly Statistics)   -->
+                <!-- ================================= -->
+
+                <section class="adminSection" id="monthlyArchiveSection">
+
+                    <h3>🗂 Monthly Archive</h3>
+
+                    <p class="reportHint">
+                        Every completed month from the company-wide Monthly
+                        Statistics panel, kept permanently. The current month
+                        stays live until it ends and is archived automatically.
+                    </p>
+
+                    <select id="monthlyArchiveSelect">
+                        <option value="">Loading...</option>
+                    </select>
+
+                    <button id="monthlyArchiveRefreshBtn" class="smallButton" type="button">
+                        🔄 Refresh
+                    </button>
+
+                    <div id="monthlyArchiveView" class="monthlyArchiveView"></div>
+
+                    <br>
+
+                    <button id="monthlyArchiveCsvBtn" type="button">
+                        📤 Download CSV
+                    </button>
+
+                    <button id="monthlyArchiveJsonBtn" type="button">
+                        📤 Download JSON
+                    </button>
+
+                    <!-- Developer-only (window.DEVELOPER_ACCOUNTS) — hidden for -->
+                    <!-- everyone else. Disabled by default; see monthlystats.js -->
+                    <div id="monthlyArchiveGithubBox" class="monthlyArchiveGithubBox hidden">
+
+                        <hr>
+
+                        <h4>☁️ GitHub Auto-Backup (Developer Only)</h4>
+
+                        <p class="reportHint">
+                            Optional. When enabled, every newly-archived month is
+                            also pushed to a GitHub repo as a JSON file. ⚠️ The
+                            token below is stored in Firestore — use a
+                            fine-grained, repo-scoped token only, and lock down
+                            firestore.rules before relying on this.
+                        </p>
+
+                        <label>
+                            <input type="checkbox" id="githubBackupEnabled">
+                            Enable auto-backup
+                        </label>
+
+                        <br><br>
+
+                        <input type="text" id="githubBackupRepo" placeholder="owner/repo (e.g. sam/relaydesk-reports)">
+
+                        <br><br>
+
+                        <input type="text" id="githubBackupPath" placeholder="Folder path (default: monthly-reports)">
+
+                        <br><br>
+
+                        <input type="password" id="githubBackupToken" placeholder="GitHub token (write-only, never re-displayed)">
+
+                        <br><br>
+
+                        <button id="githubBackupSaveBtn" class="smallButton" type="button">
+                            💾 Save GitHub Backup Settings
+                        </button>
+
+                    </div>
+
+                </section>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- ACTION CENTER -->
+                <!-- ================================= -->
+
+                <section class="adminSection">
+
+                    <h3>➕ Add Employee</h3>
+
+                    <br>
+
+                    <input id="newEmpCode" type="text" placeholder="Employee Code e.g. A001">
+
+                    <br><br>
+
+                    <select id="newEmpRole">
+                        <option value="Dispatch">Dispatch</option>
+                        <option value="Safety Employee">Safety Employee</option>
+                        <option value="Dispatch + Safety">Dispatch + Safety</option>
+                    </select>
+
+                    <br><br>
+
+                    <select id="newEmpShift">
+                        <option value="">No Shift Assigned</option>
+                        <option value="shift1">Shift 1 (12AM-9AM)</option>
+                        <option value="shift2">Shift 2 (8AM-5PM)</option>
+                        <option value="shift3">Shift 3 (4PM-12AM)</option>
+                    </select>
+
+                    <br><br>
+
+                    <label>Weekly Off Days:</label>
+                    <div id="newEmpOffDaysGrid" class="offDaysGrid"></div>
+
+                    <br><br>
+
+                    <input id="newEmpPin" type="text" maxlength="4" placeholder="PIN (optional, 4 digits)">
+
+                    <br><br>
+
+                    <label for="newEmpPermissionLevel">Permission Level:</label>
+                    <select id="newEmpPermissionLevel">
+                        <option value="Employee" selected>Employee</option>
+                        <option value="Trainer">Trainer</option>
+                        <option value="Supervisor">Supervisor</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+
+                    <br><br>
+
+                    <div id="newEmpPermissionGrid" class="permissionGrid"></div>
+
+                    <br>
+
+                    <button id="addEmployeeBtn">Create Employee</button>
+
+                </section>
+
+                <hr>
+
+                <section class="adminSection">
+
+                    <h3>🕹️ Admin Action Center</h3>
+
+                    <br>
+
+                    <button id="resetAllUsersBtn">
+                        🔄 Reset All Users
+                    </button>
+
+                    <br><br>
+
+                    <button id="freezeUserBtn">
+                        🧊 Freeze User
+                    </button>
+
+                    <br><br>
+
+                    <button id="unfreezeUserBtn">
+                        ❄️ Unfreeze User
+                    </button>
+
+                    <br><br>
+
+                    <button id="forceEndShiftBtn">
+                        ⛔ Force End Shift
+                    </button>
+
+                    <br><br>
+
+                    <button id="broadcastMsgBtn">
+                        📢 Broadcast Message
+                    </button>
+
+                </section>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- ANNOUNCEMENTS -->
+                <!-- ================================= -->
+
+                <section class="adminSection">
+
+                    <h3>📢 Announcements</h3>
+
+                    <br>
+
+                    <div id="announcementComposer" class="hidden">
+
+                        <label for="announcementCategorySelect">Type:</label>
+
+                        <select id="announcementCategorySelect">
+                            <option value="sop">📄 New SOP</option>
+                            <option value="maintenance">🛠 System Maintenance</option>
+                            <option value="meeting">📅 Meeting</option>
+                            <option value="policy">📜 Policy Change</option>
+                            <option value="general">📢 General</option>
+                        </select>
+
+                        <br><br>
+
+                        <input id="announcementTitleInput" type="text" placeholder="Announcement title">
+
+                        <br><br>
+
+                        <textarea
+                            id="announcementBodyInput"
+                            class="workspaceNotes"
+                            placeholder="Announcement details..."></textarea>
+
+                        <br>
+
+                        <button id="announcementPostBtn">📢 Post Announcement</button>
+
+                    </div>
+
+                    <hr>
+
+                    <div id="announcementAdminList"></div>
+
+                </section>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- USER LIST -->
+                <!-- ================================= -->
+
+                <div id="adminList"></div>
+
+                <hr>
+
+                <button id="backToDashboardBtn" class="hidden" type="button">
+                    ⬅ Back to Dashboard
+                </button>
+
+                <br><br>
+
+                <button id="adminLogoutBtn" type="button">
+                    Logout
+                </button>
+
+            </div> <!-- /adminMainCard -->
+
+        </div> <!-- /adminLayout -->
+
+    </div>
+
+</section>
+
+
+<!-- ================================= -->
+<!-- DEVELOPER PANEL (A009 only) -->
+<!-- Edits Version / About / Credits / Release Notes and syncs them -->
+<!-- live to everyone via Firestore (appConfig/main) — no rebuild -->
+<!-- needed for a version bump or a copy change. -->
+<!-- ================================= -->
+
+<section id="devPanelScreen" class="screen hidden">
+
+    <div class="devPanelLayout">
+
+        <div class="card devPanelCard">
+
+            <div class="devPanelHeader">
+                <h2>🧑‍💻 Developer Panel</h2>
+                <button id="devPanelBackBtn" type="button" class="smallButton">⬅ Back to Dashboard</button>
+            </div>
+
+            <p class="settingsHint">Changes here go live for every signed-in user as soon as you hit Save — no app rebuild required.</p>
+
+            <hr>
+
+            <h3>Version &amp; About</h3>
+
+            <label class="settingsLabel" for="devVersionInput">Version (shown in About &amp; Settings)</label>
+            <input type="text" id="devVersionInput" placeholder="e.g. 1.2.0">
+
+            <label class="settingsLabel" for="devAboutTextInput">About page tagline</label>
+            <textarea id="devAboutTextInput" class="devPanelTextarea" rows="2" placeholder="ESM (Employee Status Monitor)"></textarea>
+
+            <label class="settingsLabel" for="devCreditsInput">Credits (shown in the About ESM popup — blank line = new paragraph)</label>
+            <textarea id="devCreditsInput" class="devPanelTextarea" rows="6"></textarea>
+
+            <hr>
+
+            <h3>Release Notes</h3>
+
+            <div id="devReleaseNotesList" class="devPanelList"></div>
+
+            <div class="devPanelAddRow">
+                <input type="text" id="devNewNoteVersion" placeholder="Version, e.g. 1.2.0">
+                <input type="date" id="devNewNoteDate">
+                <textarea id="devNewNoteText" class="devPanelTextarea" rows="2" placeholder="What changed in this version..."></textarea>
+                <button type="button" id="devAddReleaseNoteBtn" class="settingsActionButton">➕ Add Entry</button>
+            </div>
+
+            <hr>
+
+            <h3>Custom Fields <span class="settingsHint">(forward-compatible — add a new labeled line to the About page without any code changes)</span></h3>
+
+            <div id="devCustomFieldsList" class="devPanelList"></div>
+
+            <button type="button" id="devAddCustomFieldBtn" class="settingsActionButton">➕ Add Field</button>
+
+            <hr>
+
+            <p id="devPanelFooterInfo" class="settingsHint"></p>
+
+            <div class="settingsButtonRow">
+                <button id="devPanelReloadBtn" type="button" class="settingsActionButton">↩️ Discard / Reload</button>
+                <button id="devPanelSaveBtn" type="button" class="settingsActionButton">💾 Save Changes</button>
+            </div>
+
+            <p id="devPanelSaveResult" class="settingsHint"></p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ================================= -->
+<!-- CHAT: NEW CHAT PICKER MODAL -->
+<!-- ================================= -->
+
+<div id="chatPickerModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3>💬 Start a Chat</h3>
+        <hr>
+
+        <div id="chatPickerList" class="chatPickerListBox"></div>
+
+        <div id="chatGroupNameWrap" class="hidden">
+            <label for="chatGroupNameInput">Group Name</label>
+            <input id="chatGroupNameInput" type="text" placeholder="Group name (optional)">
+        </div>
+
+        <div class="modalButtons">
+            <button id="chatPickerStart">Start Chat</button>
+            <button id="chatPickerCancel">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- TEAM MEMBERS MODAL (combined shift report, V51 item 6) -->
+<!-- ================================= -->
+
+<div id="teamMembersModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3>👥 Team Members</h3>
+        <hr>
+
+        <div class="reportFormatterRow">
+            <button id="teamMembersSelectAllBtn" class="smallButton" type="button">Select All</button>
+            <button id="teamMembersClearBtn" class="smallButton" type="button">Clear Selection</button>
+        </div>
+
+        <div id="teamMembersList" class="teamMembersListBox"></div>
+
+        <div class="modalButtons">
+            <button id="teamMembersApplyBtn">✔ Apply</button>
+            <button id="teamMembersCancelBtn">❌ Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- ANNOUNCEMENT VIEW / ACKNOWLEDGE MODAL -->
+<!-- ================================= -->
+
+<div id="announcementModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <div class="drillHeader">
+            <h3 id="announcementModalTitle">Announcement</h3>
+            <button id="announcementModalCloseBtn">✖</button>
+        </div>
+
+        <hr>
+
+        <div id="announcementModalCategory" class="announcementCategoryTag"></div>
+
+        <div id="announcementModalBody" class="announcementModalBody"></div>
+
+        <div id="announcementModalMeta" class="announcementItemMeta"></div>
+
+        <div class="modalButtons">
+            <button id="announcementAckBtn">✓ Acknowledge</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- DELAY DISPUTE MODAL -->
+<!-- ================================= -->
+
+<div id="delayReportModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3>📨 Explain a Delay</h3>
+        <hr>
+
+        <label for="delayReportType">What are you explaining?</label>
+        <select id="delayReportType">
+            <option value="late">Late Clock-in</option>
+            <option value="away">Extended Away</option>
+            <option value="break">Extended Break</option>
+        </select>
+
+        <br><br>
+
+        <textarea
+            id="delayReportReason"
+            class="workspaceNotes"
+            placeholder="e.g. Traffic on I-95, family emergency..."></textarea>
+
+        <div class="modalButtons">
+            <button id="delayReportSendBtn">Send to Admin</button>
+            <button id="delayReportCancelBtn">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- OFF-DAY CHANGE REQUEST MODAL -->
+<!-- ================================= -->
+
+<div id="offDayRequestModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3>🗓️ Request Off-Day Change</h3>
+        <hr>
+
+        <p class="subtitle">
+            Pick the days you'd like off. This won't take effect until an admin approves it.
+        </p>
+
+        <div id="offDayRequestGrid" class="offDaysGrid"></div>
+
+        <br>
+
+        <label for="offDayRequestReason">Reason (optional)</label>
+        <textarea
+            id="offDayRequestReason"
+            class="workspaceNotes"
+            placeholder="e.g. schedule conflict, childcare, school, etc."></textarea>
+
+        <div class="modalButtons">
+            <button id="offDayRequestSendBtn">Send Request</button>
+            <button id="offDayRequestCancelBtn">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- MY PAST SHIFTS MODAL -->
+<!-- ================================= -->
+
+<div id="myHistoryModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+
+        <div class="drillHeader">
+            <h3>📅 My Past Shifts</h3>
+            <button id="myHistoryCloseBtn">✖</button>
+        </div>
+
+        <hr>
+
+        <button id="myHistoryExportBtn" class="smallButton">📤 Export CSV</button>
+
+        <div id="myHistoryList"></div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- PERMISSIONS EDITOR MODAL -->
+<!-- ================================= -->
+
+<div id="permissionsModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3>🔑 Permissions — <span id="permissionsModalUser"></span></h3>
+        <hr>
+
+        <label for="permissionsLevelSelect">Permission Level:</label>
+        <select id="permissionsLevelSelect">
+            <option value="Employee">Employee</option>
+            <option value="Trainer">Trainer</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="Admin">Admin</option>
+            <option value="Owner">Owner</option>
+        </select>
+
+        <br><br>
+
+        <div id="permissionsModalGrid" class="permissionGrid"></div>
+
+        <br>
+
+        <label>Weekly Off Days:</label>
+        <div id="permissionsModalOffDays" class="offDaysGrid"></div>
+
+        <div class="modalButtons">
+            <button id="permissionsSaveBtn">Save</button>
+            <button id="permissionsCancelBtn">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- REPORT GENERATOR MODAL -->
+<!-- ================================= -->
+
+<div id="reportGeneratorModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal reportModalBox">
+
+        <div class="drillHeader">
+            <h3 id="reportModalTitle">📊 Report</h3>
+            <button id="reportModalCloseBtn">✖</button>
+        </div>
+
+        <hr>
+
+        <div class="modalButtons">
+            <button id="reportExportPdfBtn" class="smallButton">📄 Export PDF</button>
+            <button id="reportExportCsvBtn" class="smallButton">📤 Export CSV</button>
+        </div>
+
+        <div id="reportGeneratorContent"></div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- TOAST CONTAINER -->
+<!-- ================================= -->
+
+<div id="toastContainer"></div>
+
+<!-- ================================= -->
+<!-- FUTURE MODALS -->
+<!-- ================================= -->
+
+<!-- ================================= -->
+<!-- LOAD MODAL (Add + Edit, V51) -->
+<!-- ================================= -->
+
+<div id="loadModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3 id="loadModalTitle">📦 Add Load</h3>
+        <hr>
+
+        <label for="loadModalDate">📅 Load Date</label>
+        <input type="date" id="loadModalDate">
+        <div class="fieldErrorMsg" id="loadModalDateError"></div>
+
+        <label for="loadModalPrice">💰 Price</label>
+        <input type="number" id="loadModalPrice" min="0" step="0.01" placeholder="0.00">
+        <div class="fieldErrorMsg" id="loadModalPriceError"></div>
+
+        <label for="loadModalDepartment">🏢 Department</label>
+        <select id="loadModalDepartment">
+            <option value="">Select department...</option>
+            <option value="STS">STS</option>
+            <option value="iTour">iTour</option>
+            <option value="Alquaiti">Alquaiti</option>
+            <option value="F&amp;F">F&amp;F</option>
+        </select>
+        <div class="fieldErrorMsg" id="loadModalDepartmentError"></div>
+
+        <label for="loadModalDriver">🚚 Driver</label>
+        <input type="text" id="loadModalDriver" placeholder='Type For (driver name), e.g. "For Mahdi Harb"'>
+
+        <label for="loadModalVridType">🔖 VRID Type</label>
+        <select id="loadModalVridType">
+            <option value="">Select VRID type...</option>
+            <option value="Trip">Trip</option>
+            <option value="Load">Load</option>
+            <option value="Block/Contract">Block/Contract</option>
+        </select>
+
+        <label for="loadModalVridNumber">🔢 VRID Number (Load ID)</label>
+        <input type="text" id="loadModalVridNumber" placeholder="Enter VRID... (required, must be unique)">
+        <div class="fieldErrorMsg" id="loadModalVridNumberError"></div>
+
+        <label for="loadModalNote">📝 Notes</label>
+        <textarea id="loadModalNote" class="workspaceNotes" placeholder="Optional notes..."></textarea>
+
+        <div class="modalButtons">
+            <button id="loadModalSaveBtn">Save Load</button>
+            <button id="loadModalCancelBtn">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- LOAD HISTORY SEARCH MODAL -->
+<!-- ================================= -->
+
+<div id="loadHistoryModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3>📜 Load History</h3>
+        <hr>
+
+        <label for="loadHistorySearchInput">🔍 Search by Load ID (VRID)</label>
+        <input type="text" id="loadHistorySearchInput" placeholder="Enter Load ID...">
+
+        <div class="modalButtons">
+            <button id="loadHistorySearchBtn">Search</button>
+            <button id="loadHistoryCloseBtn">Close</button>
+        </div>
+
+        <hr>
+
+        <div id="loadHistoryResults" class="loadHistoryResults"></div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- LOAD HISTORY EDIT MODAL (cross-shift) -->
+<!-- ================================= -->
+
+<div id="loadHistoryEditModal" class="modalOverlay hidden">
+    <div class="modalBox">
+
+        <h3>✏️ Edit Historical Load</h3>
+        <div id="lhEditVrid" class="loadHistoryVridDisplay"></div>
+        <div id="lhEditMeta" class="loadHistoryMeta"></div>
+        <hr>
+
+        <label for="lhEditStatus">🏷 Status</label>
+        <select id="lhEditStatus"></select>
+
+        <label for="lhEditPrice">💰 Price</label>
+        <input type="number" id="lhEditPrice" min="0" step="0.01">
+
+        <label for="lhEditNote">📝 Notes</label>
+        <textarea id="lhEditNote" class="workspaceNotes"></textarea>
+
+        <label for="lhEditReason">
+            💬 Reason
+            <span id="lhReasonRequiredHint" class="loadHistoryReasonHint hidden">(required)</span>
+        </label>
+        <textarea id="lhEditReason" class="workspaceNotes" placeholder="Optional reason for this change..."></textarea>
+        <div class="fieldErrorMsg" id="lhEditReasonError"></div>
+
+        <div class="modalButtons">
+            <button id="lhEditSaveBtn">Save Changes</button>
+            <button id="lhEditCancelBtn">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<div id="modalContainer"></div>
+
+</body>
+
+<div id="aboutEsmModal" class="modalOverlay hidden" data-modal-close-handler="closeAboutEsmModal" aria-hidden="true">
+    <div class="modalBox aboutEsmModalBox" role="dialog" aria-modal="true" aria-labelledby="aboutEsmTitle">
+        <h3 id="aboutEsmTitle">About ESM - <span id="aboutEsmVersionLabel">Release Version 1.1.5</span></h3>
+        <div class="aboutEsmModalBody" id="aboutEsmCreditsBody">
+            <p>Made by A009 through countless sleepless nights, in collaboration with ChatGPT and Claude.</p>
+            <p>Created to simplify daily operations, support dispatchers and Safety personnel, and continuously improve alongside the STS Team.</p>
+            <p>Built for the team. Improved by the team.</p>
+            <p>Special thanks go to A004 and A003 for spotting multiple bugs before the app version released and giving great feedback on the project to shape it as it is now ❤️🫡</p>
+        </div>
+        <button type="button" id="aboutEsmReleaseNotesBtn" class="smallButton">📋 Release Notes</button>
+        <p id="aboutEsmVersionFooter">Release Version 1.1.5</p>
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- RELEASE NOTES MODAL (all users) -->
+<!-- Content is entirely driven by appConfig/main.releaseNotes, -->
+<!-- edited from the Developer Panel. -->
+<!-- ================================= -->
+
+<div id="releaseNotesModal" class="modalOverlay hidden" data-modal-close-handler="closeReleaseNotesModal" aria-hidden="true">
+    <div class="modalBox wideModal" role="dialog" aria-modal="true" aria-labelledby="releaseNotesTitle">
+        <h3 id="releaseNotesTitle">📋 Release Notes</h3>
+        <div id="releaseNotesList" class="releaseNotesList"></div>
+        <button type="button" onclick="closeReleaseNotesModal()">Close</button>
+    </div>
+</div>
+
+</html>

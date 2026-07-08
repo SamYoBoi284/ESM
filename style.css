@@ -1,0 +1,3927 @@
+/* ===========================================
+   RelayDesk V21
+   =========================================== */
+
+/* ========= RESET ========= */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI",Arial,sans-serif;
+}
+
+/* ===========================================
+   THEME TOKENS
+   =========================================== */
+/* Dark is the default/existing look — every value below matches what
+   was previously hardcoded, so switching to variables changes nothing
+   visually until a theme/accent is actually applied via data-theme /
+   data-accent on <html>. */
+
+:root {
+    /* Background image + overlay (the dark gradient over backicon.png) */
+    --bg-image: url("backicon.png");
+    --bg-overlay-1: rgba(15,17,21,.92);
+    --bg-overlay-2: rgba(15,17,21,.92);
+    --bg-fallback: #0f1115;
+
+    /* Text */
+    --text-color: #ffffff;
+    --text-secondary: #cdd6e3;
+    --text-muted: #98a4b5;
+
+    /* Surfaces */
+    --topbar-bg: #181c24;
+    --topbar-chip-bg: #232935;
+    --topbar-chip-text: #d0d7e2;
+    --card-bg: #1b1f27;
+    --panel-bg: #1b1f27;
+    --input-bg: #262d39;
+    --button-bg: #2d3440;
+    --button-bg-hover: #3b4658;
+    --border-color: rgba(255,255,255,.08);
+
+    /* Accent — buttons/links/selected items/toggles/hover only */
+    --accent: #4f8cff;
+    --accent-hover: #3d7ae0;
+    --accent-soft: #8fb9ff;
+    --accent-text: #ffffff;
+}
+
+/* LIGHT THEME
+   Sam: swap --bg-image below to your light background asset's actual
+   filename (currently guessed as "backicon-light.png" — update this
+   one line once you drop the file into /assets or the project root). */
+html[data-theme="light"] {
+    --bg-image: url("backicon-light.png");
+    --bg-overlay-1: rgba(255, 255, 255, 0);
+    --bg-overlay-2: rgba(255, 255, 255, 0);
+    --bg-fallback: #f4f6f9;
+
+    --text-color: #1b1f27;
+    --text-secondary: #4a5568;
+    --text-muted: #6b7684;
+
+    --topbar-bg: #ffffff;
+    --topbar-chip-bg: #eef2f7;
+    --topbar-chip-text: #333333;
+    --card-bg: #a0a0a0;
+    --panel-bg: #a0a0a0;
+    --input-bg: #eef2f7;
+    --button-bg: #e4e8ee;
+    --button-bg-hover: #d5dde8;
+    --border-color: rgba(0,0,0,.08);
+}
+
+/* ACCENT COLOR PRESETS — only the accent tokens change */
+html[data-accent="blue"]   { --accent:#4f8cff; --accent-hover:#3d7ae0; --accent-soft:#8fb9ff; }
+html[data-accent="purple"] { --accent:#8a5cf6; --accent-hover:#7444e0; --accent-soft:#c3aefc; }
+html[data-accent="green"]  { --accent:#46c96f; --accent-hover:#34a857; --accent-soft:#8fe0ac; }
+html[data-accent="orange"] { --accent:#ff9a3d; --accent-hover:#e8822a; --accent-soft:#ffc98f; }
+html[data-accent="red"]    { --accent:#ff5c5c; --accent-hover:#e44242; --accent-soft:#ff9a9a; }
+
+
+/* ========= BODY ========= */
+
+body{
+
+    background:
+        linear-gradient(var(--bg-overlay-1), var(--bg-overlay-2)),
+        var(--bg-image);
+
+    background-color:var(--bg-fallback);
+
+    background-size:cover;
+
+    background-position:center;
+
+    background-repeat:no-repeat;
+
+    background-attachment:fixed;
+
+    color:var(--text-color);
+
+    min-height:100vh;
+
+}
+
+
+/* ========= TOP BAR ========= */
+
+.topBar{
+
+    position:fixed;
+
+    top:0;
+    left:0;
+    right:0;
+
+    height:60px;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    padding:0 20px;
+
+    background:var(--topbar-bg);
+
+    border-bottom:1px solid var(--border-color);
+
+    /* --topbar-bg can sit very close in tone to the page background
+       (e.g. light theme is #fff vs an #f4f6f9 page), so the border alone
+       wasn't enough to read as a distinct bar. A real shadow gives it
+       elevation regardless of how close the two colors are. */
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+
+    z-index:999;
+
+}
+
+.topBar div{
+
+    background:var(--topbar-chip-bg);
+
+    padding:8px 14px;
+
+    border-radius:10px;
+
+    font-size:14px;
+
+    color:var(--topbar-chip-text);
+
+}
+
+
+/* ========= CONNECTION ========= */
+
+.connected{
+
+    color:#64ff85;
+
+}
+
+.disconnected{
+
+    color:#ff6464;
+
+}
+
+.reconnecting{
+
+    color:#ffca5a;
+
+}
+
+
+/* ========= SCREENS ========= */
+
+.screen{
+
+    width:100%;
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+    align-items:center;
+
+    padding:90px 20px 40px;
+
+}
+
+.hidden{
+
+    display:none;
+
+}
+
+
+/* ========= CARD ========= */
+
+.card{
+
+    width:100%;
+    max-width:650px;
+
+    background:var(--card-bg);
+
+    border-radius:20px;
+
+    padding:35px;
+
+    box-shadow:
+
+        0 20px 40px rgba(0,0,0,.35),
+
+        0 0 0 1px rgba(255,255,255,.03);
+
+}
+
+
+/* ========= TITLES ========= */
+
+h1{
+
+    text-align:center;
+
+    font-size:34px;
+
+    margin-bottom:8px;
+
+}
+
+.subtitle{
+
+    text-align:center;
+
+    color: var(--text-muted);
+
+    margin-bottom:25px;
+
+    font-size:15px;
+
+}
+
+.sectionTitle{
+
+    text-align:center;
+
+    margin-bottom:18px;
+
+    color:#d5dde8;
+
+}
+
+
+/* ========= HR ========= */
+
+hr{
+
+    border:none;
+
+    border-top:1px solid #323949;
+
+    margin:28px 0;
+
+}
+
+
+/* ========= INPUTS ========= */
+
+label{
+
+    display:block;
+
+    margin-bottom:8px;
+
+    color: var(--text-secondary);
+
+}
+
+input{
+
+    width:100%;
+
+    padding:14px;
+
+    margin-bottom:20px;
+
+    border:none;
+
+    border-radius:10px;
+
+    background:var(--input-bg);
+
+    color:var(--text-color);
+
+    font-size:15px;
+
+    outline:none;
+
+    transition:.2s;
+
+}
+
+input:focus{
+
+    box-shadow:0 0 0 2px var(--accent);
+
+}
+
+
+/* ========= BUTTONS ========= */
+
+button{
+
+    width:100%;
+
+    padding:14px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:var(--button-bg);
+
+    color:var(--text-color);
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    transition:.2s;
+
+}
+
+button:hover{
+
+    background:var(--button-bg-hover);
+
+    transform:translateY(-2px);
+
+}
+
+
+/* ========= DROPDOWNS (SELECT) — consistent across the whole app ========= */
+/* A single tag-level rule so every <select> (audit filters, role pickers,
+   report periods, load modal fields, settings selects, etc.) gets the same
+   ESM look instead of the browser's generic dropdown, with no per-element
+   class changes needed. .settingsSelect below just layers on top of this. */
+
+select{
+
+    width:100%;
+
+    padding:14px 40px 14px 14px;
+
+    margin-bottom:20px;
+
+    border:none;
+
+    border-radius:10px;
+
+    background-color:var(--input-bg);
+
+    color:var(--text-color);
+
+    font-size:15px;
+
+    outline:none;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2398a4b5'><path d='M5.5 7.5l4.5 5 4.5-5z'/></svg>");
+    background-repeat:no-repeat;
+    background-position:right 14px center;
+    background-size:14px;
+
+}
+
+select:hover{
+
+    background-color:var(--button-bg-hover);
+
+}
+
+select:focus{
+
+    box-shadow:0 0 0 2px var(--accent);
+
+}
+
+select option{
+
+    background-color:var(--input-bg);
+    color:var(--text-color);
+
+}
+
+
+/* ========= BUTTON GRID ========= */
+
+.buttonGrid{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:12px;
+
+    margin-top:20px;
+
+}
+
+
+/* ========= STATUS ========= */
+
+.status{
+
+    text-align:center;
+
+    padding:18px;
+
+    border-radius:14px;
+
+    font-size:20px;
+
+    font-weight:bold;
+
+    transition:.25s;
+
+}
+
+.onDuty{
+
+    background:#145c28;
+
+}
+
+.break{
+
+    background:#8b7300;
+
+}
+
+.away{
+
+    background:#6d2ba5;
+
+}
+
+.offDuty{
+
+    background:#8a2323;
+
+}
+
+
+/* ========= TIMERS ========= */
+
+.timerGrid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:15px;
+
+}
+
+.timerCard{
+
+    background: var(--card-bg);
+
+    border-radius:14px;
+
+    padding:22px;
+
+    text-align:center;
+
+}
+
+.timerCard.overtimeCard{
+
+    background:#2c2340;
+
+    border:1px solid #6d2ba5;
+
+}
+
+.timerCard h3{
+
+    color:#cbd5e2;
+
+    margin-bottom:12px;
+
+    font-size:16px;
+
+}
+
+.timerCard span{
+
+    font-size:26px;
+
+    font-weight:bold;
+
+}
+
+
+/* ========= COLLEAGUES ========= */
+
+#colleaguesBox{
+
+    display:grid;
+
+    gap:10px;
+
+}
+
+.colleaguesAdminSection {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.colleaguesAdminLabel {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #8ea3ba;
+    padding: 0 2px;
+}
+
+.colleaguesAdminRow {
+    background: var(--card-bg);
+    border: 1px solid rgba(86, 126, 255, 0.18);
+}
+
+.colleague{
+
+    display:flex;
+
+    justify-content:space-between;
+    align-items:center;
+
+    padding:12px 16px;
+
+    background: var(--card-bg);
+
+    border-radius:10px;
+
+    transition:.2s;
+
+}
+
+.colleague:hover{
+
+    background: var(--button-bg-hover);
+
+}
+
+
+/* ========= FOOTER ========= */
+
+.footerBar{
+
+    text-align:center;
+
+    color:#9aa6b7;
+
+    font-size:px;
+
+}
+
+.footerBar strong{
+
+    color:white;
+
+}
+
+
+/* ========= ADMIN ========= */
+
+.adminStatusButtons{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:12px;
+
+    margin-bottom:20px;
+
+}
+
+#adminList{
+
+    display:grid;
+
+    gap:14px;
+
+}
+
+.adminCard{
+
+    background: var(--card-bg);
+
+    border-radius:12px;
+
+    padding:16px;
+
+}
+
+.adminButtons{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:10px;
+
+    margin-top:12px;
+
+}
+
+
+/* ========= LOGIN ========= */
+
+#loginMsg{
+
+    margin-top:18px;
+
+    text-align:center;
+
+    color:#ffb347;
+
+}
+
+
+/* ========= RESPONSIVE ========= */
+
+@media(max-width:700px){
+
+    .card{
+
+        padding:25px;
+
+    }
+
+    .timerGrid{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .buttonGrid{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .adminStatusButtons{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .adminUserCard{
+    background: var(--card-bg);
+    padding:12px;
+    border-radius:10px;
+    margin:10px 0;
+}
+
+.adminHeader{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+}
+
+.adminButtons button{
+    margin:3px;
+    padding:6px;
+    font-size:12px;
+  }
+
+}
+
+.auditGroup {
+    margin-bottom: 10px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.auditHeader {
+    padding: 10px;
+    cursor: pointer;
+    background: var(--card-bg);
+    font-weight: bold;
+}
+
+.auditDropdown {
+    display: none;
+    padding: 10px;
+}
+
+.auditDropdown.open {
+    display: block;
+}
+
+.auditItem {
+    padding: 6px;
+    border-bottom: 1px solid #333;
+    font-size: 12px;
+}
+
+.auditHeaderBar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+}
+
+#auditRefreshBtn {
+    padding: 6x 10px;
+    border-radius: 6px;
+}
+
+.auditButtons {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.auditButtons button {
+    flex: 1;
+}
+
+.auditButtons button{
+
+    flex:1;
+
+}
+
+.roleLabel {
+    text-align: center;
+    margin-top: -10px;
+    margin-bottom: 15px;
+    font-size: 15px;
+    color: var(--text-muted);
+    letter-spacing: .5px;
+
+}
+
+#roleSelect{
+
+    width:100%;
+
+    margin-top:10px;
+
+    margin-bottom:20px;
+
+    padding:12px 40px 12px 12px;
+
+    border:none;
+
+    border-radius:10px;
+
+    background-color:var(--input-bg);
+
+    color:var(--text-color);
+
+    font-size:15px;
+
+    cursor:pointer;
+
+}
+
+#roleSelect:focus{
+
+    outline:none;
+
+}
+
+.roleLabel.changed {
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+/* ===========================================
+   RELAYDESK V22 - DASHBOARD ONLY
+   (scoped so admin stays untouched)
+   =========================================== */
+
+#dashboardScreen.screen {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* 🔥 FIX: #dashboardScreen.screen (ID + class) has higher specificity
+   than the plain .hidden{display:none} rule, so JS adding "hidden"
+   never actually hid this screen — it kept rendering as flex and
+   showed up when the admin scrolled past their own screen. Same class
+   of bug as the .modalOverlay.hidden fix above; same fix here. */
+#dashboardScreen.screen.hidden {
+    display: none !important;
+}
+
+#dashboardScreen .dashboardLayout {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 24px;
+    width: 100%;
+    /* Phase 5: widened to fit 4 columns (Report Formatter, ESM, Workspace 3x2,
+       Personal Performance) side by side. Tune this alongside .workspacePanel's
+       width below once you see it rendered at your actual screen size. */
+    max-width: 1900px;
+    margin: 0 auto;
+}
+
+/* Phase 5: Report Formatter's new leftmost column */
+.reportFormatterColumn {
+    width: 340px;
+    flex-shrink: 0;
+}
+
+#dashboardScreen .workspacePanel {
+    /* Phase 5: widened from 340px so the 3x2 grid has room to breathe */
+    width: 640px;
+    flex-shrink: 0;
+}
+
+#dashboardScreen .card {
+    background: var(--card-bg); /* already exists but reinforce it */
+    opacity: 1;
+}
+
+#dashboardScreen .workspaceCard {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow:
+        0 20px 40px rgba(0,0,0,.35),
+        0 0 0 1px rgba(255,255,255,.03);
+    position: relative;
+    top: 1px;
+}
+
+#dashboardScreen .workspaceCard h2 {
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+#dashboardScreen .workspaceCard h3 {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+#dashboardScreen .workspaceHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 12px;
+}
+
+#dashboardScreen .shiftCountdown {
+    /* Was var(--card-bg), same as the grid item it sits inside — the
+       countdown value never stood out from its own container. It's a
+       value display like an input, so it gets --input-bg to contrast,
+       matching the buttons/dropdowns/inputs-stand-out rule. */
+    background: var(--input-bg);
+    border-radius: 14px;
+    padding: 18px;
+    text-align: center;
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+#dashboardScreen .workspaceNotes {
+    width: 100%;
+    min-height: 220px;
+    resize: none;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: var(--input-bg);
+    color: white;
+    font-size: 14px;
+    outline: none;
+    line-height: 1.4;
+}
+
+#dashboardScreen .workspaceNotes:focus {
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+#dashboardScreen #workspaceSaveStatus {
+    font-size: 12px;
+    color: #8f9cad;
+    white-space: nowrap;
+}
+
+#dashboardScreen .smallButton {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+#dashboardScreen .bookedLoads {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+#dashboardScreen .loadCard {
+    background: var(--card-bg);
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#dashboardScreen .loadCard b {
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+#dashboardScreen .loadDate {
+    color: var(--accent-soft);
+    font-size: 13px;
+    font-weight: bold;
+}
+
+#dashboardScreen .loadText {
+    white-space: pre-wrap;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+#dashboardScreen .loadFooter {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+#dashboardScreen .workspaceEmpty {
+    text-align: center;
+    padding: 20px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    color: var(--text-muted);
+}
+
+/* ===========================================
+   LOAD HISTORY (search results, edit modal,
+   owner notification cards)
+   =========================================== */
+
+.loadHistoryResults {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.loadHistoryResultCard {
+    background: var(--card-bg);
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.loadHistoryResultCard button {
+    align-self: flex-start;
+}
+
+.loadHistoryVridDisplay {
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-top: 4px;
+}
+
+.loadHistoryMeta {
+    font-size: 12px;
+    color: #99a5b6;
+    margin-bottom: 6px;
+}
+
+.loadHistoryReasonHint {
+    color: #ff6464;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.loadChangeNotifications {
+    max-width: 1250px;
+    margin: 0 auto 16px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.loadChangeNotifications:empty {
+    display: none;
+}
+
+.loadNotificationCard {
+    background: #33291a;
+    border: 1px solid #ffcc00;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #ffe9b3;
+}
+
+.loadNotificationButtons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.loadNotificationDetail {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 204, 0, 0.35);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+#dashboardScreen .deleteLoadBtn {
+    margin-top: 8px;
+    padding: 6px;
+    font-size: 12px;
+    background: #8a2323;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#dashboardScreen .deleteLoadBtn:hover {
+    background: #a72f2f;
+}
+
+#dashboardScreen .bookedLoads::-webkit-scrollbar,
+#dashboardScreen .workspaceNotes::-webkit-scrollbar {
+    width: 8px;
+}
+
+#dashboardScreen .bookedLoads::-webkit-scrollbar-thumb,
+#dashboardScreen .workspaceNotes::-webkit-scrollbar-thumb {
+    background: var(--button-bg-hover);
+    border-radius: 20px;
+}
+
+@media (max-width: 1150px) {
+    #dashboardScreen .dashboardLayout {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    #dashboardScreen .workspacePanel {
+        width: 100%;
+        max-width: 650px;
+    }
+
+    .reportFormatterColumn {
+        width: 100%;
+        max-width: 650px;
+    }
+
+    #dashboardScreen .workspaceCard {
+        position: relative;
+        top: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    /* on small screens the floating chat panel takes over the viewport
+       instead of trying to float in a corner with nowhere to go */
+    .chatWindowBox {
+        right: 8px;
+        left: 8px;
+        bottom: 8px;
+        width: auto;
+        height: 75vh;
+        max-height: 75vh;
+    }
+}
+
+#dashboardScreen .card:last-child {
+    margin-bottom: 0 !important;
+}
+
+html,
+body {
+    height: 80%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ===========================================
+   ADMIN SCREEN FIX (STACK + ALIGN PROPERLY)
+   =========================================== */
+
+#adminScreen {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 100px;
+}
+
+#adminScreen .card {
+    width: 100%;
+    max-width: 900px;
+}
+
+/* make admin content flow clean top → bottom */
+#adminScreen .card > * {
+    width: 100%;
+}
+
+.clickableLoads {
+    color: #4da3ff;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.shiftLoadsBox {
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--panel-bg);
+    border-radius: 6px;
+}
+
+.shiftLoadItem {
+    padding: 6px;
+    border-bottom: 1px solid #333;
+}
+
+.shiftLoadItem.deletedLoad {
+    opacity: .55;
+}
+
+.deletedTag {
+    color: #ff6464;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.dangerButton {
+    background: #8a2323;
+}
+
+.dangerButton:hover {
+    background: #a72f2f;
+}
+
+#adminContainer {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+#adminPanel {
+    flex: 1;
+}
+
+.adminSplitView {
+    display: flex;
+    gap: 12px;
+}
+
+/* ===========================================
+   ADMIN LAYOUT (Statistics sidebar, like Workspace)
+   =========================================== */
+
+#adminScreen.screen {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 90px;
+}
+
+/* 🔥 FIX: same specificity issue as #dashboardScreen.screen above —
+   this ID+class rule was beating .hidden, so employees logged in
+   could scroll straight into the admin screen underneath their own. */
+#adminScreen.screen.hidden {
+    display: none !important;
+}
+
+#adminScreen .adminLayout {
+    display: grid;
+    /* main admin card | stats card */
+    grid-template-columns: minmax(0, 900px) 340px;
+    align-items: start;
+    justify-content: center;
+    gap: 24px;
+    width: 100%;
+    max-width: 1350px;
+    margin: 0 auto;
+}
+
+/* when the drilldown panel is open, add a 3rd column for it */
+#adminScreen .adminLayout:has(.drillPanel:not(.hidden)) {
+    grid-template-columns: minmax(0, 900px) 340px 340px;
+}
+
+/* let statsWrapper's children (statsCard, drillPanel) become
+   direct grid items of adminLayout so each can get its own column */
+#adminScreen .adminLayout .statsWrapper {
+    display: contents;
+}
+
+/* column 1: the main admin card */
+#adminScreen .adminLayout .adminMainCard {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+}
+
+/* column 2: the stats card */
+#adminScreen .adminLayout .statsCard {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    position: sticky;
+    top: 90px;
+}
+
+/* column 3: the drilldown panel, only when open */
+#adminScreen .adminLayout .drillPanel {
+    grid-column: 3;
+    grid-row: 1;
+    width: 100%;
+    position: sticky;
+    top: 90px;
+}
+
+/* ===========================================
+   STICKY PANELS: BOUND HEIGHT + CLEAN SCROLLBAR
+   =========================================== */
+
+#adminScreen .adminLayout .statsCard,
+#adminScreen .adminLayout .drillPanel {
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    padding-right: 30px;
+
+    scrollbar-width: thin;
+    scrollbar-color: #3a4658 transparent;
+}
+
+#adminScreen .adminLayout .statsCard::-webkit-scrollbar,
+#adminScreen .adminLayout .drillPanel::-webkit-scrollbar {
+    width: 6px;
+}
+
+#adminScreen .adminLayout .statsCard::-webkit-scrollbar-track,
+#adminScreen .adminLayout .drillPanel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#adminScreen .adminLayout .statsCard::-webkit-scrollbar-thumb,
+#adminScreen .adminLayout .drillPanel::-webkit-scrollbar-thumb {
+    background: var(--button-bg-hover);
+    border-radius: 20px;
+}
+
+#adminScreen .adminLayout .statsCard::-webkit-scrollbar-thumb:hover,
+#adminScreen .adminLayout .drillPanel::-webkit-scrollbar-thumb:hover {
+    background: var(--button-bg-hover);
+}
+
+@media (max-width: 1150px) {
+    #adminScreen .adminLayout .statsCard,
+    #adminScreen .adminLayout .drillPanel {
+        max-height: none;
+        overflow-y: visible;
+        padding-right: 35px;
+    }
+}
+
+#adminScreen .statsWrapper .card {
+    width: 100%;
+}
+
+#adminScreen .adminStatsHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 12px;
+}
+
+#adminScreen .adminStatsHeader h2 {
+    margin-bottom: 0;
+    text-align: left;
+}
+
+#adminScreen .statsCard .smallButton {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+#adminScreen .statUserRow {
+    padding: 10px 4px;
+    border-bottom: 1px solid #2a3140;
+    cursor: pointer;
+    transition: background .15s;
+    line-height: 1.6;
+}
+
+#adminScreen .statUserRow:hover {
+    background: var(--card-bg);
+}
+
+#adminScreen .statUserRow:last-child {
+    border-bottom: none;
+}
+
+@media (max-width: 1150px) {
+
+    #adminScreen .adminLayout,
+    #adminScreen .adminLayout:has(.drillPanel:not(.hidden)) {
+        grid-template-columns: 1fr;
+    }
+
+    #adminScreen .adminLayout .statsWrapper {
+        display: contents;
+    }
+
+    #adminScreen .adminLayout .adminMainCard,
+    #adminScreen .adminLayout .statsCard,
+    #adminScreen .adminLayout .drillPanel {
+        grid-column: 1 !important;
+        width: 100%;
+        max-width: 650px;
+        margin: 0 auto;
+    }
+
+    #adminScreen .adminLayout .statsCard,
+    #adminScreen .adminLayout .drillPanel {
+        position: relative;
+        top: 0;
+        order: 2;
+    }
+
+    #adminScreen .adminLayout .adminMainCard {
+        order: 1;
+    }
+}
+
+.drillHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hidden {
+    display: none;
+}
+
+.shiftBlock {
+    cursor: pointer;
+}
+
+.performanceCard {
+    background: var(--card-bg) !important;
+    border-radius: 15px;
+    padding: 18px;
+
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.04);
+
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block;
+
+    position: relative;
+    z-index: 2;
+}
+
+.performanceScore{
+
+    text-align:center;
+
+    margin-bottom:15px;
+
+}
+
+#performanceGrade{
+
+    font-size:18px;
+
+    font-weight:bold;
+
+    margin-bottom:6px;
+
+}
+
+#performanceValue{
+
+    font-size:30px;
+
+    font-weight:bold;
+
+}
+
+.performanceBar{
+
+    width:100%;
+
+    height:14px;
+
+    background: var(--panel-bg);
+
+    border-radius:999px;
+
+    overflow:hidden;
+
+    margin:15px 0;
+
+}
+
+#performanceFill{
+
+    width:100%;
+
+    height:100%;
+
+    background:#46c96f;
+
+    transition:.3s;
+
+}
+
+.performanceStats{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:8px;
+
+    margin-top:15px;
+
+}
+
+.performanceStats div{
+
+    display:flex;
+
+    justify-content:space-between;
+
+}
+
+.performanceLoads{
+
+    margin-top:18px;
+
+    padding-top:12px;
+
+    border-top:1px solid #333;
+
+    color: var(--text-secondary);
+
+}
+
+/* ===========================================
+   NEW FEATURES — CHAT
+=========================================== */
+
+.chatList {
+    max-height: 160px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.chatListItem {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.chatListItem:hover {
+    border-color: var(--border-color);
+}
+
+.chatListItem.activeChat {
+    border-color: #46c96f;
+}
+
+.chatListItem.unreadChat {
+    border-color: #ffcc00;
+}
+
+.chatPreview {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatWindowBox {
+    /* Floats as a larger, WhatsApp-style panel anchored to the corner of
+       the screen instead of being squeezed into the 340px workspace
+       sidebar column, so it has real room to breathe. */
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 420px;
+    height: 600px;
+    max-height: calc(100vh - 48px);
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
+    z-index: 500;
+}
+
+.chatWindowHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    margin-bottom: 8px;
+    flex: 0 0 auto;
+}
+
+.chatWindowHeader.chatDraggable {
+    cursor: grab;
+}
+
+.chatWindowHeader.chatDraggable:active {
+    cursor: grabbing;
+}
+
+.chatWindowBox.dragging {
+    transition: none;
+}
+
+.chatStaticToggleWrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: normal;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.chatStaticToggleWrap input {
+    cursor: pointer;
+}
+
+.chatWindowHeader button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.chatMessages {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.chatBubble {
+    align-self: flex-start;
+    background: var(--input-bg);
+    border-radius: 10px;
+    padding: 6px 10px;
+    max-width: 85%;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.chatBubble.mine {
+    align-self: flex-end;
+    background: #2e5d3d;
+}
+
+.chatBubbleFrom {
+    font-size: 11px;
+    color: var(--accent-soft);
+    font-weight: bold;
+}
+
+.chatBubbleText {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.chatBubbleTime {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: right;
+    margin-top: 2px;
+}
+
+.chatInputRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.chatInputRow input,
+#chatInput {
+    flex: 1 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--panel-bg);
+    color: #fff;
+}
+
+#chatInput {
+    resize: none;
+    max-height: 140px;
+    overflow-y: auto;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+#chatSendBtn {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    width: auto;
+    padding: 8px 16px;
+    white-space: nowrap;
+}
+
+.chatPickerListBox {
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 10px 0;
+}
+
+.chatPickerRow {
+    display: block;
+    padding: 4px 0;
+}
+
+
+/* ===========================================
+   NEW FEATURES — MODALS
+=========================================== */
+
+.modalOverlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+/* .hidden is defined earlier in this file with equal specificity, so
+   without this override the later .modalOverlay{display:flex} rule
+   wins the cascade and the modal never actually hides */
+.modalOverlay.hidden {
+    display: none !important;
+}
+
+.modalBox {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 20px;
+    width: 360px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modalBox.wideModal {
+    width: 560px;
+}
+
+.modalButtons {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+
+/* ===========================================
+   FOOTER CREDIT + ABOUT MODAL
+=========================================== */
+
+.esmCreditLink {
+    display: block;
+    width: 100%;
+    margin: 10px auto 0;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: #8a91a0;
+    font-size: 0.75rem;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+#userGuideScreen .esmCreditLink,
+#adminGuideScreen .esmCreditLink {
+    margin: 1px 0 0;
+    padding: 9px 14px;
+    font-size: 1.3rem;
+    color: #9aa6b7;
+    text-align: center;
+    border-radius: 8px;
+    background: var(--card-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+#userGuideScreen .esmCreditLink:hover,
+#userGuideScreen .esmCreditLink:focus-visible,
+#adminGuideScreen .esmCreditLink:hover,
+#adminGuideScreen .esmCreditLink:focus-visible {
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.esmCreditLink:hover,
+.esmCreditLink:focus-visible {
+    color: #b2bac8;
+    text-decoration: underline;
+}
+
+.aboutEsmModalBox {
+    width: min(520px, 90vw);
+}
+
+.aboutEsmModalBody p {
+    margin: 0 0 0.75rem;
+    color: #dfe4ee;
+    line-height: 1.55;
+}
+
+.aboutEsmModalBody p:last-child {
+    margin-bottom: 0;
+    font-weight: 600;
+}
+
+/* ===========================================
+   LOAD MODAL — inline validation (V51)
+=========================================== */
+
+.fieldError {
+    box-shadow: 0 0 0 1px #d9534f !important;
+}
+
+.fieldErrorMsg {
+    color: #ff8a80;
+    font-size: 12px;
+    margin: -14px 0 14px 2px;
+    min-height: 14px;
+}
+
+.loadDepartmentBadge {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--input-bg);
+    color: var(--accent-soft);
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 999px;
+    padding: 2px 10px;
+}
+
+.loadVridBadge {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--input-bg);
+    color: #ffcf8f;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 999px;
+    padding: 2px 10px;
+}
+
+/* ===========================================
+   LOAD GROUPING TREE (Phase 2 — Department -> Driver -> VRID -> Loads)
+   Used by both the employee Booked Loads list and the Admin
+   Shift History / Statistics drilldown.
+   =========================================== */
+
+.loadGroupDept {
+    margin-bottom: 14px;
+}
+
+.loadGroupDeptHeader {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+}
+
+.loadGroupDriver {
+    margin: 6px 0 6px 10px;
+    padding-left: 10px;
+    border-left: 2px solid #2d3a4f;
+}
+
+.loadGroupDriverHeader {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--accent-soft);
+    margin-bottom: 4px;
+}
+
+.loadGroupVrid {
+    margin: 4px 0 8px 10px;
+    padding-left: 10px;
+    border-left: 2px dashed #33302d;
+}
+
+.loadGroupVridHeader {
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffcf8f;
+    margin-bottom: 4px;
+}
+
+.loadsBreakdownBox {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--panel-bg);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+
+/* ===========================================
+   NEW FEATURES — ANNOUNCEMENTS
+=========================================== */
+
+.announcementBadge {
+    display: inline-block;
+    background: #8a2323;
+    color: #fff;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 999px;
+    padding: 1px 7px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.announcementList {
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.announcementItem {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.announcementItem:hover {
+    border-color: var(--border-color);
+}
+
+.announcementItem.unreadAnnouncement {
+    border-color: #ffcc00;
+}
+
+.announcementItemTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.announcementCategoryTag {
+    font-size: 11px;
+    color: var(--accent-soft);
+    font-weight: bold;
+}
+
+.announcementNewTag {
+    font-size: 10px;
+    font-weight: bold;
+    color: #1a1a1a;
+    background: #ffcc00;
+    border-radius: 999px;
+    padding: 1px 7px;
+}
+
+.announcementReadTag {
+    font-size: 10px;
+    color: #46c96f;
+}
+
+.announcementItemTitle {
+    font-size: 13px;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+.announcementItemMeta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.announcementModalBody {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    margin: 10px 0;
+    line-height: 1.4;
+}
+
+.announcementAdminItem {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.announcementAdminBody {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    margin: 6px 0 8px;
+}
+
+.ackList {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ackChip {
+    font-size: 11px;
+    border-radius: 6px;
+    padding: 2px 7px;
+    font-weight: bold;
+}
+
+.ackChip.ackRead {
+    background: #145c28;
+    color: #d3ffe0;
+}
+
+.ackChip.ackUnread {
+    background: #8a2323;
+    color: #ffd6d6;
+}
+
+.announcementExpandBtn {
+    margin-top: 8px;
+}
+
+#announcementComposer input,
+#announcementComposer select,
+#announcementComposer textarea {
+    width: 100%;
+}
+
+
+/* ===========================================
+   NEW FEATURES — PERMISSION SYSTEM
+=========================================== */
+
+.permissionGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 6px;
+}
+
+.permissionRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.permissionRow input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.permBadge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--input-bg);
+    border: 1px solid #444;
+    margin-left: 6px;
+}
+
+
+/* ===========================================
+   NEW FEATURES — WEEKLY OFF DAYS
+=========================================== */
+
+.offDaysGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 6px;
+}
+
+.offDayCheckboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.offDayCheckboxLabel input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.offTodayBadge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #3a2f14;
+    border: 1px solid #a8791f;
+    color: #f0c368;
+    margin: 4px 0;
+}
+
+/* ===== LOGIN CHANGES (Phase 9) ===== */
+
+.pinResetBadge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #142a3a;
+    border: 1px solid #1f6ea8;
+    color: #68b9f0;
+    margin: 4px 0 4px 6px;
+}
+
+.forgotPinBtn {
+    background: none;
+    border: none;
+    color: var(--accent, #68b9f0);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 4px 0;
+    margin: 2px 0 8px;
+}
+
+.forgotPinBtn:hover {
+    opacity: 0.8;
+}
+
+/* ===== FIRST LOGIN WIZARD (Phase 10) ===== */
+
+.wizardCard {
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.wizardProgress {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.wizardStep .subtitle {
+    margin-bottom: 20px;
+}
+
+.wizardOptionRow {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.wizardThemeOption,
+.wizardLangOption {
+    background: var(--button-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.wizardThemeOption.active,
+.wizardLangOption.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text, #fff);
+}
+
+.wizardToggleRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-start;
+    margin: 0 auto 12px;
+    max-width: 280px;
+    font-size: 0.95rem;
+}
+
+#wizardStep_pin label,
+#wizardStep_pin input {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    text-align: left;
+}
+
+#wizardStep_pin label {
+    margin-top: 12px;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+#wizardPinMsg {
+    min-height: 1.2em;
+    color: #ff6464;
+    font-size: 0.85rem;
+    margin-top: 8px;
+}
+
+
+/* ===========================================
+   NEW FEATURES — DANGER BUTTONS
+=========================================== */
+
+.dangerBtn {
+    background: #4a1f1f;
+    border: 1px solid #a83a3a;
+}
+
+.dangerBtn:hover {
+    background: #632727;
+}
+
+
+/* ===========================================
+   NEW FEATURES — TOASTS
+=========================================== */
+
+#toastContainer {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10001;
+}
+
+.toast {
+    background: var(--panel-bg);
+    border-left: 4px solid #46c96f;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.4);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all .3s ease;
+    max-width: 320px;
+}
+
+.toast.toastShow {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-warn {
+    border-left-color: #ffcc00;
+}
+
+.toast-info {
+    border-left-color: #46c96f;
+}
+
+/* Phase 6: shift-end grace notification (auto Break / auto Off Duty) */
+.shiftGraceToast {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 300px;
+}
+
+.shiftGraceResumeBtn {
+    align-self: flex-start;
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.shiftGraceResumeBtn:hover {
+    background: var(--accent-hover);
+}
+
+
+/* ===========================================
+   NEW FEATURES — ADMIN ALERTS / AUDIT FILTERS / SHIFT ASSIGN
+=========================================== */
+
+.alertsCard {
+    margin-top: 14px;
+}
+
+.alertRow {
+    background: #2a1a1a;
+    border-left: 3px solid #ff6464;
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.auditFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.offDayRequestStatus {
+    background: rgba(255, 204, 0, 0.1);
+    border: 1px solid rgba(255, 204, 0, 0.35);
+    color: #ffcc00;
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-top: 6px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.auditFilters select,
+.auditFilters input {
+    background: var(--panel-bg);
+    color: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+.shiftAssignRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0;
+    font-size: 12px;
+}
+
+.shiftAssignRow select {
+    flex: 1;
+    background: var(--panel-bg);
+    color: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 3px 4px;
+}
+
+.loadCardButtons {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+/* generic fallback so .smallButton looks right even outside the
+   #dashboardScreen / .statsCard containers it was originally scoped to
+   (e.g. inside modals) */
+.smallButton {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+.workspaceEmpty {
+    text-align: center;
+    padding: 20px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    color: #8f9cad;
+}
+
+/* ========= DISPUTE / OVERTIME EXTRAS ========= */
+
+.disputeNote {
+    margin-top: 4px;
+    padding: 4px 6px;
+    background: var(--card-bg);
+    border-left: 3px solid #4aa8ff;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #cbd5e2;
+}
+
+#breakAlerts .alertRow {
+    border-left-color: #ffcc00;
+}
+
+#overtimeAlerts .alertRow {
+    border-left-color: #6d2ba5;
+    background: #241a2e;
+}
+
+.fullWidthButton {
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Optional styling for the new End-of-Shift Report Formatter panel.
+   Drop this into your existing stylesheet (or link it) — it follows
+   the same naming conventions as the rest of workspace.js.
+   Skip this file entirely if you'd rather style it to match your
+   own theme; the panel works without it. */
+
+.reportFormatterPanel {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 8px;
+    background: var(--panel-bg, #1b1f27);
+    color: var(--panel-text, #eee);
+}
+
+.reportFormatterPanel h3 {
+    margin: 0 0 12px;
+}
+
+.reportFormatterPanel label {
+    display: block;
+    margin: 10px 0 4px;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.reportFormatterPanel textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 0.9em;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: var(--panel-bg);
+    color: var(--text-color);
+    resize: vertical;
+}
+
+.reportFormatterRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.reportPreview {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--panel-bg);
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 10px;
+    min-height: 80px;
+    font-size: 0.9em;
+}
+
+#reportCopyStatus {
+    font-size: 0.85em;
+    opacity: 0.8;
+}
+
+.reportTeamMembersStatus {
+    font-size: 0.85em;
+    opacity: 0.8;
+}
+
+/* Team Members modal (V51 item 6) — follows the same scrollable-list
+   pattern as .chatPickerListBox */
+.teamMembersListBox {
+    max-height: 260px;
+    overflow-y: auto;
+    margin: 10px 0;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+.teamMemberRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+}
+
+.teamMemberRow.teamMemberSelf {
+    opacity: 0.75;
+}
+
+/* Styling for the chat.js feature additions: read receipts, typing
+   indicator, last seen, reactions, reply-to, and search.
+   Merge into your existing stylesheet, or link it directly — the
+   chat still works without it, just unstyled. */
+
+.hidden { display: none !important; }
+
+/* ---------- sub-header: last seen + typing ---------- */
+.chatSubHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78em;
+    opacity: 0.75;
+    padding: 2px 4px 6px;
+}
+
+.chatLastSeen { opacity: 0.8; }
+
+.chatTypingIndicator {
+    font-style: italic;
+    color: #4caf50;
+}
+
+/* ---------- message bubble additions ---------- */
+.chatBubble {
+    position: relative;
+    padding: 8px 10px;
+    border-radius: 10px;
+    margin: 4px 0;
+    max-width: 75%;
+}
+
+.chatBubbleFooter {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    font-size: 0.72em;
+    opacity: 0.75;
+    margin-top: 2px;
+}
+
+.chatTicks { letter-spacing: -1px; }
+.chatTicksRead { color: #34b7f1; }
+
+.chatBubbleFlash {
+    animation: chatFlash 1.2s ease;
+}
+@keyframes chatFlash {
+    0%   { background-color: rgba(255, 230, 120, 0.6); }
+    100% { background-color: transparent; }
+}
+
+/* reply / react hover actions */
+.chatBubbleActions {
+    position: absolute;
+    top: -14px;
+    right: 6px;
+    display: none;
+    gap: 4px;
+}
+.chatBubble:hover .chatBubbleActions { display: flex; }
+
+.chatBubbleActionBtn {
+    border: none;
+    background: var(--input-bg);
+    color: var(--text-color);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 0.75em;
+    cursor: pointer;
+}
+
+.chatBubbleActionBtn.chatDeleteBtn:hover {
+    background: #5a1f1f;
+}
+
+/* ---------- header "more options" menu (select / delete / close) ---------- */
+.chatMoreWrap {
+    position: relative;
+}
+
+.chatMoreBtn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.chatMoreBtn:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.chatMoreMenu {
+    position: absolute;
+    top: 26px;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 170px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    z-index: 10;
+}
+
+.chatMoreMenu.hidden {
+    display: none;
+}
+
+.chatMoreMenu button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.chatMoreMenu button:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.chatMoreMenu #chatDeleteChatBtn:hover {
+    background: rgba(255,80,80,0.15);
+    color: #ff8080;
+}
+
+/* ---------- select mode (multi-select + bulk delete) ---------- */
+.chatWindowHeader button.active {
+    color: #46c96f;
+}
+
+.chatBubble.selectModeBubble:not(.selectable) {
+    opacity: 0.5;
+}
+
+.chatBubble.selectable {
+    cursor: pointer;
+}
+
+.chatBubble.selected {
+    outline: 2px solid #46c96f;
+    outline-offset: 1px;
+}
+
+.chatBubbleSelectWrap {
+    position: absolute;
+    top: -14px;
+    left: 6px;
+}
+
+.chatBubbleSelectCheckbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.chatSelectBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    font-size: 0.8em;
+}
+
+.chatSelectBarActions {
+    display: flex;
+    gap: 6px;
+}
+
+.chatSelectBarActions button {
+    background: var(--input-bg);
+    border: 1px solid #444;
+    color: var(--text-color);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+#chatDeleteSelectedBtn {
+    background: #5a1f1f;
+    border-color: #7a2a2a;
+}
+
+/* ---------- delete-chat modal ---------- */
+.chatDeleteModalText {
+    font-size: 0.85em;
+    opacity: 0.85;
+    margin: 4px 0 2px;
+}
+
+#chatDeleteForEveryoneBtn {
+    background: #5a1f1f;
+    border-color: #7a2a2a;
+}
+
+/* quoted reply block inside a bubble */
+.chatQuote {
+    border-left: 3px solid #4caf50;
+    background: rgba(255,255,255,0.06);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+.chatQuoteFrom { font-weight: 600; opacity: 0.85; }
+.chatQuoteText { opacity: 0.75; }
+
+/* reactions */
+.chatReactionRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.chatReactionChip {
+    border: 1px solid #444;
+    background: var(--panel-bg);
+    color: var(--text-color);
+    border-radius: 12px;
+    padding: 1px 7px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+.chatReactionChip.mine {
+    border-color: #4caf50;
+    background: rgba(76,175,80,0.15);
+}
+
+.chatReactionPicker {
+    display: flex;
+    gap: 4px;
+    background: var(--panel-bg);
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 6px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.chatReactionPickerEmoji {
+    border: none;
+    background: transparent;
+    font-size: 1.1em;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 6px;
+}
+.chatReactionPickerEmoji:hover { background: rgba(255,255,255,0.1); }
+
+/* ---------- reply preview bar above input ---------- */
+.chatReplyPreview {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    background: rgba(76,175,80,0.1);
+    border-left: 3px solid #4caf50;
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+}
+.chatReplyPreviewLabel { font-weight: 600; opacity: 0.85; }
+.chatReplyPreviewText { opacity: 0.75; }
+.chatReplyPreviewCancel {
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+.chatReplyPreviewCancel:hover { opacity: 1; }
+
+/* ---------- search modal ---------- */
+.chatModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 1000;
+}
+.chatModalInner {
+    background: var(--panel-bg);
+    color: var(--text-color);
+    border-radius: 10px;
+    padding: 16px;
+    width: 420px;
+    max-width: 92vw;
+    margin-top: 8vh;
+}
+.chatModalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+#chatSearchInput {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: var(--panel-bg);
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+.chatSearchResults {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+.chatSearchResultRow {
+    padding: 8px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+}
+.chatSearchResultRow:hover { background: var(--border-color); }
+.chatSearchResultChat { font-weight: 600; font-size: 0.85em; }
+.chatSearchResultSnippet { font-size: 0.85em; opacity: 0.85; }
+.chatSearchResultSnippet mark {
+    background: #4caf50;
+    color: #111;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+.chatSearchResultTime { font-size: 0.72em; opacity: 0.6; margin-top: 2px; }
+
+/* ===========================================
+   REPORT GENERATOR
+=========================================== */
+
+.reportControls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.reportControls select,
+.reportControls input[type="date"] {
+    background: var(--panel-bg);
+    color: var(--text-color);
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+
+.reportHint {
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.reportModalBox {
+    width: 720px;
+}
+
+.reportMeta {
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin-bottom: 10px;
+}
+
+.reportSummaryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.reportSummaryCard {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.reportSummaryCard b {
+    display: block;
+    font-size: 1.2em;
+    margin-bottom: 2px;
+}
+
+.reportSummaryCard span {
+    font-size: 0.75em;
+    opacity: 0.7;
+}
+
+.reportSectionTitle {
+    margin: 16px 0 6px;
+}
+
+.reportTopGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+
+.reportTableWrap {
+    max-height: 260px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+}
+
+.reportTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82em;
+}
+
+.reportTable th,
+.reportTable td {
+    border-bottom: 1px solid #333;
+    padding: 6px 8px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.reportTable th {
+    position: sticky;
+    top: 0;
+    background: var(--panel-bg);
+    opacity: 0.95;
+}
+
+.reportTable tbody tr:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+/* ===========================================
+   USER GUIDE / HELP SYSTEM
+=========================================== */
+
+.guideOpenBtn {
+    margin-top: 12px;
+    background: var(--input-bg);
+    color: var(--text-secondary);
+}
+
+.adminGuideOpenBtn {
+    display: block;
+    margin: 10px auto 0;
+    width: auto;
+    padding: 8px 16px;
+    background: var(--button-bg);
+    color: #dfe5ef;
+}
+
+.adminGuideOpenBtn:hover {
+    background: var(--button-bg-hover);
+}
+
+.guideOpenBtn:hover {
+    background: var(--button-bg-hover);
+}
+
+.guideScreen {
+    align-items: flex-start;
+    overflow-y: auto;
+}
+
+.guideCard {
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 60px);
+    padding: 0;
+    overflow: hidden;
+}
+
+.guideHeader {
+    padding: 30px 35px 0;
+    flex-shrink: 0;
+}
+
+.guideHeaderTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.guideTitle {
+    text-align: left;
+    font-size: 28px;
+    margin-bottom: 4px;
+}
+
+.guideSubtitle {
+    text-align: left;
+    margin-bottom: 18px;
+}
+
+.guideBackBtn {
+    position: sticky;
+    top: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.guideControls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.guideSearchInput {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 0;
+}
+
+.guideLangToggle {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.guideLangBtn {
+    width: auto;
+    background: var(--topbar-chip-bg);
+    color: var(--text-muted);
+}
+
+.guideLangBtn.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.guideToc {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #323949;
+    margin-bottom: 6px;
+}
+
+.guideTocLink {
+    background: var(--topbar-chip-bg);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    text-decoration: none;
+    transition: .2s;
+    display: block;
+}
+
+.guideTocLink:hover {
+    background: var(--button-bg-hover);
+    transform: translateY(-1px);
+}
+
+.guideBody {
+    overflow-y: auto;
+    padding: 20px 35px 10px;
+    flex: 1;
+}
+
+.guideSection {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    scroll-margin-top: 14px;
+}
+
+.guideSectionHeader {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--topbar-chip-bg);
+    border-radius: 0;
+    text-align: left;
+    padding: 14px 16px;
+}
+
+.guideSectionHeader:hover {
+    background: var(--button-bg);
+    transform: none;
+}
+
+.guideSectionIcon {
+    font-size: 18px;
+}
+
+.guideSectionTitle {
+    flex: 1;
+    font-weight: 600;
+    color: #eef2f7;
+}
+
+.guideSectionChevron {
+    transition: transform .2s ease;
+    color: var(--text-muted);
+}
+
+.guideSection.open .guideSectionChevron {
+    transform: rotate(180deg);
+}
+
+.guideSectionBody {
+    display: none;
+    padding: 16px 18px 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.guideSection.open .guideSectionBody {
+    display: block;
+}
+
+.guideSectionBody ul {
+    padding-left: 20px;
+}
+
+.guideSectionBody[dir="rtl"] ul {
+    padding-left: 0;
+    padding-right: 20px;
+}
+
+.guideSectionBody li {
+    margin-bottom: 6px;
+}
+
+.guideSectionBody p {
+    margin-bottom: 10px;
+}
+
+.guideFaqQ {
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.guideFaqA {
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+}
+
+.guideNoResults {
+    text-align: center;
+    color: #8f9cad;
+    padding: 20px 35px 0;
+}
+
+.guideFooter {
+    text-align: center;
+    color: #7c8798;
+    font-size: 13px;
+    padding: 0 35px 24px;
+}
+
+[dir="rtl"] .guideHeaderTop,
+[dir="rtl"] .guideTitle,
+[dir="rtl"] .guideSubtitle,
+[dir="rtl"] .guideSectionHeader {
+    text-align: right;
+    direction: rtl;
+}
+
+[dir="rtl"] .guideSectionTitle {
+    text-align: right;
+}
+
+@media (max-width: 700px) {
+
+    .guideCard {
+        max-height: calc(100vh - 20px);
+        border-radius: 0;
+    }
+
+    .guideHeader {
+        padding: 20px 18px 0;
+    }
+
+    .guideBody {
+        padding: 16px 18px 10px;
+    }
+
+    .guideHeaderTop {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .guideBackBtn {
+        align-self: flex-end;
+    }
+
+    .guideToc {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+}
+
+
+/* ========= PHASE 5: TOP BAR MINI TIMERS (Today's Timers, collapsed state) ========= */
+
+.topBar .topBarCenterGroup {
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.miniTimerGroup {
+    display: flex;
+    gap: 8px;
+}
+
+.miniTimerGroup.hidden {
+    display: none;
+}
+
+.miniTimer {
+    background: var(--topbar-chip-bg);
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--topbar-chip-text);
+    white-space: nowrap;
+}
+
+/* ========= PHASE 5: TODAY'S TIMERS DROPDOWN ========= */
+
+#todaysTimersToggleBtn {
+    position: relative;
+}
+
+.todaysTimersDropdown {
+    position: absolute;
+    top: 300px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 340px;
+    max-width: calc(100% - 40px);
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow:
+        0 20px 40px rgba(0,0,0,.4),
+        0 0 0 1px var(--border-color);
+    z-index: 30;
+}
+
+.todaysTimersDropdown.hidden {
+    display: none;
+}
+
+/* ========= PHASE 5: WORKSPACE 3x2 GRID ========= */
+
+#dashboardScreen .workspaceGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 16px;
+}
+
+#dashboardScreen .workspaceGridItem {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* Grid items share the same --card-bg as the outer .workspaceCard panel
+       they sit on (intentional per theme tokens), so color alone can't
+       separate them. Give each grid item its own border + shadow so it
+       still reads as a distinct card in both themes. */
+    border: 1px solid var(--border-color);
+    box-shadow:
+        0 2px 6px rgba(0,0,0,.25),
+        inset 0 0 0 1px rgba(255,255,255,.03);
+}
+
+#dashboardScreen .workspaceGridItem .workspaceNotes {
+    min-height: 100px;
+    flex: 1;
+}
+
+#dashboardScreen .workspaceGridItem .chatList,
+#dashboardScreen .workspaceGridItem .announcementList,
+#dashboardScreen .workspaceGridItem .bookedLoads {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ========= REQUESTED: default page zoom ========= */
+
+body {
+    zoom: 100%;
+}
+
+/* ========= PHASE 5 FOLLOW-UP: draggable Today's Timers dropdown ========= */
+
+#todaysTimersDragHandle {
+    cursor: grab;
+    user-select: none;
+}
+
+#todaysTimersDragHandle:active {
+    cursor: grabbing;
+}
+
+.todaysTimersDropdown.dragging {
+    transition: none;
+}
+
+/* ========= MONTHLY STATISTICS (employee-facing, company-wide) ========= */
+
+/* Slight offset from Today's Timers' default spawn point so the two
+   panels don't stack exactly on top of each other before either is
+   dragged. */
+.monthlyStatsDropdown {
+    top: 300px;
+    left: 50%;
+    transform: translateX(-30%);
+    width: 380px;
+}
+
+.monthlyStatsHint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 4px 0 12px;
+    line-height: 1.4;
+}
+
+.monthlyStatsSummary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.monthlyStatsPerEmployee {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.monthlyStatRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 13px;
+}
+
+.monthlyStatRow:last-child {
+    border-bottom: none;
+}
+
+.monthlyStatRow b {
+    color: var(--text-color);
+}
+
+.monthlyStatsFooter {
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+/* ========= MONTHLY ARCHIVE (Admin Panel) ========= */
+
+.monthlyArchiveView {
+    margin-top: 12px;
+}
+
+.monthlyArchiveGithubBox input[type="text"],
+.monthlyArchiveGithubBox input[type="password"] {
+    width: 100%;
+    max-width: 360px;
+}
+
+/* ===========================================
+   SETTINGS FEATURE
+   Reuses the same card / screen / guide visual language already
+   established above (colors, radii, spacing, hover transforms) so it
+   doesn't introduce a new design language.
+=========================================== */
+
+/* Top bar Settings button, next to the clock/date group */
+.topBarSettingsBtn {
+    width: auto;
+    background: var(--topbar-chip-bg);
+    color: var(--topbar-chip-text);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.topBarSettingsBtn:hover {
+    background: var(--button-bg-hover);
+    transform: translateY(-1px);
+}
+
+.settingsCard {
+    max-width: 980px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 60px);
+    padding: 0;
+    overflow: hidden;
+}
+
+.settingsHeader {
+    padding: 30px 35px 18px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #323949;
+}
+
+.settingsLayout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.settingsSidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 18px 12px;
+    background: var(--topbar-bg);
+    border-right: 1px solid #2d3440;
+    overflow-y: auto;
+}
+
+.settingsTab {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: .2s;
+}
+
+.settingsTab:hover {
+    background: var(--topbar-chip-bg);
+    color: var(--text-secondary);
+    transform: none;
+}
+
+.settingsTab.active {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.settingsContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 35px 30px;
+}
+
+.settingsSection h2 {
+    text-align: left;
+    font-size: 20px;
+    margin-bottom: 18px;
+    color: #eef2f7;
+}
+
+.settingsLabel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.settingsLabel input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+label.settingsLabel[for] {
+    display: block;
+    cursor: default;
+    background: transparent;
+    border: none;
+    padding: 0 0 8px;
+    margin-bottom: 8px;
+}
+
+.settingsSelect {
+    width: 100%;
+    padding: 12px 40px 12px 14px;
+    margin-bottom: 20px;
+    border: none;
+    border-radius: 10px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.settingsButtonRow {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.settingsActionButton {
+    width: auto;
+    flex: 1;
+    background: var(--button-bg);
+}
+
+.settingsActionButton:hover {
+    background: var(--button-bg-hover);
+}
+
+.settingsHint {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    min-height: 16px;
+}
+
+.shortcutList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.shortcutList div {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.shortcutList strong {
+    color: var(--accent);
+    margin-right: 8px;
+}
+
+/* Load Management: "Highlight recently edited loads" */
+.loadCard.loadCardRecentlyEdited {
+    outline: 2px solid #ffca5a;
+    outline-offset: 2px;
+    animation: loadCardEditPulse 1.2s ease-out 1;
+}
+
+@keyframes loadCardEditPulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 202, 90, 0.55); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 202, 90, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 202, 90, 0); }
+}
+
+/* Load Management: "Highlight newly booked loads" (Phase 5) — a
+   distinct green pulse so it reads differently at a glance from the
+   amber "recently edited" highlight above. */
+.loadCard.loadCardNewlyBooked {
+    outline: 2px solid #4fd07a;
+    outline-offset: 2px;
+    animation: loadCardBookedPulse 1.2s ease-out 1;
+}
+
+@keyframes loadCardBookedPulse {
+    0% { box-shadow: 0 0 0 0 rgba(79, 208, 122, 0.55); }
+    70% { box-shadow: 0 0 0 10px rgba(79, 208, 122, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(79, 208, 122, 0); }
+}
+
+/* Load Management: live sort/filter toolbar above Booked Loads (Phase 5) */
+.loadToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 4px;
+}
+
+.loadToolbarSelect {
+    background: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    flex: 1 1 auto;
+    min-width: 110px;
+}
+
+.loadToolbarToggle {
+    flex: 0 0 auto;
+}
+
+/* Load Management: collapsible "Completed (previous shift)" section
+   (Phase 5) — visually separated from the active loads above it. */
+.loadGroupCompleted {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+}
+
+.loadGroupCompletedHeader {
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+@media (max-width: 700px) {
+
+    .settingsCard {
+        max-height: calc(100vh - 20px);
+        border-radius: 0;
+    }
+
+    .settingsHeader {
+        padding: 20px 18px 14px;
+    }
+
+    .settingsLayout {
+        flex-direction: column;
+    }
+
+    .settingsSidebar {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid var(--button-bg);
+    }
+
+    .settingsContent {
+        padding: 18px;
+    }
+}
+
+/* ===========================================
+   PHASE 4: NOTIFICATION CATEGORY GRID (Desktop/Sound/Badge)
+   =========================================== */
+
+.notifCategoryGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.notifCategoryGridHeader,
+.notifCategoryRow {
+    display: grid;
+    grid-template-columns: 1fr 70px 70px 70px;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+}
+
+.notifCategoryGridHeader {
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    text-align: center;
+}
+
+.notifCategoryGridHeader span:first-child {
+    text-align: left;
+}
+
+.notifCategoryRow {
+    background: var(--card-bg);
+    border-radius: 8px;
+}
+
+.notifCategoryRow input[type="checkbox"] {
+    justify-self: center;
+    width: auto;
+    accent-color: var(--accent);
+}
+
+.notifCategoryLabel {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 700px) {
+    .notifCategoryGridHeader,
+    .notifCategoryRow {
+        grid-template-columns: 1fr 50px 50px 50px;
+        font-size: 12px;
+    }
+}
+
+/* ===========================================
+   PHASE 4: GENERIC UNREAD/NOTIFICATION BADGE
+   Reused next to Team Chat, Overtime Reason, Booked Loads
+   headers and the Admin Panel button.
+   =========================================== */
+
+.notifBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #e04343;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.notifBadge.hidden {
+    display: none;
+}
+
+/* ===========================================
+   DEVELOPER PANEL (Phase 8) + shared Release Notes display
+   =========================================== */
+
+#devPanelScreen {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 60px;
+}
+
+.devPanelLayout {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.devPanelCard {
+    max-width: 900px;
+}
+
+.devPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.devPanelHeader h2 {
+    margin: 0;
+}
+
+.devPanelTextarea {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 20px;
+    border: none;
+    border-radius: 10px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    transition: .2s;
+}
+
+.devPanelTextarea:focus {
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.devPanelList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.devPanelListItem {
+    background: var(--panel-bg);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.devPanelListItemHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.devPanelListItemHeader .dangerButton,
+.devPanelListItem .dangerButton {
+    width: auto;
+    margin-left: auto;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.devPanelListItemBody {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.devPanelAddRow {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--panel-bg);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+}
+
+.devPanelAddRow input,
+.devPanelAddRow textarea {
+    margin-bottom: 10px;
+}
+
+.devCustomFieldRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.devCustomFieldRow input {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.devCustomFieldRow .dangerButton {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 8px 12px;
+}
+
+/* Release Notes — shared between the read-only public modal and
+   whatever renders inside the Developer Panel's editor */
+
+.releaseNotesList {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 55vh;
+    overflow-y: auto;
+    margin: 16px 0;
+    text-align: left;
+}
+
+.releaseNoteEntry {
+    background: var(--panel-bg);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.releaseNoteHeader {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.releaseNoteDate {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.releaseNoteBody {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.releaseNoteBody p {
+    margin: 0 0 8px 0;
+}
+
+#aboutEsmReleaseNotesBtn {
+    width: auto;
+    margin: 4px auto 0 auto;
+}
