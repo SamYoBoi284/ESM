@@ -15,7 +15,13 @@
 
 (function () {
 
-    const LANG_KEY = "esm_guide_lang";
+    // NOTE: language state used to live entirely in this file (its own
+    // "esm_guide_lang" localStorage key, its own currentLang variable,
+    // its own [data-en]/[data-ar] scan restricted to #userGuideScreen).
+    // That's now generalized app-wide in i18n.js (window.I18N), which
+    // migrates this exact legacy key on first load so nobody's saved
+    // preference is lost. This file keeps only what's actually specific
+    // to the guide: its content (GUIDE_DATA), rendering, and search.
 
     // ===========================================
     // CONTENT
@@ -38,7 +44,8 @@
                         "Chat with colleagues",
                         "View your history",
                         "Receive announcements",
-                        "Generate reports"
+                        "Generate reports",
+                        "Submit feedback, bug reports & feature requests"
                     ]}
                 ],
                 ar: [
@@ -52,7 +59,8 @@
                         "الدردشة مع الزملاء",
                         "الاطلاع على سجلك",
                         "استلام الإعلانات",
-                        "إنشاء التقارير"
+                        "إنشاء التقارير",
+                        "إرسال الملاحظات وبلاغات الأخطاء وطلبات الميزات"
                     ]}
                 ]
             }
@@ -79,6 +87,43 @@
             }
         },
         {
+            id: "monthly-stats",
+            icon: "📊",
+            title: { en: "Today's Timers & Monthly Statistics", ar: "مؤقتات اليوم والإحصائيات الشهرية" },
+            body: {
+                en: [
+                    { p: "🕐 Today's Timers" },
+                    { ul: [
+                        "Open it from the \"🕐 Today's Timers ▾\" button next to Load History. It expands into a draggable panel with your Work, Break, Away, and Overtime timers for the current shift, running live.",
+                        "Collapse it and compact versions of the same timers stay pinned in the top bar instead, so you never lose track of your time."
+                    ]},
+                    { p: "📊 Monthly Statistics" },
+                    { ul: [
+                        "Open it from the \"📊 Monthly Statistics ▾\" button right next to Today's Timers — every employee can see this, it isn't admin-only.",
+                        "Shows company-wide totals for the current calendar month: Total Loads and Total Revenue across everyone combined, plus a per-employee breakdown of Booked Loads and Revenue.",
+                        "Updates live as loads are booked, edited, deleted, or moved to/from Cancelled/Dispute — no refresh needed.",
+                        "Cancelled and disputed loads are never counted toward the totals; edited loads still are.",
+                        "At the end of each month, that month's numbers are saved in a report file that can be downloaded so admins can look back at any past month from the Admin Panel's \"🗂 Monthly Archive\"."
+                    ]}
+                ],
+                ar: [
+                    { p: "🕐 مؤقتات اليوم (Today's Timers)" },
+                    { ul: [
+                        "افتحها من زر \"🕐 Today's Timers ▾\" بجانب Load History. تُفتح كلوحة قابلة للسحب تعرض مؤقتات العمل والاستراحة والغياب والعمل الإضافي لورديتك الحالية، وتعمل بشكل حي.",
+                        "عند طيّها، تبقى نسخ مصغّرة من نفس المؤقتات ظاهرة في الشريط العلوي، حتى لا تفقد تتبع وقتك أبدًا."
+                    ]},
+                    { p: "📊 الإحصائيات الشهرية (Monthly Statistics)" },
+                    { ul: [
+                        "افتحها من زر \"📊 Monthly Statistics ▾\" بجانب Today's Timers مباشرة — يمكن لكل موظف رؤيتها، وهي ليست حكرًا على المشرفين.",
+                        "تعرض الإجماليات على مستوى الشركة للشهر الحالي: إجمالي الشحنات وإجمالي الإيرادات لكل الموظفين مجتمعين، بالإضافة إلى تفصيل لكل موظف بشحناته المحجوزة وإيراداته.",
+                        "تتحدث بشكل حي مع حجز الشحنات أو تعديلها أو حذفها أو نقلها من/إلى الإلغاء أو النزاع — دون الحاجة لتحديث الصفحة.",
+                        "لا تُحتسب الشحنات الملغاة أو المتنازع عليها ضمن الإجماليات أبدًا؛ أما الشحنات المعدَّلة فتُحتسب.",
+                        "في نهاية كل شهر، تُحفظ أرقام ذلك الشهر بشكل دائم — ويمكن للمشرفين مراجعة أي شهر سابق من \"🗂 Monthly Archive\" في لوحة تحكم المشرف."
+                    ]}
+                ]
+            }
+        },
+        {
             id: "booked-loads",
             icon: "📦",
             title: { en: "Booked Loads", ar: "الشحنات المحجوزة" },
@@ -86,7 +131,7 @@
                 en: [{ ul: [
                     "You can add loads to keep a record of what you have booked during your shift — each one takes a Date, Price, Department, Driver, VRID Type, VRID Number, and an optional note.",
                     "Department groups your loads (STS, iTour, Alquaiti, F&F). This used to be called \"Division\" — same field, new name.",
-                    "Driver: type \"For <name>\" (e.g. \"For Mahdi Harb\") and it's automatically tagged with just the name. Loads for the same driver group together no matter how you capitalize the name.",
+                    "Driver: pick from the searchable dropdown — click it to see every driver in the selected Department, or type a few letters to filter as you go, then click a name or press Enter. Drivers depend on Department, so switching Department clears the Driver field and reloads the list. This keeps every load for the same driver grouped consistently, since the name is always spelled the exact same way.",
                     "VRID Type is Trip / Load / Block-Contract, and VRID Number is required on every new load — it also has to be unique across every load ever booked, since it doubles as that load's permanent, searchable Load ID (see \"Load History\" below). Editing an older load that never had a VRID won't force you to add one.",
                     "Your Booked Loads list displays as a grouped tree — Department → Driver → VRID Type → Loads — instead of a flat list.",
                     "You can edit any added loads.",
@@ -96,7 +141,7 @@
                 ar: [{ ul: [
                     "يمكنك إضافة شحنات للاحتفاظ بسجل لما قمت بحجزه خلال وردية عملك — تتضمن كل شحنة التاريخ والسعر والقسم والسائق ونوع VRID ورقم VRID، مع إمكانية إضافة ملاحظة اختيارية.",
                     "يقوم حقل \"Department\" (القسم) بتجميع شحناتك (STS، iTour، Alquaiti، F&F). كان يُسمى سابقًا \"Division\" — نفس الحقل باسم جديد.",
-                    "السائق: اكتب \"For <الاسم>\" (مثل \"For Mahdi Harb\") وسيتم وسم الشحنة تلقائيًا باسم السائق فقط. الشحنات الخاصة بنفس السائق تُجمَّع معًا بغض النظر عن حالة الأحرف.",
+                    "السائق: اختر من القائمة المنسدلة القابلة للبحث — اضغط عليها لعرض كل سائقي القسم المحدد، أو اكتب بضعة أحرف للتصفية، ثم اضغط على الاسم أو اضغط Enter. تعتمد قائمة السائقين على القسم، لذا فإن تغيير القسم يمسح حقل السائق ويعيد تحميل القائمة. هذا يضمن أن جميع شحنات نفس السائق تُجمَّع معًا دائمًا بنفس التهجئة بالضبط.",
                     "نوع VRID هو Trip / Load / Block-Contract، ورقم VRID مطلوب في كل شحنة جديدة — كما يجب أن يكون فريدًا عبر كل شحنة تم حجزها على الإطلاق، لأنه يُستخدم أيضًا كمعرّف دائم وقابل للبحث لهذه الشحنة (راجع \"Load History\" أدناه). تعديل شحنة قديمة لم يكن لها رقم VRID لن يفرض عليك إضافته.",
                     "تُعرض قائمة شحناتك المحجوزة كشجرة مُجمّعة — القسم ← السائق ← نوع VRID ← الشحنات — بدلًا من قائمة مسطّحة.",
                     "يمكنك أيضًا تعديل أي شحنة تمت إضافتها.",
@@ -351,6 +396,69 @@
             }
         },
         {
+            id: "feedback",
+            icon: "🧩",
+            title: { en: "Feedback & Feature Requests", ar: "الملاحظات وطلبات الميزات" },
+            body: {
+                en: [
+                    { p: "Found a bug, or have an idea that would make ESM better? You can report it directly from inside the app — three buttons in the dashboard sidebar cover the whole flow." },
+                    { p: "🧩 Submitting a Request" },
+                    { ul: [
+                        "Open \"🧩 Feedback / Feature Request\" from the dashboard sidebar.",
+                        "Fill in a short Title and a Description of what happened, or what you'd like to see.",
+                        "Pick a Request Type: 🐞 Bug Report, 💡 Feature Request, ⚡ Improvement, 🎨 UI Suggestion, or ❓ Other.",
+                        "Pick a Priority (Low / Medium / High / Critical) and a Category (Chat, Loads, Dispatch, Safety, UI, Notifications, Login, Performance, Settings, Localization, Admin Panel, Other).",
+                        "Bug Reports also ask how often it happens: Always, Sometimes, Once, or Didn't Try Again.",
+                        "Your employee code, permission level, shift, ESM version, and the screen you were on are attached automatically — nothing extra to fill in."
+                    ]},
+                    { p: "⚠️ Duplicate Check" },
+                    { ul: [
+                        "As you type a title, ESM quietly checks for similar existing requests and shows up to 5 close matches, each with its vote count and status.",
+                        "Each match has an Open button (view it) and a 👍 I Also Want This button — vote for the existing one instead of filing a duplicate."
+                    ]},
+                    { p: "📋 My Submitted Requests" },
+                    { ul: [
+                        "Lists everything you've personally submitted, along with its current status: 🆕 New, ⏳ Pending, 🚧 In Progress, ✅ Completed, or 🚫 Rejected.",
+                        "ESM automatically notifies you whenever the status of one of your requests changes — no need to keep checking back."
+                    ]},
+                    { p: "🗳️ Browse & Vote on Ideas" },
+                    { ul: [
+                        "A live, sortable list of every open request from the whole team, showing Total Votes and how many employees are supporting each one.",
+                        "Tap 👍 I Also Want This to add your vote — one vote per employee per request.",
+                        "Voting for an existing idea instead of filing a near-duplicate helps it get prioritized faster."
+                    ]}
+                ],
+                ar: [
+                    { p: "وجدت خللاً أو لديك فكرة تجعل ESM أفضل؟ يمكنك الإبلاغ عنها مباشرة من داخل التطبيق — ثلاثة أزرار في الشريط الجانبي للوحة التحكم تغطي العملية بالكامل." },
+                    { p: "🧩 إرسال طلب" },
+                    { ul: [
+                        "افتح \"🧩 Feedback / Feature Request\" من الشريط الجانبي للوحة التحكم.",
+                        "اكتب عنوانًا مختصرًا ووصفًا لما حدث أو لما تود رؤيته.",
+                        "اختر نوع الطلب: 🐞 Bug Report، 💡 Feature Request، ⚡ Improvement، 🎨 UI Suggestion، أو ❓ Other.",
+                        "اختر الأولوية (Low / Medium / High / Critical) والفئة (Chat, Loads, Dispatch, Safety, UI, Notifications, Login, Performance, Settings, Localization, Admin Panel, Other).",
+                        "بلاغات الأخطاء (Bug Report) تسأل أيضًا عن مدى تكرار المشكلة: Always، Sometimes، Once، أو Didn't Try Again.",
+                        "يُرفق رمز موظفك، ومستوى صلاحيتك، ورديّتك، وإصدار ESM، والشاشة التي كنت عليها تلقائيًا — لا حاجة لإدخال أي شيء إضافي."
+                    ]},
+                    { p: "⚠️ فحص التكرار" },
+                    { ul: [
+                        "أثناء كتابة العنوان، يتحقق ESM تلقائيًا من وجود طلبات مشابهة ويعرض حتى 5 نتائج قريبة مع عدد أصواتها وحالتها.",
+                        "لكل نتيجة زر Open (لعرضها) وزر 👍 I Also Want This (للتصويت للطلب الحالي بدلاً من إرسال طلب مكرر)."
+                    ]},
+                    { p: "📋 طلباتي المُرسلة" },
+                    { ul: [
+                        "يعرض كل ما أرسلته بنفسك مع حالته الحالية: 🆕 New، ⏳ Pending، 🚧 In Progress، ✅ Completed، أو 🚫 Rejected.",
+                        "يُعلمك ESM تلقائيًا كلما تغيّرت حالة أحد طلباتك — لا حاجة للمتابعة المستمرة."
+                    ]},
+                    { p: "🗳️ تصفح الأفكار والتصويت" },
+                    { ul: [
+                        "قائمة حيّة وقابلة للفرز بكل الطلبات المفتوحة من الفريق بأكمله، وتعرض إجمالي الأصوات وعدد الموظفين الداعمين لكل فكرة.",
+                        "اضغط 👍 I Also Want This لإضافة صوتك — صوت واحد لكل موظف لكل طلب.",
+                        "التصويت لفكرة موجودة بدلاً من إرسال طلب مشابه يساعد على إعطائها أولوية أسرع."
+                    ]}
+                ]
+            }
+        },
+        {
             id: "settings",
             icon: "⚙️",
             title: { en: "Settings", ar: "الإعدادات" },
@@ -409,7 +517,16 @@
                     ]},
                     { p: "About" },
                     { ul: [
-                        "Shows your installed ESM/application version, the Electron version ESM is built on, the build date, your operating system, the app's install path and user data path, and which employee is currently logged in — all read automatically, nothing to configure."
+                        "Shows your installed ESM/application version, the Electron version ESM is built on, the build date, your operating system, the app's install path and user data path, and which employee is currently logged in — all read automatically, nothing to configure.",
+                        "📋 Release Notes: opens what's new in the current (and past) versions."
+                    ]},
+                    { p: "Updates" },
+                    { ul: [
+                        "Automatically check for updates: when on, ESM checks for a new version once at startup.",
+                        "Automatically download updates in the background: when on (the default), a found update downloads by itself while you keep working — no clicks needed. Turn it off and ESM will instead show a \"Download Update\" button for you to trigger the download yourself, whenever you're ready.",
+                        "Check Now: manually check for an update at any time from Settings > About.",
+                        "When a download finishes, a \"Restart to update?\" prompt appears with two options: Yes (restarts ESM and installs right away) or Remind Me Later (keeps working; ESM will ask again after a while). Either way the update installs the next time ESM restarts.",
+                        "While an update is downloading, or waiting for you to restart, ESM will still close/restart for the purpose of installing it even if \"Confirm Before Closing While On Duty\" is turned on — that confirmation only guards against closing ESM by choice, not against finishing an update."
                     ]}
                 ],
                 ar: [
@@ -466,7 +583,16 @@
                     ]},
                     { p: "حول" },
                     { ul: [
-                        "يعرض إصدار ESM المثبّت، إصدار Electron، تاريخ البناء، نظام التشغيل، مسار التطبيق ومسار بيانات المستخدم، والموظف المسجّل دخوله حاليًا — كل ذلك تلقائيًا دون أي إعداد."
+                        "يعرض إصدار ESM المثبّت، إصدار Electron، تاريخ البناء، نظام التشغيل، مسار التطبيق ومسار بيانات المستخدم، والموظف المسجّل دخوله حاليًا — كل ذلك تلقائيًا دون أي إعداد.",
+                        "📋 ملاحظات الإصدار: يعرض ما هو جديد في الإصدار الحالي (والإصدارات السابقة)."
+                    ]},
+                    { p: "التحديثات" },
+                    { ul: [
+                        "التحقق التلقائي من التحديثات: عند التفعيل، يتحقق ESM من وجود إصدار جديد مرة واحدة عند بدء التشغيل.",
+                        "تنزيل التحديثات تلقائيًا في الخلفية: عند التفعيل (الوضع الافتراضي)، يُنزَّل أي تحديث يُعثر عليه تلقائيًا أثناء استمرارك في العمل — دون أي ضغط على أزرار. عند التعطيل، سيعرض ESM بدلاً من ذلك زر \"تنزيل التحديث\" لتبدأ التنزيل بنفسك متى شئت.",
+                        "تحقق الآن: تحقق يدويًا من وجود تحديث في أي وقت من الإعدادات > حول.",
+                        "عند اكتمال التنزيل، تظهر رسالة \"إعادة التشغيل للتحديث؟\" بخيارين: نعم (يعيد تشغيل ESM ويثبّت التحديث فورًا) أو ذكّرني لاحقًا (يستمر عملك، وسيسأل ESM مرة أخرى بعد فترة). في كلتا الحالتين يُثبَّت التحديث عند إعادة تشغيل ESM القادمة.",
+                        "أثناء تنزيل التحديث، أو في انتظار إعادة تشغيلك له، سيسمح ESM بالإغلاق/إعادة التشغيل لغرض تثبيت التحديث حتى لو كان خيار \"تأكيد الإغلاق أثناء On Duty\" مفعّلاً — فهذا التأكيد يحمي فقط من إغلاق ESM باختيارك، وليس من إتمام تحديث."
                     ]}
                 ]
             }
@@ -485,8 +611,24 @@
                         { q: "I need a different day off than what's currently scheduled.", a: "Use the \"🗓️ Request Off-Day Change\" button. Your schedule won't change until an admin approves the request." },
                         { q: "Can I edit a chat message after I've sent it?", a: "Yes — tap Edit on your own message. It'll show an \"(edited)\" tag afterward so the other person knows it changed." },
                         { q: "I don't see the Admin Panel.", a: "You haven't been granted administrative permissions." },
-                        { q: "Chat isn't updating.", a: "Refresh the page or check your internet connection." }
-                    ]}
+                        { q: "Chat isn't updating.", a: "Refresh the page or check your internet connection." },
+                        { q: "I forgot my PIN.", a: "Use \"Forgot PIN?\" on the login screen, or ask an admin to reset it for you from the Admin Panel." },
+                        { q: "How do I report a bug or suggest a new feature?", a: "Use the \"🧩 Feedback / Feature Request\" button in the dashboard sidebar. Track its status anytime from \"📋 My Submitted Requests\", or browse and vote on other people's ideas from \"🗳️ Browse & Vote on Ideas\"." },
+                        { q: "I typed a feedback title and a box of similar requests popped up — what is that?", a: "That's ESM's duplicate check warning you that a similar request may already exist. Open one to check, or vote for it instead of submitting a near-duplicate." },
+                        { q: "How do I know if ESM has an update?", a: "If \"Automatically check for updates\" is on (Settings > About), ESM checks by itself at startup. You can also press \"Check Now\" anytime. If an update is found, it downloads in the background automatically — you'll get a \"Restart to update?\" prompt once it's ready." },
+                        { q: "A restart prompt appeared while I was working — what happens if I pick \"Remind me later\"?", a: "Nothing installs yet — keep working normally. ESM will ask again after a while. The update installs whenever you eventually choose Yes, or the next time ESM restarts on its own." },
+                        { q: "I turned off \"Automatically download updates in the background\" — what changes?", a: "ESM will still tell you when an update is available, but it won't download it by itself. A \"Download Update\" button appears in Settings > About so you can start the download yourself when you're ready." },
+                        { q: "I have \"Confirm Before Closing While On Duty\" turned on — will it block an update from installing?", a: "No. That confirmation only applies when you choose to close ESM yourself. It never blocks a download in progress or a restart-to-install, even while On Duty." },
+                        { q: "Where do I see company-wide load and revenue totals?", a: "Open \"📊 Monthly Statistics ▾\" next to Today's Timers on the dashboard — every employee can see this month's company-wide totals and a per-employee breakdown, updated live." },
+                        { q: "Can I see last month's statistics?", a: "Monthly Statistics only shows the current month. Past months are kept permanently in the Admin Panel's \"🗂 Monthly Archive\" — ask an admin if you need one pulled up or exported." },
+                        { q: "Closing the window doesn't quit ESM anymore — why?", a: "\"Minimize To Tray\" is on (Settings > General) — the X button hides ESM in the system tray instead of quitting. Click the tray icon to bring it back, or turn the setting off if you'd rather it quit normally." },
+                        { q: "I'm not getting desktop notifications.", a: "Check Settings > Notifications — make sure \"Desktop notifications\" is on, along with the specific category (Chat, Load update, Announcement, etc.) you're expecting." },
+                        { q: "How do I request overtime?", a: "Press \"🕐 Request Overtime\" on your dashboard. Your Overtime timer also starts automatically once you pass 9 hours On Duty (or from minute 0 on an off-day shift)." },
+                        { q: "Are my Settings the same on every computer?", a: "No — Settings are stored locally per computer, not per account. The same login can have different Settings on a different machine." },
+                        { q: "How do I generate a report?", a: "Use the Report Generator from the dashboard, then export it as PDF or CSV once it's built." },
+                        { q: "Where can I find my past shifts?", a: "Press \"📅 My Past Shifts\" in the dashboard sidebar for your personal shift history, separate from the shared 📜 Load History." }
+                    ]},
+                    { p: "If you found something that isn't documented here, please refer to A009 in the office at the time of his shift." }
                 ],
                 ar: [
                     { faq: [
@@ -497,14 +639,30 @@
                         { q: "أحتاج يوم إجازة مختلفًا عن الجدول الحالي.", a: "استخدم زر \"🗓️ Request Off-Day Change\". لن يتغير جدولك حتى يوافق المشرف على الطلب." },
                         { q: "هل يمكنني تعديل رسالة دردشة بعد إرسالها؟", a: "نعم — اضغط Edit على رسالتك الخاصة. ستظهر علامة \"(edited)\" بعد ذلك ليعرف الطرف الآخر أنها عُدّلت." },
                         { q: "لا أرى لوحة تحكم المشرف.", a: "لم يتم منحك صلاحيات إدارية." },
-                        { q: "الدردشة لا تتحدث.", a: "أعد تحميل الصفحة أو تحقق من اتصالك بالإنترنت." }
-                    ]}
+                        { q: "الدردشة لا تتحدث.", a: "أعد تحميل الصفحة أو تحقق من اتصالك بالإنترنت." },
+                        { q: "نسيت رقمي السري (PIN).", a: "استخدم \"Forgot PIN?\" في شاشة تسجيل الدخول، أو اطلب من المشرف إعادة تعيينه من لوحة تحكم المشرف." },
+                        { q: "كيف أُبلغ عن خلل أو أقترح ميزة جديدة؟", a: "استخدم زر \"🧩 Feedback / Feature Request\" في الشريط الجانبي للوحة التحكم. تابع حالته في أي وقت من \"📋 My Submitted Requests\"، أو تصفح أفكار الآخرين وصوّت لها من \"🗳️ Browse & Vote on Ideas\"." },
+                        { q: "كتبت عنوان ملاحظة فظهر مربع بطلبات مشابهة — ما هذا؟", a: "هذا فحص التكرار في ESM يُنبّهك أن طلبًا مشابهًا قد يكون موجودًا بالفعل. افتحه للتحقق، أو صوّت له بدلاً من إرسال طلب مكرر تقريبًا." },
+                        { q: "كيف أعرف إذا كان لدى ESM تحديث؟", a: "إذا كان \"التحقق التلقائي من التحديثات\" مفعّلاً (الإعدادات > حول)، يتحقق ESM بنفسه عند بدء التشغيل. يمكنك أيضًا الضغط على \"تحقق الآن\" في أي وقت. عند العثور على تحديث، يُنزَّل في الخلفية تلقائيًا — وستظهر لك رسالة \"إعادة التشغيل للتحديث؟\" عند جاهزيته." },
+                        { q: "ظهرت رسالة إعادة تشغيل أثناء عملي — ماذا يحدث إذا اخترت \"ذكّرني لاحقًا\"؟", a: "لا شيء يُثبَّت بعد — استمر في عملك بشكل طبيعي. سيسألك ESM مرة أخرى بعد فترة. يُثبَّت التحديث عندما تختار نعم في النهاية، أو في المرة القادمة التي يعيد فيها ESM التشغيل من تلقاء نفسه." },
+                        { q: "عطّلت \"تنزيل التحديثات تلقائيًا في الخلفية\" — ماذا يتغيّر؟", a: "سيظل ESM يخبرك بوجود تحديث، لكنه لن يُنزّله بنفسه. سيظهر زر \"تنزيل التحديث\" في الإعدادات > حول لتبدأ التنزيل بنفسك متى شئت." },
+                        { q: "لدي \"تأكيد الإغلاق أثناء On Duty\" مفعّل — هل سيمنع تثبيت تحديث؟", a: "لا. هذا التأكيد يظهر فقط عند اختيارك إغلاق ESM بنفسك. لا يمنع أبدًا تنزيلًا جاريًا أو إعادة تشغيل لتثبيت تحديث، حتى أثناء On Duty." },
+                        { q: "أين أرى إجماليات الشحنات والإيرادات على مستوى الشركة؟", a: "افتح \"📊 Monthly Statistics ▾\" بجانب Today's Timers في لوحة التحكم — يمكن لكل موظف رؤية إجماليات هذا الشهر على مستوى الشركة وتفصيل كل موظف، وتتحدث بشكل حي." },
+                        { q: "هل يمكنني رؤية إحصائيات الشهر الماضي؟", a: "تعرض Monthly Statistics الشهر الحالي فقط. تُحفظ الأشهر السابقة بشكل دائم في \"🗂 Monthly Archive\" بلوحة تحكم المشرف — اطلب من المشرف عرضها أو تصديرها إذا احتجت." },
+                        { q: "لم يعد إغلاق النافذة يُغلق ESM — لماذا؟", a: "خيار \"Minimize To Tray\" مفعّل (الإعدادات > عام) — زر X يُخفي ESM في شريط النظام بدلاً من الخروج منه. انقر أيقونة الشريط لإعادته، أو عطّل الخيار إذا كنت تفضل الخروج الطبيعي." },
+                        { q: "لا تصلني إشعارات سطح المكتب.", a: "تحقق من الإعدادات > الإشعارات — تأكد من تفعيل \"إشعارات سطح المكتب\"، إلى جانب الفئة المحددة (دردشة، تحديث شحنة، إعلان، إلخ) التي تتوقعها." },
+                        { q: "كيف أطلب عملاً إضافيًا؟", a: "اضغط \"🕐 Request Overtime\" في لوحة التحكم. يبدأ مؤقت العمل الإضافي تلقائيًا أيضًا بمجرد تجاوزك 9 ساعات On Duty (أو من الدقيقة صفر في وردية يوم الإجازة)." },
+                        { q: "هل إعداداتي نفسها على كل جهاز؟", a: "لا — تُحفظ الإعدادات محليًا لكل جهاز، وليس لكل حساب. يمكن لنفس تسجيل الدخول أن يكون له إعدادات مختلفة على جهاز آخر." },
+                        { q: "كيف أُنشئ تقريرًا؟", a: "استخدم Report Generator من لوحة التحكم، ثم صدّره بصيغة PDF أو CSV بعد إنشائه." },
+                        { q: "أين أجد ورديّاتي السابقة؟", a: "اضغط \"📅 My Past Shifts\" في الشريط الجانبي للوحة التحكم لسجل ورديّاتك الشخصي، وهو منفصل عن 📜 Load History المشترك." }
+                    ]},
+                    { p: "إذا وجدت شيئًا غير موثّق هنا، يُرجى الرجوع إلى A009 في المكتب خلال وقت ورديته." }
                 ]
             }
         }
     ];
 
-    let currentLang = "en";
+    let currentLang = (window.I18N && window.I18N.getLanguage()) || "en";
 
     // ===========================================
     // RENDERING
@@ -657,14 +815,19 @@
 
         currentLang = lang === "ar" ? "ar" : "en";
 
-        try { localStorage.setItem(LANG_KEY, currentLang); } catch (e) {}
+        // Persistence, <html dir>, and the generic [data-en] scan (now
+        // document-wide, not just #userGuideScreen) all live in i18n.js.
+        // If it's not already at this language, hand off to it — its
+        // onLanguageChange call below re-enters this function once it's
+        // done, at which point window.I18N.getLanguage() matches and we
+        // fall through to the guide-specific work.
+        if (window.I18N && window.I18N.getLanguage() !== currentLang) {
+            window.I18N.setLanguage(currentLang);
+            return;
+        }
 
         const guideScreen = document.getElementById("userGuideScreen");
         if (guideScreen) guideScreen.dir = currentLang === "ar" ? "rtl" : "ltr";
-
-        document.querySelectorAll("#userGuideScreen [data-en]").forEach(el => {
-            el.textContent = currentLang === "ar" ? el.dataset.ar : el.dataset.en;
-        });
 
         const searchInput = document.getElementById("guideSearchInput");
         if (searchInput) {
@@ -764,10 +927,17 @@
 
     function initUserGuide() {
 
-        try {
-            const savedLang = localStorage.getItem(LANG_KEY);
-            if (savedLang) currentLang = savedLang;
-        } catch (e) {}
+        currentLang = (window.I18N && window.I18N.getLanguage()) || "en";
+
+        // If the language is changed elsewhere (Settings, the wizard,
+        // another screen entirely), keep the guide in sync even though
+        // it's not currently open, so it's correct whenever it's next
+        // opened.
+        if (window.I18N) {
+            window.I18N.onChange(lang => {
+                if (lang !== currentLang) setLanguage(lang);
+            });
+        }
 
         renderGuide();
         setLanguage(currentLang);

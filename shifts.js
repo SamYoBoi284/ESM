@@ -1,24 +1,24 @@
 // ===========================================
 // RelayDesk
 // shifts.js
-// Shift Cycle Definitions + Lateness Helpers
+// Lateness/Attendance Helpers (Off-Days, Grace/Alert Thresholds,
+// Lateness Check, Alert Scan)
 // ===========================================
 //
-// Three fixed 9-hour cycles per day:
-//   Shift 1: 12:00 AM - 09:00 AM
-//   Shift 2: 08:00 AM - 05:00 PM
-//   Shift 3: 04:00 PM - 12:00 AM
-//
-// Admin assigns each employee code to one of these cycles
-// (users/{code}.assignedShift). Lateness is calculated by comparing
-// the employee's actual "On Duty" clock-in time against the expected
-// start time of their assigned cycle for that day.
-
-window.SHIFT_CYCLES = {
-    shift1: { key: "shift1", label: "Shift 1 (12:00 AM - 9:00 AM)", startHour: 0, startMinute: 0 },
-    shift2: { key: "shift2", label: "Shift 2 (8:00 AM - 5:00 PM)", startHour: 8, startMinute: 0 },
-    shift3: { key: "shift3", label: "Shift 3 (4:00 PM - 12:00 AM)", startHour: 16, startMinute: 0 }
-};
+// The old hardcoded 3-cycle-per-timezone engine (SHIFT_SCHEDULES /
+// window.SHIFT_CYCLES / shift1-shift2-shift3 / system/shiftConfig)
+// that used to live in this file has been retired (Step 6 of the
+// Shift Management feature — see SHIFT_MANAGEMENT_CONTEXT_TRACKER.md).
+// Shift *definitions* and *assignment* now live entirely in the
+// Firestore-backed `shifts` collection, managed via
+// shiftmanagement.js's window.getEmployeeAssignedShift /
+// window.getShiftExpectedStartEpoch / window.getShiftExpectedEndEpoch
+// / window.isNowWithinShift. Everything remaining in this file is
+// either still-active attendance logic that already consumes that new
+// system (checkLateness, scanForAlerts) or orthogonal helpers the new
+// system also depends on (weekly off-days, grace/alert-threshold
+// constants, same-calendar-day helper) — none of it is specific to
+// the old fixed-cycle model.
 
 // Grace period before a late clock-in is actually flagged
 window.LATE_GRACE_MINUTES = 10;
@@ -104,35 +104,20 @@ window.isSameCalendarDay = function (tsA, tsB = Date.now()) {
 
 
 // ===========================================
-// EXPECTED START TIME (today, for a given cycle)
-// ===========================================
-
-window.getExpectedShiftStart = function (shiftKey, referenceTime = Date.now()) {
-
-    const cycle = window.SHIFT_CYCLES[shiftKey];
-    if (!cycle) return null;
-
-    const ref = new Date(referenceTime);
-
-    return new Date(
-        ref.getFullYear(),
-        ref.getMonth(),
-        ref.getDate(),
-        cycle.startHour,
-        cycle.startMinute,
-        0,
-        0
-    ).getTime();
-};
-
-
-// ===========================================
 // LATENESS CHECK
 // ===========================================
+//
+// Resolves the employee's shift via the Shift Management system
+// (window.getEmployeeAssignedShift, shiftmanagement.js) — first param
+// is `userId`, not a shift key. The old fixed shift1/2/3 engine and
+// its shiftKey-based `getExpectedShiftStart` have been fully retired
+// (Step 6); every consumer now goes through
+// window.getShiftExpectedStartEpoch (shiftmanagement.js) instead.
 
-window.checkLateness = function (shiftKey, actualStartTime = Date.now(), user = null) {
+window.checkLateness = function (userId, actualStartTime = Date.now(), user = null) {
 
-    if (!shiftKey || !window.SHIFT_CYCLES[shiftKey]) {
+    const shift = window.getEmployeeAssignedShift?.(userId);
+    if (!shift || shift.enabled === false) {
         return { assigned: false, late: false };
     }
 
@@ -140,7 +125,7 @@ window.checkLateness = function (shiftKey, actualStartTime = Date.now(), user = 
         return { assigned: true, late: false, offToday: true };
     }
 
-    const expectedStart = window.getExpectedShiftStart(shiftKey, actualStartTime);
+    const expectedStart = window.getShiftExpectedStartEpoch(shift, actualStartTime);
     const graceMs = (window.LATE_GRACE_MINUTES || 10) * 60 * 1000;
 
     const diff = actualStartTime - expectedStart;
@@ -155,34 +140,6 @@ window.checkLateness = function (shiftKey, actualStartTime = Date.now(), user = 
         expectedStart,
         minutesLate: Math.round(diff / 60000)
     };
-};
-
-
-// ===========================================
-// ADMIN: ASSIGN A SHIFT CYCLE TO AN EMPLOYEE
-// ===========================================
-
-window.assignEmployeeShift = async function (userId, shiftKey) {
-
-    if (!userId) return;
-
-    // ===== PERMISSION SYSTEM =====
-    if (!window.hasPermission?.("canAssignShifts")) {
-        alert("You don't have permission to assign shifts.");
-        return;
-    }
-
-    await db.collection("users").doc(userId).set({
-        assignedShift: shiftKey || null
-    }, { merge: true });
-
-    if (typeof logAudit === "function") {
-        await logAudit(
-            window.RelayDesk?.currentUser || "A000",
-            "SHIFT_ASSIGNED",
-            `${userId} -> ${window.SHIFT_CYCLES[shiftKey]?.label || "Unassigned"}`
-        );
-    }
 };
 
 
@@ -216,21 +173,37 @@ window.scanForAlerts = function (users) {
         let addedLate = false;
 
         // ---- LATE CLOCK-IN (hasn't started an assigned shift yet) ----
-        if (u.assignedShift && window.SHIFT_CYCLES[u.assignedShift]) {
+        // Resolved via the Shift Management system
+        // (window.getEmployeeAssignedShift, shiftmanagement.js).
+        const resolvedShift = window.getEmployeeAssignedShift?.(u.id);
 
-            const expected = window.getExpectedShiftStart(u.assignedShift, now);
+        if (resolvedShift && resolvedShift.enabled !== false) {
+
+            const expected = window.getShiftExpectedStartEpoch(resolvedShift, now);
+            const shiftEnd = window.getShiftExpectedEndEpoch(resolvedShift, now);
             const graceMs = (window.LATE_GRACE_MINUTES || 10) * 60 * 1000;
 
             const stillNotOn =
                 !u.status || u.status === "Off Duty";
 
-            // only relevant once we're past their expected start (+grace)
-            // and before the next cycle begins, otherwise it's stale —
-            // "expected" is always computed against *today*, so this
-            // naturally clears itself out at midnight
-            const withinShiftWindow = now - expected < 9 * 60 * 60 * 1000;
+            // only relevant for the duration of the shift itself — was a
+            // hardcoded 9hrs under the old fixed 3-cycle system, now
+            // computed per-shift (any length, overnight-wrap aware) so
+            // this still naturally self-clears once the shift's expected
+            // end passes rather than flashing stale for the rest of the day
+            const withinShiftWindow = expected !== null && shiftEnd !== null && now < shiftEnd;
 
-            if (stillNotOn && withinShiftWindow && (now - expected) > graceMs) {
+            // ---- ADMIN RESOLUTION (Approve/Deny/Dismiss on the alert itself) ----
+            // A "dismissed" alert never resurfaces for the rest of the day.
+            // "approved"/"denied" still show (so admin sees what was decided)
+            // but come tagged with `resolution` so the panel renders a badge
+            // instead of action buttons.
+            const lateResolution = (u.lateAlertResolution && u.lateAlertResolution.date === today)
+                ? u.lateAlertResolution
+                : null;
+
+            if (stillNotOn && withinShiftWindow && (now - expected) > graceMs
+                && (!lateResolution || lateResolution.status !== "dismissed")) {
 
                 const dispute = (u.lateDispute && u.lateDispute.date === today)
                     ? u.lateDispute
@@ -239,8 +212,9 @@ window.scanForAlerts = function (users) {
                 late.push({
                     id: u.id,
                     minutesLate: Math.round((now - expected) / 60000),
-                    shiftLabel: window.SHIFT_CYCLES[u.assignedShift].label,
-                    dispute
+                    shiftLabel: resolvedShift.name,
+                    dispute,
+                    resolution: lateResolution
                 });
 
                 addedLate = true;
@@ -256,18 +230,24 @@ window.scanForAlerts = function (users) {
         // to admin regardless of the employee's current live status.
         if (!addedLate && u.lastLateClockIn && u.lastLateClockIn.date === today) {
 
-            const dispute = (u.lateDispute && u.lateDispute.date === today)
-                ? u.lateDispute
+            const lateResolution = (u.lateAlertResolution && u.lateAlertResolution.date === today)
+                ? u.lateAlertResolution
                 : null;
 
-            late.push({
-                id: u.id,
-                minutesLate: u.lastLateClockIn.minutesLate,
-                shiftLabel: (u.assignedShift && window.SHIFT_CYCLES[u.assignedShift])
-                    ? window.SHIFT_CYCLES[u.assignedShift].label
-                    : "Assigned shift",
-                dispute
-            });
+            if (!lateResolution || lateResolution.status !== "dismissed") {
+
+                const dispute = (u.lateDispute && u.lateDispute.date === today)
+                    ? u.lateDispute
+                    : null;
+
+                late.push({
+                    id: u.id,
+                    minutesLate: u.lastLateClockIn.minutesLate,
+                    shiftLabel: window.getEmployeeAssignedShift?.(u.id)?.name || "Assigned shift",
+                    dispute,
+                    resolution: lateResolution
+                });
+            }
         }
 
         // ---- LONG "AWAY" STRETCH ----
@@ -278,7 +258,12 @@ window.scanForAlerts = function (users) {
 
             const awayFor = now - u.lastSwitchTime;
 
-            if (awayFor > IDLE_AWAY_LIMIT_MS) {
+            const awayResolution = (u.awayAlertResolution && u.awayAlertResolution.date === today)
+                ? u.awayAlertResolution
+                : null;
+
+            if (awayFor > IDLE_AWAY_LIMIT_MS
+                && (!awayResolution || awayResolution.status !== "dismissed")) {
 
                 const dispute = (u.awayDispute && u.awayDispute.date === today)
                     ? u.awayDispute
@@ -287,7 +272,8 @@ window.scanForAlerts = function (users) {
                 idle.push({
                     id: u.id,
                     minutesAway: Math.round(awayFor / 60000),
-                    dispute
+                    dispute,
+                    resolution: awayResolution
                 });
             }
         }
@@ -298,7 +284,12 @@ window.scanForAlerts = function (users) {
 
             const breakFor = now - u.lastSwitchTime;
 
-            if (breakFor > BREAK_LIMIT_MS) {
+            const breakResolution = (u.breakAlertResolution && u.breakAlertResolution.date === today)
+                ? u.breakAlertResolution
+                : null;
+
+            if (breakFor > BREAK_LIMIT_MS
+                && (!breakResolution || breakResolution.status !== "dismissed")) {
 
                 const dispute = (u.breakDispute && u.breakDispute.date === today)
                     ? u.breakDispute
@@ -307,7 +298,8 @@ window.scanForAlerts = function (users) {
                 overBreak.push({
                     id: u.id,
                     minutesOnBreak: Math.round(breakFor / 60000),
-                    dispute
+                    dispute,
+                    resolution: breakResolution
                 });
             }
         }

@@ -2,6 +2,43 @@
 // RelayDesk V5 AUTH SYSTEM (BOOT FIX)
 // ===========================================
 
+// ===========================================
+// SHIFT RESOLUTION (new Shift Management system)
+// ===========================================
+//
+// STEP 5 — LOGIN-TIME RESOLUTION. Resolves + caches the logged-in
+// employee's shift on RelayDesk.currentUserShift as soon as it's
+// known, instead of every dashboard/countdown consumer resolving it
+// themselves on every render. Called once from startSession() right
+// after login, and re-called on every `shiftsChanged` event (fired by
+// shiftmanagement.js whenever any `shifts` doc changes) — this single
+// listener covers both "my shift's own config changed" (renamed,
+// retimed, retimezoned, enabled/disabled) and "I was moved to/off a
+// shift", since assignment lives on the shift doc's
+// `assignedEmployees`, not on my own `users/{id}` doc, so a reassign
+// never fires my user-doc onSnapshot. Also covers the (unlikely but
+// possible) race where `window.SHIFTS_LIST` hadn't finished its first
+// load yet at the exact moment of login — the next `shiftsChanged`
+// fire (which happens as soon as that first load lands) re-resolves.
+function resolveCurrentUserShift() {
+
+    if (!RelayDesk.currentUser || RelayDesk.currentUser === "A000") {
+        RelayDesk.currentUserShift = null;
+        return;
+    }
+
+    RelayDesk.currentUserShift = window.getEmployeeAssignedShift?.(RelayDesk.currentUser) || null;
+
+    // Dashboard/countdown UI (Step 5, next portions) can listen for
+    // this instead of polling, mirroring the shiftMgmt admin-panel
+    // pattern already used in admin.js.
+    document.dispatchEvent(new CustomEvent("currentUserShiftResolved", {
+        detail: { shift: RelayDesk.currentUserShift }
+    }));
+}
+
+document.addEventListener("shiftsChanged", resolveCurrentUserShift);
+
 function initAuth() {
 
     console.log("🔐 Auth system initialized");
@@ -197,7 +234,14 @@ async function login() {
     // (also covers a PIN Reset Request: the Admin blanks the PIN, and
     // the employee lands back in this same branch to set a new one —
     // pinWasReset just changes which message is shown while they do)
-    if (!user.pin) {
+    //
+    // NOTE: this checks specifically for null/undefined, NOT just
+    // falsy — an intentionally-blank PIN/password is stored as the
+    // empty string "" (see the pin-set branch below and the wrong-PIN
+    // check further down), so it must NOT fall into this "never set
+    // up yet" branch or the employee would be stuck re-setting it
+    // forever.
+    if (user.pin === null || user.pin === undefined) {
 
         // ===== FIRST LOGIN WIZARD (Phase 10) =====
         // A genuinely brand-new account (never had a PIN, never had
@@ -210,22 +254,28 @@ async function login() {
             return;
         }
 
-        if (!pin || pin.length !== 4) {
-            showMessage(
-                user.pinWasReset
-                    ? "Your PIN Has Been Reset, Please Set a New One."
-                    : "Create 4-digit PIN",
-                "#ffb347"
-            );
-            return;
-        }
-
+        // Any PIN/password is accepted now, any length — a 4-digit PIN,
+        // a longer password, whatever the employee prefers. Leaving it
+        // blank is also allowed on purpose: it's saved as "" (an
+        // intentionally-empty PIN), and future logins for this account
+        // skip the PIN/password check entirely (see the wrong-PIN
+        // check below).
         await ref.update({
             pin,
             pinWasReset: false,
             pinResetRequested: false,
             pinResetRequestedAt: null
         });
+
+        // Confirms the reset actually took effect. A small inline message
+        // isn't reliable here — the screen switches to the dashboard right
+        // after this — so a blocking popup is used instead, and it's shown
+        // BEFORE that switch so it's guaranteed to be seen.
+        alert(
+            pin
+                ? "🔒 Your PIN/Password was reset by an admin. What you just entered has been saved as your new PIN/Password."
+                : "🔒 Your PIN/Password was reset by an admin and left blank. You can log in with just your employee code from now on — enter a new PIN/Password on the login screen anytime you want to set one."
+        );
 
         currentUser = code;
         RelayDesk.currentUser = code;
@@ -249,9 +299,11 @@ async function login() {
         return;
     }
 
-    // WRONG PIN
-    if (pin !== user.pin) {
-        showMessage("Wrong PIN", "#ff6464");
+    // WRONG PIN/PASSWORD
+    // (skipped entirely for accounts with an intentionally-blank PIN —
+    // user.pin === "" — those log in with just their employee code)
+    if (user.pin !== "" && pin !== user.pin) {
+        showMessage("Wrong PIN/Password", "#ff6464");
         return;
     }
 
@@ -372,6 +424,12 @@ async function startSession() {
     // any individual overrides an admin has granted them)
     RelayDesk.currentUserPermissions = window.getUserPermissions(data, RelayDesk.currentUser);
     RelayDesk.currentUserData = data;
+
+    // STEP 5 — resolve+cache this employee's shift right away, so the
+    // dashboard/countdown code that runs later in this same function
+    // (and everything after) can read RelayDesk.currentUserShift
+    // synchronously instead of waiting on a Firestore round-trip.
+    resolveCurrentUserShift();
 
     // ===== ADMIN PANEL ACCESS BUTTON =====
     // Applied FIRST, right after permissions are known — deliberately

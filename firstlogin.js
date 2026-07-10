@@ -16,9 +16,11 @@
 // Theme + notification choices are applied live via window.ESMSettings
 // (same storage/apply path as the real Settings screen), so by the
 // time the wizard finishes those preferences are already in effect.
-// Language is a preference only for now — saved on the user's own
-// Firestore doc as `preferredLanguage`, not yet applied to anything,
-// since the language system itself is Phase 11.
+// Language now works the same way as of Phase 11: choosing a language
+// here calls window.I18N.setLanguage() immediately (so the rest of the
+// wizard itself switches language live), in addition to the existing
+// preferredLanguage write on the user's Firestore doc in bindPinStep()
+// below.
 
 (function () {
 
@@ -79,6 +81,15 @@
                 buttons.forEach(b => b.classList.remove("active"));
                 btn.classList.add("active");
                 chosenLanguage = btn.dataset.lang;
+
+                // Apply immediately so the rest of the wizard (and the
+                // rest of the app, if they navigate away) reflects the
+                // choice right away. skipRemoteSync: true because there's
+                // no confirmed account/session yet at this point in the
+                // wizard — bindPinStep() below is what actually persists
+                // preferredLanguage to Firestore, once the account is
+                // finalized with a real PIN.
+                window.I18N?.setLanguage(chosenLanguage, { skipRemoteSync: true });
             };
         });
     }
@@ -121,13 +132,11 @@
             const pin = (pinInput?.value || "").trim();
             const confirmPin = (confirmInput?.value || "").trim();
 
-            if (!/^\d{4}$/.test(pin)) {
-                if (msg) { msg.textContent = "PIN must be exactly 4 digits."; msg.style.color = "#ff6464"; }
-                return;
-            }
-
+            // Any PIN/password is accepted now — any length, or left
+            // blank entirely. A blank PIN is saved as "" on purpose;
+            // auth.js treats that as "no PIN needed" on future logins.
             if (pin !== confirmPin) {
-                if (msg) { msg.textContent = "PINs don't match."; msg.style.color = "#ff6464"; }
+                if (msg) { msg.textContent = "PIN/Password entries don't match."; msg.style.color = "#ff6464"; }
                 return;
             }
 

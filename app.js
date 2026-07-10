@@ -160,6 +160,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     // initAboutEsmCredit() just above.
     window.initDevPanel?.();
 
+    // Starts the Firestore-backed, fully configurable Shift
+    // Management system's live "shifts" collection listener (see
+    // shiftmanagement.js / SHIFT_MANAGEMENT_CONTEXT_TRACKER.md),
+    // populating window.SHIFTS / window.SHIFTS_LIST as soon as
+    // possible — dashboards/countdowns/lateness calculations
+    // (status.js) resolve an employee's shift from this. The old
+    // hardcoded initShiftConfig() engine has been retired (Step 6).
+    window.initShiftManagement?.();
+
     console.log("RelayDesk Ready (waiting login)");
 });
 
@@ -275,10 +284,26 @@ function bootWorkspace() {
         initializeDisputes();
     }
 
+    // 8b. feedback / feature request system
+    if (window.initializeFeedback) {
+        initializeFeedback();
+    }
+
     // 9. company-wide Monthly Statistics (live panel + lazy monthly
     // archive check) — every logged-in employee gets this, not just admins
     if (window.initializeMonthlyStats) {
         initializeMonthlyStats();
+    }
+
+    // 9b. Violations Log — lazy monthly archive check + pre-month-end
+    // auto-export (admin/dev only, gated inside the function itself)
+    if (window.initializeViolationsLog) {
+        initializeViolationsLog();
+    }
+
+    // 10. Employee Activity Detection (automatic idle status management)
+    if (window.initializeActivityDetection) {
+        initializeActivityDetection();
     }
 
     console.log("🟢 Workspace fully active");
@@ -289,3 +314,4 @@ initializePresence();
 initializeRoleSelector();
 initTodaysTimersToggle();
 initMonthlyStatsToggle?.();
+window.initPanelCollapseToggles?.();

@@ -18,6 +18,22 @@
 
     if (!window.RelayDesk) window.RelayDesk = {};
 
+    // Phase 11, batch 4: toast/alert strings via shared I18N.
+    if (window.I18N) {
+        window.I18N.register("overtime", {
+            en: {
+                enterReason: "Please enter a reason for the overtime request first.",
+                requestSent: "📨 Overtime request sent to admin",
+                requestFailed: "Failed to send overtime request."
+            },
+            ar: {
+                enterReason: "يرجى إدخال سبب لطلب العمل الإضافي أولاً.",
+                requestSent: "📨 تم إرسال طلب العمل الإضافي إلى المشرف",
+                requestFailed: "فشل إرسال طلب العمل الإضافي."
+            }
+        });
+    }
+
     let initialized = false;
 
     window.initializeOvertime = function () {
@@ -40,7 +56,7 @@
             const reason = (reasonBox?.value || "").trim();
 
             if (!reason) {
-                alert("Please enter a reason for the overtime request first.");
+                alert(window.I18N ? window.I18N.t("overtime.enterReason") : "Please enter a reason for the overtime request first.");
                 reasonBox?.focus();
                 return;
             }
@@ -59,14 +75,14 @@
                 if (reasonBox) reasonBox.value = "";
 
                 if (typeof window.NotificationManager === "object") {
-                    window.NotificationManager.notify("📨 Overtime request sent to admin", "info", { category: "overtime" });
+                    window.NotificationManager.notify(window.I18N ? window.I18N.t("overtime.requestSent") : "📨 Overtime request sent to admin", "info", { category: "overtime" });
                 } else if (typeof window.showToast === "function") {
-                    window.showToast("📨 Overtime request sent to admin", "info");
+                    window.showToast(window.I18N ? window.I18N.t("overtime.requestSent") : "📨 Overtime request sent to admin", "info");
                 }
 
             } catch (err) {
                 console.error("Overtime request failed:", err);
-                alert("Failed to send overtime request.");
+                alert(window.I18N ? window.I18N.t("overtime.requestFailed") : "Failed to send overtime request.");
             }
         };
 

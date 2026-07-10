@@ -103,16 +103,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // ===========================================
 // SCHEDULED SHIFT START TIMES (for lateness calc)
-// mirrors the shift options in the employee shift-assignment dropdown
+// STEP 5 CUTOVER: reads the new Shift Management system's single
+// source of truth (shiftmanagement.js — window.getEmployeeAssignedShift
+// / window.getShiftExpectedStartEpoch) instead of the old shifts.js
+// window.SHIFT_CYCLES / window.getExpectedShiftStart, so report
+// lateness respects each employee's own configured shift (any
+// start/end/timezone, not just the 3 old fixed US/SY cycles).
 // ===========================================
-
-const SHIFT_START_HOURS = {
-    shift1: 0,   // 12AM-9AM
-    shift2: 8,   // 8AM-5PM
-    shift3: 16   // 4PM-12AM
-};
-
-const LATE_GRACE_MINUTES = 10;
 
 
 // ===========================================
@@ -211,21 +208,18 @@ async function buildReport(period, anchorDate) {
         bucket.loads += s.metrics?.bookedLoads || 0;
 
         // Lateness: compare actual clock-in to the scheduled start for
-        // whichever shift this employee is CURRENTLY assigned. This is
-        // a best-effort signal — historical shift assignment per-day
-        // isn't tracked, so a recent reassignment can skew past shifts.
-        const employee = employees.find(e => e.id === s.user);
-        const scheduledHour = SHIFT_START_HOURS[employee?.assignedShift];
+        // whichever shift this employee is CURRENTLY assigned (new
+        // Shift Management system). This is a best-effort signal —
+        // historical shift assignment per-day isn't tracked, so a
+        // recent reassignment can skew past shifts.
+        const resolvedShift = window.getEmployeeAssignedShift?.(s.user);
 
-        if (scheduledHour !== undefined) {
+        if (resolvedShift && resolvedShift.enabled !== false) {
 
-            const clockIn = new Date(s.startTime);
-            const scheduled = new Date(clockIn);
-            scheduled.setHours(scheduledHour, 0, 0, 0);
+            const scheduled = window.getShiftExpectedStartEpoch(resolvedShift, s.startTime);
+            const minutesLate = (s.startTime - scheduled) / 60000;
 
-            const minutesLate = (clockIn - scheduled) / 60000;
-
-            if (minutesLate > LATE_GRACE_MINUTES) {
+            if (minutesLate > (window.LATE_GRACE_MINUTES || 10)) {
                 bucket.lateShifts += 1;
             }
         }

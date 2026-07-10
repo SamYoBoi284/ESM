@@ -27,6 +27,30 @@
 
     if (!window.RelayDesk) window.RelayDesk = {};
 
+    // Phase 11, batch 4: toast/alert strings via shared I18N.
+    if (window.I18N) {
+        window.I18N.register("disputes", {
+            en: {
+                explanationSent: "📨 Explanation sent to admin",
+                explanationSendFailed: "Failed to send explanation.",
+                enterReason: "Please enter a reason.",
+                offDayRequestSent: "🗓️ Off-day change request sent to admin",
+                offDayRequestFailed: "Failed to send request.",
+                offDayLoadFailed: "Couldn't load your current off days — try again.",
+                offDaySameSchedule: "That's already your current off-day schedule — pick something different."
+            },
+            ar: {
+                explanationSent: "📨 تم إرسال التوضيح إلى المشرف",
+                explanationSendFailed: "فشل إرسال التوضيح.",
+                enterReason: "يرجى إدخال سبب.",
+                offDayRequestSent: "🗓️ تم إرسال طلب تغيير يوم الإجازة إلى المشرف",
+                offDayRequestFailed: "فشل إرسال الطلب.",
+                offDayLoadFailed: "تعذر تحميل أيام إجازتك الحالية — يرجى المحاولة مرة أخرى.",
+                offDaySameSchedule: "هذا هو جدول يوم إجازتك الحالي بالفعل — اختر شيئًا مختلفًا."
+            }
+        });
+    }
+
     let initialized = false;
 
     window.initializeDisputes = function () {
@@ -68,7 +92,7 @@
                     const reason = (reasonInput?.value || "").trim();
 
                     if (!reason) {
-                        alert("Please enter a reason.");
+                        alert(window.I18N ? window.I18N.t("disputes.enterReason") : "Please enter a reason.");
                         return;
                     }
 
@@ -102,14 +126,14 @@
                         modal.style.display = "none";
 
                         if (typeof window.NotificationManager === "object") {
-                            window.NotificationManager.notify("📨 Explanation sent to admin", "info", { category: "alerts" });
+                            window.NotificationManager.notify(window.I18N ? window.I18N.t("disputes.explanationSent") : "📨 Explanation sent to admin", "info", { category: "alerts" });
                         } else if (typeof window.showToast === "function") {
-                            window.showToast("📨 Explanation sent to admin", "info");
+                            window.showToast(window.I18N ? window.I18N.t("disputes.explanationSent") : "📨 Explanation sent to admin", "info");
                         }
 
                     } catch (err) {
                         console.error("Dispute send failed:", err);
-                        alert("Failed to send explanation.");
+                        alert(window.I18N ? window.I18N.t("disputes.explanationSendFailed") : "Failed to send explanation.");
                     }
                 };
             }
@@ -184,7 +208,7 @@
 
             } catch (err) {
                 console.error("Failed to load current off days:", err);
-                alert("Couldn't load your current off days — try again.");
+                alert(window.I18N ? window.I18N.t("disputes.offDayLoadFailed") : "Couldn't load your current off days — try again.");
             }
         };
 
@@ -207,7 +231,7 @@
                     requestedOffDays.every(d => currentOffDays.includes(d));
 
                 if (sameAsCurrent) {
-                    alert("That's already your current off-day schedule — pick something different.");
+                    alert(window.I18N ? window.I18N.t("disputes.offDaySameSchedule") : "That's already your current off-day schedule — pick something different.");
                     return;
                 }
 
@@ -234,14 +258,14 @@
                     modal.style.display = "none";
 
                     if (typeof window.NotificationManager === "object") {
-                        window.NotificationManager.notify("🗓️ Off-day change request sent to admin", "info", { category: "offday" });
+                        window.NotificationManager.notify(window.I18N ? window.I18N.t("disputes.offDayRequestSent") : "🗓️ Off-day change request sent to admin", "info", { category: "offday" });
                     } else if (typeof window.showToast === "function") {
-                        window.showToast("🗓️ Off-day change request sent to admin", "info");
+                        window.showToast(window.I18N ? window.I18N.t("disputes.offDayRequestSent") : "🗓️ Off-day change request sent to admin", "info");
                     }
 
                 } catch (err) {
                     console.error("Off-day change request failed:", err);
-                    alert("Failed to send request.");
+                    alert(window.I18N ? window.I18N.t("disputes.offDayRequestFailed") : "Failed to send request.");
                 }
             };
         }

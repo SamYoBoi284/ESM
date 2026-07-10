@@ -42,7 +42,11 @@ function formatTime(ms) {
 // ===========================================
 
 function getCurrentTime() {
-    return new Date().toLocaleTimeString();
+    // Settings feature: Appearance > 24-Hour Time > USA Clock. Locale
+    // stays whatever the browser default is (unchanged from before) —
+    // only hour12 is forced one way or the other.
+    const use24h = window.ESMSettings?.get("use24HourUSA") === true;
+    return new Date().toLocaleTimeString(undefined, { hour12: !use24h });
 }
 
 function getCurrentDate() {
@@ -53,12 +57,14 @@ function getCurrentDate() {
 // Using the IANA timezone (instead of a hardcoded +3) means this stays
 // correct automatically even if that ever changes.
 function getDamascusTime() {
+    // Settings feature: Appearance > 24-Hour Time > Damascus Clock.
+    const use24h = window.ESMSettings?.get("use24HourDamascus") === true;
     return new Date().toLocaleTimeString("en-US", {
         timeZone: "Asia/Damascus",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
-        hour12: true
+        hour12: !use24h
     });
 }
 
@@ -68,12 +74,13 @@ function getDamascusTime() {
 function formatDamascusTime(ms) {
     if (!ms) return "--";
 
+    const use24h = window.ESMSettings?.get("use24HourDamascus") === true;
     return new Date(ms).toLocaleTimeString("en-US", {
         timeZone: "Asia/Damascus",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
-        hour12: true
+        hour12: !use24h
     });
 }
 
@@ -99,6 +106,11 @@ function startClock() {
         if (date) date.textContent = getCurrentDate();
         if (damascusClock) damascusClock.textContent = `🇸🇾 ${getDamascusTime()}`;
     }
+
+    // Exposed so settings.js can force an immediate refresh the moment
+    // someone flips a 24-Hour Time toggle, instead of waiting up to 1s
+    // for the next tick.
+    window.refreshClockDisplay = update;
 
     update();
     setInterval(update, 1000);
@@ -221,4 +233,53 @@ window.showToast = function (message, type = "info", duration = 6000) {
         toast.classList.remove("toastShow");
         setTimeout(() => toast.remove(), 350);
     }, duration);
+};
+
+
+// ===========================================
+// COLLAPSIBLE PANEL HEADERS (accordion-style)
+// ===========================================
+// Generic helper for the "header stays put, body collapses" pattern
+// used by the Workspace section, STS Team list, and the End-of-Shift
+// Report Formatter. Each panel's collapsed/expanded state is
+// remembered per-browser (localStorage) so it sticks across reloads.
+
+window.bindPanelCollapseToggle = function (btnId, bodyId, storageKey) {
+
+    const btn = document.getElementById(btnId);
+    const body = document.getElementById(bodyId);
+
+    if (!btn || !body) return;
+
+    const applyState = (collapsed) => {
+        body.classList.toggle("panelCollapseBody-collapsed", collapsed);
+        btn.classList.toggle("collapsed", collapsed);
+        btn.setAttribute("aria-expanded", String(!collapsed));
+        btn.textContent = collapsed ? "▸" : "▾";
+    };
+
+    let collapsed = false;
+    try {
+        collapsed = localStorage.getItem(storageKey) === "1";
+    } catch (e) {}
+
+    applyState(collapsed);
+
+    btn.addEventListener("click", () => {
+        collapsed = !collapsed;
+        applyState(collapsed);
+
+        try {
+            localStorage.setItem(storageKey, collapsed ? "1" : "0");
+        } catch (e) {}
+    });
+};
+
+// Binds the two static (already-in-HTML) collapsible panels. The
+// Report Formatter panel is built dynamically by workspace.js, so it
+// binds its own toggle from inside reportFormatter.bindEvents() once
+// its DOM actually exists.
+window.initPanelCollapseToggles = function () {
+    window.bindPanelCollapseToggle("workspaceSectionToggleBtn", "workspaceSectionBody", "relaydesk_collapse_workspace");
+    window.bindPanelCollapseToggle("stsTeamToggleBtn", "colleaguesBox", "relaydesk_collapse_stsTeam");
 };

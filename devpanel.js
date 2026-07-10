@@ -31,6 +31,26 @@
 
     if (!window.RelayDesk) window.RelayDesk = {};
 
+    // Phase 11, batch 4: toast/alert/confirm strings via shared I18N.
+    if (window.I18N) {
+        window.I18N.register("devpanel", {
+            en: {
+                confirmDiscardClose: "You have unsaved changes in the Developer Panel. Discard them?",
+                confirmDiscardReload: "Discard your unsaved changes and reload the last-saved version?",
+                releaseNotesRequired: "Version and notes are both required for a release notes entry.",
+                savedNotify: "💾 Developer Panel changes saved — now live for everyone",
+                savedToast: "💾 Changes saved and are now live for everyone"
+            },
+            ar: {
+                confirmDiscardClose: "لديك تغييرات غير محفوظة في لوحة المطور. هل تريد تجاهلها؟",
+                confirmDiscardReload: "هل تريد تجاهل تغييراتك غير المحفوظة وإعادة تحميل آخر نسخة محفوظة؟",
+                releaseNotesRequired: "الإصدار والملاحظات مطلوبان لإدخال ملاحظات الإصدار.",
+                savedNotify: "💾 تم حفظ تغييرات لوحة المطور — أصبحت متاحة الآن للجميع",
+                savedToast: "💾 تم حفظ التغييرات وأصبحت متاحة الآن للجميع"
+            }
+        });
+    }
+
     // ===========================================
     // WHO'S A DEVELOPER
     // ===========================================
@@ -75,6 +95,45 @@
     };
 
     RelayDesk.devPanel = DevPanel;
+
+    // ===========================================
+    // LIVE APP VERSION (real installed/running version)
+    // ===========================================
+    // The Firestore "version" field above is a manual override a
+    // developer can type into the panel (release nicknames, "beta",
+    // whatever) — it isn't meant to be the *only* source of truth, and
+    // leaving it blank (or never having set it) should just show the
+    // real version instead of a stale hardcoded fallback. Fetched once
+    // and cached; re-renders the public displays as soon as it resolves
+    // in case Firestore's snapshot already rendered first.
+    let liveAppVersion = null;
+
+    async function loadLiveAppVersion() {
+        try {
+            if (window.electronAPI?.getAppInfo) {
+                const info = await window.electronAPI.getAppInfo();
+                liveAppVersion = info?.version || null;
+            }
+        } catch (err) {
+            console.warn("devpanel: could not read live app version:", err);
+        }
+
+        if (liveAppVersion) {
+            renderPublicDisplays(DevPanel.cachedConfig);
+        }
+    }
+
+    // Single source of truth for "what version is this, really" — the
+    // same fallback chain renderAboutEsmModal/renderSettingsAbout already
+    // use (Firestore override -> real installed version -> hardcoded
+    // fallback). Exposed on DevPanel so other modules (Release Management
+    // in feedback.js) don't have to read cachedConfig.version directly and
+    // risk skipping the fallback chain (e.g. if version is ever an empty
+    // string in Firestore rather than simply missing).
+    function getEffectiveVersion() {
+        return DevPanel.cachedConfig.version || liveAppVersion || FALLBACK_CONFIG.version;
+    }
+    DevPanel.getEffectiveVersion = getEffectiveVersion;
 
     // ===========================================
     // HELPERS
@@ -124,6 +183,22 @@
         });
     }
 
+    // Release Notes History — search + sort (Automatic Release Notes /
+    // Changelog Generator feature). Filters/reorders the same in-memory
+    // draft.releaseNotes list the editor already has; no new Firestore reads.
+    let devReleaseNotesSearch = "";
+    let devReleaseNotesSort = "newest"; // "newest" | "oldest"
+
+    function filteredReleaseNotesForEditor(draft) {
+        let notes = sortedReleaseNotes(draft); // newest-first baseline
+        if (devReleaseNotesSearch) {
+            const q = devReleaseNotesSearch.toLowerCase();
+            notes = notes.filter(n => (n.version || "").toLowerCase().includes(q));
+        }
+        if (devReleaseNotesSort === "oldest") notes = [...notes].reverse();
+        return notes;
+    }
+
     // ===========================================
     // LIVE SYNC — everyone reads this
     // ===========================================
@@ -150,6 +225,11 @@
                     renderDevPanelFooter(DevPanel.cachedConfig);
                 }
 
+                // Release Management (Automatic Release Notes / Changelog
+                // Generator, feedback.js) shows Current/Previous Version off
+                // this same config — keep it live without a second listener.
+                window.renderReleaseManagementPanel?.();
+
             }, err => console.error("appConfig listener failed:", err));
     }
 
@@ -168,7 +248,7 @@
         const footer = document.getElementById("aboutEsmVersionFooter");
         const body = document.getElementById("aboutEsmCreditsBody");
 
-        const versionText = `Release Version ${cfg.version || FALLBACK_CONFIG.version}`;
+        const versionText = `Release Version ${getEffectiveVersion()}`;
 
         if (label) label.textContent = versionText;
         if (footer) footer.textContent = versionText;
@@ -181,7 +261,7 @@
         const creditsEl = document.getElementById("settingsCreditsText");
 
         if (aboutTextEl) aboutTextEl.textContent = cfg.aboutText || FALLBACK_CONFIG.aboutText;
-        if (versionEl) versionEl.textContent = cfg.version || FALLBACK_CONFIG.version;
+        if (versionEl) versionEl.textContent = getEffectiveVersion();
         if (creditsEl) creditsEl.innerHTML = textToParagraphs(cfg.credits || FALLBACK_CONFIG.credits);
     }
 
@@ -263,7 +343,7 @@
     }
 
     function closeDevPanel() {
-        if (DevPanel.dirty && !confirm("You have unsaved changes in the Developer Panel. Discard them?")) {
+        if (DevPanel.dirty && !confirm(window.I18N ? window.I18N.t("devpanel.confirmDiscardClose") : "You have unsaved changes in the Developer Panel. Discard them?")) {
             return;
         }
         DevPanel.draft = null;
@@ -309,10 +389,10 @@
         const list = document.getElementById("devReleaseNotesList");
         if (!list) return;
 
-        const notes = sortedReleaseNotes(draft);
+        const notes = filteredReleaseNotesForEditor(draft);
 
         if (!notes.length) {
-            list.innerHTML = `<div class="workspaceEmpty">No entries yet — add one below.</div>`;
+            list.innerHTML = `<div class="workspaceEmpty">${devReleaseNotesSearch ? "No versions match your search." : "No entries yet — add one below."}</div>`;
             return;
         }
 
@@ -323,6 +403,7 @@
                     <span class="releaseNoteDate">${escapeHtml(n.date || "")}</span>
                     <button type="button" class="dangerButton devPanelRemoveNoteBtn" data-note-id="${escapeHtml(n.id)}">🗑 Delete</button>
                 </div>
+                ${n.stats ? `<p class="settingsHint">✨ ${n.stats.newFeatures} New Features · 🐛 ${n.stats.bugFixes} Bug Fixes · 🔧 ${n.stats.improvements} Improvements · 🚧 ${n.stats.inProgress} In Progress</p>` : ""}
                 <div class="devPanelListItemBody">${escapeHtml(n.notes || "").replace(/\n/g, "<br>")}</div>
             </div>
         `).join("");
@@ -348,7 +429,7 @@
             const date = dateEl?.value || new Date().toISOString().slice(0, 10);
 
             if (!version || !notes) {
-                alert("Version and notes are both required for a release notes entry.");
+                alert(window.I18N ? window.I18N.t("devpanel.releaseNotesRequired") : "Version and notes are both required for a release notes entry.");
                 return;
             }
 
@@ -430,7 +511,10 @@
         const resultEl = document.getElementById("devPanelSaveResult");
 
         const payload = {
-            version: (versionInput?.value || "").trim() || FALLBACK_CONFIG.version,
+            // Blank means "auto" — Settings > About / the About modal will
+            // fall back to the real installed app version. Only a
+            // deliberately-typed value here overrides that.
+            version: (versionInput?.value || "").trim(),
             aboutText: aboutInput?.value || "",
             credits: creditsInput?.value || "",
             releaseNotes: DevPanel.draft.releaseNotes,
@@ -450,8 +534,8 @@
 
             if (resultEl) resultEl.textContent = `Saved ✅ (${formatWhen(payload.updatedAt)})`;
 
-            window.NotificationManager?.notify("💾 Developer Panel changes saved — now live for everyone", "success", { category: "system", desktop: false })
-                ?? window.showToast?.("💾 Changes saved and are now live for everyone", "success");
+            window.NotificationManager?.notify(window.I18N ? window.I18N.t("devpanel.savedNotify") : "💾 Developer Panel changes saved — now live for everyone", "success", { category: "system", desktop: false })
+                ?? window.showToast?.(window.I18N ? window.I18N.t("devpanel.savedToast") : "💾 Changes saved and are now live for everyone", "success");
         } catch (err) {
             console.error("Failed to save Developer Panel config:", err);
             if (resultEl) resultEl.textContent = "❌ Save failed — check your connection and try again.";
@@ -460,7 +544,7 @@
 
     function bindReloadButton() {
         document.getElementById("devPanelReloadBtn")?.addEventListener("click", () => {
-            if (DevPanel.dirty && !confirm("Discard your unsaved changes and reload the last-saved version?")) {
+            if (DevPanel.dirty && !confirm(window.I18N ? window.I18N.t("devpanel.confirmDiscardReload") : "Discard your unsaved changes and reload the last-saved version?")) {
                 return;
             }
             DevPanel.draft = cloneConfig(DevPanel.cachedConfig);
@@ -488,6 +572,22 @@
         bindAddCustomField();
         bindReloadButton();
 
+        const rnSearchInput = document.getElementById("devReleaseNotesSearchInput");
+        const rnSortSelect = document.getElementById("devReleaseNotesSortSelect");
+        if (rnSearchInput) {
+            rnSearchInput.addEventListener("input", () => {
+                devReleaseNotesSearch = rnSearchInput.value.trim();
+                if (DevPanel.draft) renderReleaseNotesEditor(DevPanel.draft);
+            });
+        }
+        if (rnSortSelect) {
+            rnSortSelect.value = devReleaseNotesSort;
+            rnSortSelect.addEventListener("change", () => {
+                devReleaseNotesSort = rnSortSelect.value;
+                if (DevPanel.draft) renderReleaseNotesEditor(DevPanel.draft);
+            });
+        }
+
         document.getElementById("viewReleaseNotesBtn")?.addEventListener("click", window.openReleaseNotesModal);
         document.getElementById("aboutEsmReleaseNotesBtn")?.addEventListener("click", window.openReleaseNotesModal);
     }
@@ -499,6 +599,7 @@
         bindStaticUI();
         listenAppConfig();
         renderPublicDisplays(DevPanel.cachedConfig); // paint fallback immediately, before Firestore responds
+        loadLiveAppVersion(); // then swap in the real version once it resolves, if nothing overrides it
     };
 
 })();

@@ -75,7 +75,17 @@ window.reserveVrid = async function (vrid, meta = {}) {
     const ref = db.collection("loadVridIndex").doc(key);
     const existing = await ref.get();
     if (existing.exists) return false;
-    await ref.set({ vrid: String(vrid).trim(), ...meta, reservedAt: Date.now() });
+    const now = new Date();
+    await ref.set({
+        vrid: String(vrid).trim(),
+        ...meta,
+        reservedAt: now.getTime(),
+        // Human-readable date (YYYY-MM-DD), purely so a reservation can
+        // be eyeballed/sorted/filtered straight in the Firestore console
+        // without decoding the epoch `reservedAt` value — handy when
+        // manually clearing out mistaken reservations.
+        reservedDate: now.toISOString().slice(0, 10)
+    });
     return true;
 };
 
@@ -94,10 +104,172 @@ window.releaseVrid = async function (vrid) {
 
 (function () {
 
+    // Phase 11, batch 4: toast/alert strings via shared I18N.
+    if (window.I18N) {
+        window.I18N.register("loadhistory", {
+            en: {
+                noPermissionView: "You don't have permission to view Load History.",
+                noPermissionEdit: "You don't have permission to edit loads.",
+                loadUpdated: "✅ Load updated",
+                saveFailed: "Failed to save changes.",
+                loadUpdatedByOther: "📦 Your load {vrid} was updated by {editor}"
+            },
+            ar: {
+                noPermissionView: "ليس لديك صلاحية لعرض سجل الشحنات.",
+                noPermissionEdit: "ليس لديك صلاحية لتعديل الشحنات.",
+                loadUpdated: "✅ تم تحديث الشحنة",
+                saveFailed: "فشل حفظ التغييرات.",
+                loadUpdatedByOther: "📦 تم تحديث شحنتك {vrid} بواسطة {editor}"
+            }
+        });
+    }
+
     let initialized = false;
     let editingContext = null; // { load, shiftId, owner }
     let unsubscribeLoadsListener = null; // live shiftHistory listener, active only while the modal is open
     const UI = {};
+
+    // ===========================================
+    // SORT + FILTER TOOLBAR (relocated here from Booked Loads/
+    // workspace.js — it always belonged on the permanent, searchable
+    // Load History list rather than the current shift's live loads).
+    // Same localStorage keys as before so anyone's already-remembered
+    // sort/filter choice carries over.
+    // ===========================================
+
+    const LAST_LOAD_SORT_KEY = "esm_last_load_sort";
+    const LAST_LOAD_FILTERS_KEY = "esm_last_load_filters";
+
+    let currentLoadSort = null;
+    let currentLoadFilters = { department: "", driver: "", vridType: "" };
+
+    function getEffectiveLoadSort() {
+        if (window.ESMSettings?.get("rememberLastLoadSort")) {
+            try {
+                const remembered = localStorage.getItem(LAST_LOAD_SORT_KEY);
+                if (remembered) return remembered;
+            } catch (e) {}
+        }
+        return window.ESMSettings?.get("defaultLoadSorting") || "Newest";
+    }
+
+    function getEffectiveLoadFilters() {
+        if (window.ESMSettings?.get("rememberLastLoadFilters")) {
+            try {
+                const raw = localStorage.getItem(LAST_LOAD_FILTERS_KEY);
+                if (raw) return { department: "", driver: "", vridType: "", ...JSON.parse(raw) };
+            } catch (e) {}
+        }
+        return { department: "", driver: "", vridType: "" };
+    }
+
+    // Exposed so settings.js can snap back to the Settings default the
+    // instant "Remember last-used sort/filters" gets turned off.
+    window.clearRememberedLoadHistorySort = function () {
+        try { localStorage.removeItem(LAST_LOAD_SORT_KEY); } catch (e) {}
+        currentLoadSort = window.ESMSettings?.get("defaultLoadSorting") || "Newest";
+        if (UI.sort) UI.sort.value = currentLoadSort;
+    };
+
+    window.clearRememberedLoadHistoryFilters = function () {
+        try { localStorage.removeItem(LAST_LOAD_FILTERS_KEY); } catch (e) {}
+        currentLoadFilters = { department: "", driver: "", vridType: "" };
+        if (UI.deptFilter) UI.deptFilter.value = "";
+        if (UI.driverFilter) UI.driverFilter.value = "";
+        if (UI.vridFilter) UI.vridFilter.value = "";
+    };
+
+    // Exposed so settings.js can refresh the toolbar/results live if
+    // the Load History modal happens to be open when a setting changes.
+    window.refreshLoadHistoryToolbar = function () {
+        if (!UI.sort) return;
+        currentLoadSort = getEffectiveLoadSort();
+        UI.sort.value = currentLoadSort;
+        runSearch();
+    };
+
+    function bindLoadHistoryToolbar() {
+
+        if (!UI.sort || UI.toolbarBound) return;
+        UI.toolbarBound = true;
+
+        if (UI.deptFilter) {
+            UI.deptFilter.innerHTML = `<option value="">All Departments</option>` +
+                window.LOAD_DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join("");
+        }
+        if (UI.vridFilter) {
+            UI.vridFilter.innerHTML = `<option value="">All VRID Types</option>` +
+                window.VRID_TYPES.map(v => `<option value="${v}">${v}</option>`).join("");
+        }
+
+        currentLoadSort = getEffectiveLoadSort();
+        currentLoadFilters = getEffectiveLoadFilters();
+
+        UI.sort.value = currentLoadSort;
+        if (UI.deptFilter) UI.deptFilter.value = currentLoadFilters.department || "";
+        if (UI.vridFilter) UI.vridFilter.value = currentLoadFilters.vridType || "";
+
+        UI.sort.addEventListener("change", () => {
+            currentLoadSort = UI.sort.value;
+            if (window.ESMSettings?.get("rememberLastLoadSort")) {
+                try { localStorage.setItem(LAST_LOAD_SORT_KEY, currentLoadSort); } catch (e) {}
+            }
+            runSearch();
+        });
+
+        [UI.deptFilter, UI.driverFilter, UI.vridFilter].forEach(el => {
+            el?.addEventListener("change", () => {
+                currentLoadFilters = {
+                    department: UI.deptFilter?.value || "",
+                    driver: UI.driverFilter?.value || "",
+                    vridType: UI.vridFilter?.value || ""
+                };
+                if (window.ESMSettings?.get("rememberLastLoadFilters")) {
+                    try { localStorage.setItem(LAST_LOAD_FILTERS_KEY, JSON.stringify(currentLoadFilters)); } catch (e) {}
+                }
+                runSearch();
+            });
+        });
+    }
+
+    // Rebuilds the Driver filter's option list from whatever drivers
+    // actually appear in the current dataset, keeping the selected
+    // value if it still exists. Re-run every time allLoads refreshes.
+    function refreshLoadHistoryDriverOptions() {
+        if (!UI.driverFilter) return;
+
+        const drivers = [...new Set(
+            allLoads
+                .map(m => (m.load.driver || "").trim())
+                .filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b));
+
+        const current = currentLoadFilters.driver || "";
+
+        UI.driverFilter.innerHTML = `<option value="">All Drivers</option>` +
+            drivers.map(d => `<option value="${d}">${d}</option>`).join("");
+
+        UI.driverFilter.value = drivers.includes(current) ? current : "";
+        if (!drivers.includes(current) && current) {
+            currentLoadFilters.driver = "";
+        }
+    }
+
+    function matchesLoadHistoryFilters(m) {
+        const l = m.load;
+        if (currentLoadFilters.department && l.division !== currentLoadFilters.department) return false;
+        if (currentLoadFilters.driver && (l.driver || "").trim() !== currentLoadFilters.driver) return false;
+        if (currentLoadFilters.vridType && l.vridType !== currentLoadFilters.vridType) return false;
+        return true;
+    }
+
+    function sortLoadHistoryMatches(matches, sortMode) {
+        return [...matches].sort((a, b) => {
+            if (sortMode === "VRID") return String(a.load.vrid || "").localeCompare(String(b.load.vrid || ""));
+            if (sortMode === "Price") return (Number(b.load.price) || 0) - (Number(a.load.price) || 0);
+            return (b.load.bookedAt || 0) - (a.load.bookedAt || 0); // Newest
+        });
+    }
 
     // Tracks which loadChangeNotifications doc IDs have already either
     // (a) been seen in the very first snapshot on page load (backlog —
@@ -121,6 +293,11 @@ window.releaseVrid = async function (vrid) {
         UI.searchInput   = document.getElementById("loadHistorySearchInput");
         UI.searchBtn     = document.getElementById("loadHistorySearchBtn");
         UI.results       = document.getElementById("loadHistoryResults");
+
+        UI.sort          = document.getElementById("loadHistorySortSelect");
+        UI.deptFilter    = document.getElementById("loadHistoryFilterDept");
+        UI.driverFilter  = document.getElementById("loadHistoryFilterDriver");
+        UI.vridFilter    = document.getElementById("loadHistoryFilterVrid");
 
         UI.editOverlay      = document.getElementById("loadHistoryEditModal");
         UI.editVrid          = document.getElementById("lhEditVrid");
@@ -151,6 +328,8 @@ window.releaseVrid = async function (vrid) {
         });
         UI.searchInput?.addEventListener("input", runSearch);
 
+        bindLoadHistoryToolbar();
+
         UI.editStatus?.addEventListener("change", updateEditFormForStatus);
         UI.editSaveBtn?.addEventListener("click", submitHistoricalEdit);
         UI.editCancelBtn?.addEventListener("click", () => {
@@ -171,7 +350,7 @@ window.releaseVrid = async function (vrid) {
     function openSearch() {
 
         if (!window.hasPermission?.("canEditLoads") && !window.hasAdminAccess?.()) {
-            alert("You don't have permission to view Load History.");
+            alert(window.I18N ? window.I18N.t("loadhistory.noPermissionView") : "You don't have permission to view Load History.");
             return;
         }
 
@@ -226,6 +405,7 @@ window.releaseVrid = async function (vrid) {
                 if (seq !== loadsSnapshotSeq) return; // a newer snapshot already landed
                 allLoads = processed;
                 console.log(`📜 Load History: ${allLoads.length} searchable load(s) after processing`);
+                refreshLoadHistoryDriverOptions();
                 runSearch(); // re-apply whatever's currently typed, if anything
             } catch (err) {
                 console.error("Load History: failed to process live update:", err);
@@ -286,19 +466,16 @@ window.releaseVrid = async function (vrid) {
     function runSearch() {
 
         const raw = (UI.searchInput?.value || "").trim();
+        const needle = raw ? raw.toUpperCase() : "";
 
-        if (!raw) {
-            renderResults(allLoads);
-            return;
-        }
+        let matches = needle
+            ? allLoads.filter(m => String(m.load.vrid || "").toUpperCase().includes(needle))
+            : allLoads;
 
-        const needle = raw.toUpperCase();
+        matches = matches.filter(matchesLoadHistoryFilters);
+        matches = sortLoadHistoryMatches(matches, currentLoadSort || getEffectiveLoadSort());
 
-        const filtered = allLoads.filter(m =>
-            String(m.load.vrid || "").toUpperCase().includes(needle)
-        );
-
-        renderResults(filtered, needle);
+        renderResults(matches, needle);
     }
 
     function backfillVrids(loadsLog) {
@@ -339,6 +516,8 @@ window.releaseVrid = async function (vrid) {
             return;
         }
 
+        const isAdmin = !!window.hasAdminAccess?.();
+
         UI.results.innerHTML = matches.map((m, i) => {
             const l = m.load;
             return `
@@ -347,7 +526,10 @@ window.releaseVrid = async function (vrid) {
                     <div>📅 ${escapeLH(l.date)} &nbsp; 💰 $${escapeLH(l.price)}</div>
                     <div>🏷 ${escapeLH(l.status || "Booked")}</div>
                     <div>👤 Booked by ${escapeLH(l.bookedBy)}</div>
-                    <button class="smallButton" data-idx="${i}" type="button">Open</button>
+                    <div class="loadHistoryCardButtons">
+                        <button class="smallButton" data-idx="${i}" type="button">Open</button>
+                        ${isAdmin ? `<button class="smallButton dangerButton" data-delidx="${i}" type="button">🗑 Delete</button>` : ""}
+                    </div>
                 </div>
             `;
         }).join("");
@@ -355,6 +537,54 @@ window.releaseVrid = async function (vrid) {
         UI.results.querySelectorAll("button[data-idx]").forEach(btn => {
             btn.onclick = () => openEdit(matches[Number(btn.dataset.idx)]);
         });
+
+        UI.results.querySelectorAll("button[data-delidx]").forEach(btn => {
+            btn.onclick = () => deleteHistoricalLoad(matches[Number(btn.dataset.delidx)]);
+        });
+    }
+
+    // ===========================================
+    // DELETE (cross-shift, admin-only) — soft-deletes the load
+    // (active:false, same as the live Delete Load flow) and frees
+    // its VRID reservation so the ID becomes bookable again. This is
+    // the quick way to clear out a mistaken/duplicate reservation
+    // without having to hunt it down in the Firestore console.
+    // ===========================================
+
+    async function deleteHistoricalLoad(match) {
+
+        if (!window.hasAdminAccess?.()) return; // belt-and-suspenders, button is already hidden otherwise
+
+        const l = match.load;
+
+        const confirmMsg = `Delete load ${l.vrid}?\n\nThis frees up VRID "${l.vrid}" so it can be reserved again. This cannot be undone from here.`;
+        if (!confirm(confirmMsg)) return;
+
+        try {
+
+            RelayDesk.queue.enqueue("DELETE_HISTORICAL_LOAD", {
+                editorUid: RelayDesk.currentUser,
+                ownerUid: match.owner,
+                shiftId: match.shiftId,
+                loadId: l.id,
+                vrid: l.vrid
+            });
+
+            // keep the already-loaded dataset in sync so the result
+            // list updates instantly without waiting on the listener
+            allLoads = allLoads.filter(m => !(m.shiftId === match.shiftId && m.load.id === l.id));
+            runSearch();
+
+            if (window.NotificationManager) {
+                window.NotificationManager.notify(`🗑 Load ${l.vrid} deleted`, "success", { category: "load" });
+            } else if (window.showToast) {
+                window.showToast(`🗑 Load ${l.vrid} deleted`, "success");
+            }
+
+        } catch (err) {
+            console.error("Historical load delete failed:", err);
+            alert("Failed to delete load.");
+        }
     }
 
     // ===========================================
@@ -366,7 +596,7 @@ window.releaseVrid = async function (vrid) {
     function openEdit(match) {
 
         if (!window.hasPermission?.("canEditLoads")) {
-            alert("You don't have permission to edit loads.");
+            alert(window.I18N ? window.I18N.t("loadhistory.noPermissionEdit") : "You don't have permission to edit loads.");
             return;
         }
 
@@ -475,14 +705,14 @@ window.releaseVrid = async function (vrid) {
             }
 
             if (window.NotificationManager) {
-                window.NotificationManager.notify("✅ Load updated", "success", { category: "load" });
+                window.NotificationManager.notify(window.I18N ? window.I18N.t("loadhistory.loadUpdated") : "✅ Load updated", "success", { category: "load" });
             } else if (window.showToast) {
-                window.showToast("✅ Load updated", "success");
+                window.showToast(window.I18N ? window.I18N.t("loadhistory.loadUpdated") : "✅ Load updated", "success");
             }
 
         } catch (err) {
             console.error("Historical load edit failed:", err);
-            alert("Failed to save changes.");
+            alert(window.I18N ? window.I18N.t("loadhistory.saveFailed") : "Failed to save changes.");
         } finally {
             if (UI.editSaveBtn) UI.editSaveBtn.disabled = false;
         }
@@ -547,13 +777,13 @@ window.releaseVrid = async function (vrid) {
 
                     if (window.NotificationManager) {
                         window.NotificationManager.notify(
-                            `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
+                            window.I18N ? window.I18N.t("loadhistory.loadUpdatedByOther", { vrid: (n.vrid || n.loadId), editor: n.editorUid }) : `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
                             "warning",
                             { category: "load" }
                         );
                     } else if (window.showToast) {
                         window.showToast(
-                            `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
+                            window.I18N ? window.I18N.t("loadhistory.loadUpdatedByOther", { vrid: (n.vrid || n.loadId), editor: n.editorUid }) : `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
                             "warn"
                         );
                     }
@@ -596,13 +826,13 @@ window.releaseVrid = async function (vrid) {
 
                 if (window.NotificationManager) {
                     window.NotificationManager.notify(
-                        `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
+                        window.I18N ? window.I18N.t("loadhistory.loadUpdatedByOther", { vrid: (n.vrid || n.loadId), editor: n.editorUid }) : `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
                         "warning",
                         { category: "load" }
                     );
                 } else if (window.showToast) {
                     window.showToast(
-                        `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
+                        window.I18N ? window.I18N.t("loadhistory.loadUpdatedByOther", { vrid: (n.vrid || n.loadId), editor: n.editorUid }) : `📦 Your load ${n.vrid || n.loadId} was updated by ${n.editorUid}`,
                         "warn"
                     );
                 }

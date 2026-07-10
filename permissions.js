@@ -98,6 +98,7 @@ window.PERMISSION_PRESETS = {
         canEditLoads: true,
         canDeleteLoads: true,
         canViewAudit: true,
+        canManageEmployees: true,
         canAssignShifts: true,
         canViewStatistics: true,
         canAccessAdminPanel: true
@@ -164,6 +165,27 @@ window.hasAdminAccess = function () {
 };
 
 // ===========================================
+// OWNER-TIER CHECK (A000 or permissionLevel "Owner")
+// ===========================================
+// Reserved for the small set of actions that are more sensitive than
+// a normal permission toggle should cover: creating/deleting employee
+// accounts, and creating/deleting shifts (Shift Management). Everyday
+// admin actions (editing loads, freezing accounts, editing/enabling-
+// disabling an existing shift, etc) stay on the regular
+// canManageEmployees / canAssignShifts permission keys — this is
+// intentionally a narrower, level-based gate, not a permission key,
+// so it can't be granted piecemeal via the permissions checkbox grid.
+window.isOwnerOrAbove = function (userId = null) {
+
+    const id = userId || window.RelayDesk?.currentUser || null;
+
+    if (id === "A000") return true;
+
+    const data = window.RelayDesk?.currentUserData || {};
+    return data.permissionLevel === "Owner";
+};
+
+// ===========================================
 // ACCOUNT CREATION (Phase 9 — Login Changes)
 // ===========================================
 // Deliberately SEPARATE from canManageEmployees. canManageEmployees
@@ -173,12 +195,7 @@ window.hasAdminAccess = function () {
 // already "Owner", may do it. Gates the Admin Panel's "Add Employee"
 // section/button.
 window.canCreateEmployeeAccounts = function () {
-    const id = window.RelayDesk?.currentUser || null;
-
-    if (id === "A000") return true;
-
-    const data = window.RelayDesk?.currentUserData || {};
-    return data.permissionLevel === "Owner";
+    return window.isOwnerOrAbove();
 };
 
 // ===========================================

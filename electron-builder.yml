@@ -4,12 +4,13 @@ artifactName: ESM-Setup-${version}.exe
 files:
   - "**/*"
   - "!**/.git"
-  - "!**/node_modules/**"
   - "!**/dist/**"
+  - "!main.js"
+  - "!preload.js"
 win:
   target:
     - nsis
-  icon: favicon2.png
+  icon: assets/esm-icon-2.ico
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

@@ -7,6 +7,34 @@
 
     if (!window.RelayDesk) window.RelayDesk = {};
 
+    // Phase 11, batch 3/4: confirm()/toast/alert/save-status strings via shared I18N.
+    if (window.I18N) {
+        window.I18N.register("workspace", {
+            en: {
+                confirmDeleteLoad: "Delete this load? This can't be undone.",
+                savingNotes: "Saving...",
+                notesSaved: "Saved ✔",
+                notesSaveFailed: "Save Failed",
+                shiftEndingSoon: "⏳ 15 minutes left in your shift.",
+                noPermissionDeleteLoad: "You don't have permission to delete loads.",
+                accountFrozenBlocked: "Account frozen — action blocked",
+                noPermissionEditLoad: "You don't have permission to edit loads.",
+                loadSaveFailed: "Failed to save load — check your connection."
+            },
+            ar: {
+                confirmDeleteLoad: "حذف هذه الشحنة؟ لا يمكن التراجع عن هذا الإجراء.",
+                savingNotes: "جارٍ الحفظ...",
+                notesSaved: "تم الحفظ ✔",
+                notesSaveFailed: "فشل الحفظ",
+                shiftEndingSoon: "⏳ تبقّى 15 دقيقة على انتهاء ورديتك.",
+                noPermissionDeleteLoad: "ليس لديك صلاحية لحذف الشحنات.",
+                accountFrozenBlocked: "الحساب مجمّد — تم حظر الإجراء",
+                noPermissionEditLoad: "ليس لديك صلاحية لتعديل الشحنات.",
+                loadSaveFailed: "فشل حفظ الشحنة — تحقق من الاتصال."
+            }
+        });
+    }
+
     RelayDesk.workspace = {
 
         initialized: false,
@@ -46,7 +74,7 @@
         queueSave() {
 
             clearTimeout(this.saveTimeout);
-            this.showSaveStatus("Saving...");
+            this.showSaveStatus(window.I18N ? window.I18N.t("workspace.savingNotes") : "Saving...");
 
             this.saveTimeout = setTimeout(() => this.saveNotes(), 1200);
         },
@@ -68,11 +96,11 @@
             notes: noteText
         }, { dedupeKey: `notes:${RelayDesk.currentUser}` });
 
-        this.showSaveStatus("Saved ✔");
+        this.showSaveStatus(window.I18N ? window.I18N.t("workspace.notesSaved") : "Saved ✔");
 
     } catch (err) {
         console.error(err);
-        this.showSaveStatus("Save Failed");
+        this.showSaveStatus(window.I18N ? window.I18N.t("workspace.notesSaveFailed") : "Save Failed");
     }
 
 },
@@ -149,7 +177,7 @@ Notes:
             this.cacheUI();
             this.bindEvents();
             this.restoreTemplate();
-            this.autoLoadShiftData();
+            this.autoLoadShiftData().then(() => this.renderPreview());
             this.renderPreview();
 
             this.initialized = true;
@@ -183,30 +211,45 @@ Notes:
             container.className = "panel reportFormatterPanel";
 
             container.innerHTML = `
-                <h3>📄 End-of-Shift Report Formatter</h3>
-
-                <label for="reportTemplateInput">Report Template Format</label>
-                <textarea id="reportTemplateInput" rows="6"
-                    placeholder="Paste your (or your admin's) report template here. Use {{date}}, {{user}}, {{shiftStart}}, {{shiftEnd}}, {{loadCount}}, {{loads}}, {{notes}} as placeholders."></textarea>
-
-                <div class="reportFormatterRow">
-                    <label for="reportRawInput">Shift Data / Raw Notes</label>
-                    <button id="reportAutoLoadBtn" class="smallButton" type="button">🔄 Auto-Load Today's Shift Data</button>
-                </div>
-                <textarea id="reportRawInput" rows="6"
-                    placeholder="Enter or auto-load today's shift notes here."></textarea>
-
-                <div class="reportFormatterRow">
-                    <button id="reportTeamMembersBtn" class="smallButton" type="button">👥 Team Members</button>
-                    <span id="reportTeamMembersStatus" class="reportTeamMembersStatus"></span>
+                <div class="panelCollapseHeader">
+                    <h3>📄 End-of-Shift Report Formatter</h3>
+                    <button type="button" id="reportFormatterToggleBtn" class="panelCollapseToggleBtn" aria-expanded="true" aria-controls="reportFormatterBody" title="Collapse">▾</button>
                 </div>
 
-                <label>Live Preview</label>
-                <pre id="reportPreview" class="reportPreview"></pre>
+                <div id="reportFormatterBody">
 
-                <div class="reportFormatterRow">
-                    <button id="reportCopyBtn" class="smallButton" type="button">📋 Copy to Clipboard</button>
-                    <span id="reportCopyStatus"></span>
+                    <label for="reportTemplateInput">Report Template Format</label>
+                    <textarea id="reportTemplateInput" rows="6"
+                        placeholder="Paste your (or your admin's) report template here. Use {{date}}, {{user}}, {{shiftStart}}, {{shiftEnd}}, {{loadCount}}, {{loads}}, {{notes}} as placeholders."></textarea>
+
+                    <div class="reportFormatterRow">
+                        <label>Department Notes</label>
+                        <button id="reportAutoLoadBtn" class="smallButton" type="button">🔄 Auto-Load Today's Shift Data</button>
+                    </div>
+                    <div class="reportDeptNotesGrid">
+                        ${window.LOAD_DEPARTMENTS.map(dept => `
+                            <div class="reportDeptNoteField">
+                                <label for="reportDeptNotes_${this.deptFieldId(dept)}">${dept}</label>
+                                <textarea id="reportDeptNotes_${this.deptFieldId(dept)}" rows="3"
+                                    data-dept="${dept}"
+                                    placeholder="Notes specific to ${dept}..."></textarea>
+                            </div>
+                        `).join("")}
+                    </div>
+
+                    <div class="reportFormatterRow">
+                        <button id="reportTeamMembersBtn" class="smallButton" type="button">👥 Team Members</button>
+                        <span id="reportTeamMembersStatus" class="reportTeamMembersStatus"></span>
+                    </div>
+
+                    <label>Live Preview</label>
+                    <pre id="reportPreview" class="reportPreview"></pre>
+
+                    <div class="reportFormatterRow">
+                        <button id="reportCopyBtn" class="smallButton" type="button">📋 Copy to Clipboard</button>
+                        <span id="reportCopyStatus"></span>
+                    </div>
+
                 </div>
             `;
         },
@@ -215,11 +258,12 @@ Notes:
 
             this.UI = {
                 template: document.getElementById("reportTemplateInput"),
-                raw: document.getElementById("reportRawInput"),
                 preview: document.getElementById("reportPreview"),
                 autoLoadBtn: document.getElementById("reportAutoLoadBtn"),
                 copyBtn: document.getElementById("reportCopyBtn"),
                 copyStatus: document.getElementById("reportCopyStatus"),
+
+                deptNotes: {},
 
                 teamMembersBtn: document.getElementById("reportTeamMembersBtn"),
                 teamMembersStatus: document.getElementById("reportTeamMembersStatus"),
@@ -230,19 +274,42 @@ Notes:
                 teamApplyBtn: document.getElementById("teamMembersApplyBtn"),
                 teamCancelBtn: document.getElementById("teamMembersCancelBtn")
             };
+
+            window.LOAD_DEPARTMENTS.forEach(dept => {
+                this.UI.deptNotes[dept] = document.getElementById(`reportDeptNotes_${this.deptFieldId(dept)}`);
+            });
+        },
+
+        // "F&F" isn't a safe DOM id character-for-character, so this maps
+        // each department name to a safe id suffix. Only "F&F" actually
+        // needs remapping today, but this stays generic for any future
+        // department name with special characters.
+        deptFieldId(dept) {
+            return dept.replace(/[^a-zA-Z0-9]/g, "");
         },
 
         bindEvents() {
+
+            window.bindPanelCollapseToggle?.(
+                "reportFormatterToggleBtn",
+                "reportFormatterBody",
+                "relaydesk_collapse_reportFormatter"
+            );
 
             this.UI.template?.addEventListener("input", () => {
                 this.saveTemplate();
                 this.renderPreview();
             });
 
-            this.UI.raw?.addEventListener("input", () => this.renderPreview());
+            Object.values(this.UI.deptNotes).forEach(el => {
+                el?.addEventListener("input", () => {
+                    this.queueDeptNotesSave();
+                    this.renderPreview();
+                });
+            });
 
             this.UI.autoLoadBtn?.addEventListener("click", async () => {
-                this.autoLoadShiftData();
+                await this.autoLoadShiftData();
 
                 // keep the OTHER selected employees' data fresh too,
                 // not just this employee's own notes/loads
@@ -286,28 +353,67 @@ Notes:
             }
         },
 
-        // Pulls together whatever we already know about today's shift
-        // (notes box + booked loads) so the employee doesn't have to
-        // retype anything by hand.
-        //
-        // V51: the only source of truth for the current shift's loads
-        // is the live RelayDesk.bookedLoads array — never a cached
-        // copy — so this (and buildReport below) always reflect
-        // add/edit/delete immediately.
-        // NOTE (V51 items 2/3): this used to also append a "Loads:"
-        // block onto the notes text so it ended up baked into
-        // {{notes}} — which is why {{loads}} looked like it was being
-        // ignored and the load list appeared to get appended after
-        // the Notes section instead of replacing {{loads}} in place.
-        // {{loads}} is its own placeholder (see buildReport), so this
-        // only needs to seed the raw notes box with the actual notes.
-        autoLoadShiftData() {
+        // Re-pulls the current user's own saved department notes from
+        // Firestore into the 4 fields (in case they were edited on
+        // another device/tab since this page loaded). Team members'
+        // department notes are refreshed separately by
+        // refreshTeamShiftData(), called right after this by the
+        // Auto-Load button's click handler when Team Members mode is on.
+        async autoLoadShiftData() {
+            await this.loadOwnDeptNotes();
+        },
 
-            if (!this.UI.raw) return;
+        // Fetches deptNotes off the current user's own doc and populates
+        // the 4 textareas. Called once on init(), and again whenever the
+        // Auto-Load button is pressed.
+        async loadOwnDeptNotes() {
 
-            const notes = RelayDesk.workspace?.UI?.notes?.value?.trim() || "";
+            if (!RelayDesk.currentUser) return;
 
-            this.UI.raw.value = notes;
+            try {
+                const doc = await db.collection("users").doc(RelayDesk.currentUser).get();
+                const data = doc.exists ? (doc.data() || {}) : {};
+                const saved = data.deptNotes || {};
+
+                window.LOAD_DEPARTMENTS.forEach(dept => {
+                    const el = this.UI.deptNotes[dept];
+                    if (el) el.value = saved[dept] || "";
+                });
+
+            } catch (err) {
+                console.error("⚠️ Failed to load department notes:", err);
+            }
+        },
+
+        // Reads the CURRENT values straight out of the 4 textareas —
+        // always live, same principle as RelayDesk.bookedLoads never
+        // being cached for the report creator's own data.
+        getCurrentDeptNotes() {
+            const out = {};
+            window.LOAD_DEPARTMENTS.forEach(dept => {
+                out[dept] = this.UI.deptNotes[dept]?.value || "";
+            });
+            return out;
+        },
+
+        // Debounced save, mirroring RelayDesk.workspace's
+        // queueSave()/saveNotes() pattern for the general notes box.
+        queueDeptNotesSave() {
+            clearTimeout(this._deptNotesSaveTimeout);
+            this._deptNotesSaveTimeout = setTimeout(() => this.saveDeptNotes(), 1200);
+        },
+
+        saveDeptNotes() {
+
+            if (!RelayDesk.currentUser) return;
+
+            const deptNotes = this.getCurrentDeptNotes();
+
+            RelayDesk.queue.enqueue("FIRESTORE_MERGE", {
+                collection: "users",
+                docId: RelayDesk.currentUser,
+                data: { deptNotes }
+            }, { dedupeKey: `deptNotes:${RelayDesk.currentUser}` });
         },
 
         // Order departments should appear in on the report; anything
@@ -316,6 +422,45 @@ Notes:
         // mirror of window.LOAD_DEPARTMENTS + "Other" for anything that
         // still references this property.)
         DEPARTMENT_ORDER: ["STS", "iTour", "Alquaiti", "F&F", "Other"],
+
+        // Per-department note formatter — resolves the note text to show
+        // under one department's section of the report.
+        //
+        // Solo mode (selectedIds.length <= 1): returns that one employee's
+        // own value from the 4 department textareas, trimmed, or "" if
+        // empty — no employee-code prefix (there's only one author).
+        //
+        // Combined/Team-Members mode: for every selected employee with a
+        // non-empty note for this department, emits one line formatted
+        // exactly like a load's owner prefix (`{code} | ...`) — e.g.
+        // "A009 | my notes here". Multiple employees' lines are joined
+        // with a single newline, no blank-line separation, no per-employee
+        // sub-header (this deliberately does NOT mirror
+        // formatCombinedNotes()'s blockier style used for the general
+        // Notes section — the user asked for this to look like the
+        // existing multi-employee LOAD lines instead).
+        // Returns "" if nobody wrote anything for this department.
+        formatDeptNoteBlock(dept, selectedIds = []) {
+
+            const ids = selectedIds.length ? selectedIds : [RelayDesk.currentUser];
+
+            if (ids.length <= 1) {
+                const id = ids[0];
+                const text = (id === RelayDesk.currentUser
+                    ? this.getCurrentDeptNotes()[dept]
+                    : (this.getTeamMemberShiftData(id).deptNotes || {})[dept]) || "";
+                return text.trim();
+            }
+
+            const lines = ids
+                .map(id => {
+                    const text = (this.getTeamMemberShiftData(id).deptNotes?.[dept] || "").trim();
+                    return text ? `${id} | ${text}` : null;
+                })
+                .filter(Boolean);
+
+            return lines.join("\n");
+        },
 
         // Phase 2 item 4: groups loads Department -> Driver -> VRID Type
         // -> Loads (via the shared window.groupLoadsHierarchy helper)
@@ -329,34 +474,58 @@ Notes:
         // departments, showing "No loads were booked for this
         // department." for empty ones instead of skipping them (also
         // combined-report only — the solo report keeps its original
-        // skip-if-empty behavior).
+        // skip-if-empty behavior, EXCEPT that a department with no loads
+        // but a typed note is still shown so the note isn't lost).
+        // opts.selectedIds: which employee code(s) to pull department
+        // notes from (passed straight to formatDeptNoteBlock).
         formatLoadsForTemplate(loads, opts = {}) {
 
-            const { showOwner = false, forceAllDivisions = false } = opts;
-
-            if (!loads.length && !forceAllDivisions) return "No booked loads recorded.";
+            const { showOwner = false, forceAllDivisions = false, selectedIds = [] } = opts;
 
             const DIVIDER = "━━━━━━━━━━━━━━━━━━━━";
 
             const formatLine = (l) => {
                 const owner = showOwner ? `${l.bookedByCode} | ` : "";
                 const vridTag = l.vrid ? ` | VRID: ${l.vrid}` : "";
-                return `• ${owner}${l.date} | $${l.price}${vridTag}${l.note ? " | " + l.note : ""}`;
+                const perMileTag = l.pricePerMile ? ` ($${l.pricePerMile}/mi)` : "";
+                // Trip VRIDs hide From/To in the Add Load modal in favor of
+                // the multi-stop list (onLoadModalVridTypeChange), so a Trip
+                // load's `from`/`to` are always empty — its optional "Show
+                // these stops in the End-of-Shift Report" toggle fills the
+                // exact same field/position a Load or Block/Contract's
+                // From/To would occupy on this line, instead of From/To.
+                const hasStops = l.includeStopsInReport && Array.isArray(l.stops) && l.stops.length;
+                const routeTag = hasStops
+                    ? ` | 🛑 ${l.stops.join(" → ")}`
+                    : (l.from || l.to) ? ` | ${l.from || "?"} → ${l.to || "?"}` : "";
+                return `• ${owner}${l.date} | $${l.price}${perMileTag}${routeTag}${vridTag}${l.note ? " | " + l.note : ""}`;
             };
 
             const grouped = window.groupLoadsHierarchy(loads);
             const groupedMap = new Map(grouped.map(g => [g.department, g]));
 
+            // A named department (STS/iTour/Alquaiti/F&F) is shown even
+            // with zero loads if either forceAllDivisions is set (combined
+            // report — always shows all 4), or it has a non-empty note
+            // (so a note typed for a department nobody booked loads in
+            // still surfaces on the solo report instead of being dropped).
             const departmentsToShow = forceAllDivisions
                 ? [...window.LOAD_DEPARTMENTS, ...(groupedMap.has("Other") ? ["Other"] : [])]
-                : grouped.map(g => g.department);
+                : [
+                    ...window.LOAD_DEPARTMENTS.filter(d => groupedMap.has(d) || this.formatDeptNoteBlock(d, selectedIds)),
+                    ...(groupedMap.has("Other") ? ["Other"] : [])
+                ];
+
+            if (!loads.length && !departmentsToShow.length) return "No booked loads recorded.";
 
             const sections = departmentsToShow.map(dept => {
 
                 const group = groupedMap.get(dept);
+                const noteBlock = this.formatDeptNoteBlock(dept, selectedIds);
 
                 if (!group || !group.drivers.length) {
-                    return `${dept}\nNo loads were booked for this department.`;
+                    const noteLine = noteBlock || "No updates were provided for this department.";
+                    return `${dept}\nNo loads were booked for this department.\n${noteLine}`;
                 }
 
                 let total = 0;
@@ -365,14 +534,22 @@ Notes:
 
                     const vridBlocks = d.vridGroups.map(vg => {
                         total += vg.loads.length;
+                        // Optional per-load "Show these stops in the
+                        // End-of-Shift Report" toggle (Add Load modal, Trip
+                        // VRIDs only) is now handled inline inside
+                        // formatLine() itself, in the same field From/To
+                        // would occupy — no separate stops block here.
                         const lines = vg.loads.map(formatLine).join("\n");
-                        return `  ${vg.vridType} (${vg.loads.length})\n${lines}`;
+                        const header = `  ${vg.vridType} (${vg.loads.length})`;
+                        return `${header}\n${lines}`;
                     }).join("\n");
 
                     return ` Driver: ${d.driver}\n${vridBlocks}`;
                 }).join("\n\n");
 
-                return `${dept} (${total})\n${driverBlocks}`;
+                const notesSuffix = noteBlock ? `\nNotes:\n${noteBlock}` : "";
+
+                return `${dept} (${total})\n${driverBlocks}${notesSuffix}`;
             });
 
             if (!sections.length) return "No booked loads recorded.";
@@ -388,17 +565,29 @@ Notes:
         },
 
         // V51 item 1: {{shiftStart}}/{{shiftEnd}} now resolve from the
-        // employee's ASSIGNED shift cycle (shifts.js SHIFT_CYCLES),
-        // not the actual clock-in/out timestamps for today.
+        // employee's ASSIGNED shift.
+        // STEP 5 CUTOVER: reads RelayDesk.currentUserShift (new Shift
+        // Management system, resolved at login / kept live via
+        // shiftsChanged — see auth.js) instead of the old
+        // assignedShift key + SHIFT_CYCLES + hardcoded 9-hour end.
+        // e.g. a shift configured 4:00-9:00 now correctly shows
+        // start "4:00 AM" / end "9:00 AM" (whatever its own configured
+        // end actually is) instead of always start+9hrs.
         getAssignedShiftTimes() {
 
-            const key = RelayDesk.currentUserData?.assignedShift;
-            const cycle = key && window.SHIFT_CYCLES ? window.SHIFT_CYCLES[key] : null;
+            const shift = RelayDesk.currentUserShift;
+            if (!shift) return { start: "--", end: "--" };
 
-            if (!cycle) return { start: "--", end: "--" };
+            const parseHM = (str) => {
+                const [h, m] = (str || "00:00").split(":").map(Number);
+                return { h: h || 0, m: m || 0 };
+            };
 
-            const start = new Date(2000, 0, 1, cycle.startHour, cycle.startMinute);
-            const end = new Date(start.getTime() + 9 * 60 * 60 * 1000);
+            const s = parseHM(shift.startTime);
+            const e = parseHM(shift.endTime);
+
+            const start = new Date(2000, 0, 1, s.h, s.m);
+            const end = new Date(2000, 0, 1, e.h, e.m);
 
             const fmt = (d) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
@@ -414,11 +603,12 @@ Notes:
             if (id === RelayDesk.currentUser) {
                 return {
                     bookedLoads: RelayDesk.bookedLoads || [],
-                    notes: RelayDesk.workspace?.UI?.notes?.value || ""
+                    notes: RelayDesk.workspace?.UI?.notes?.value || "",
+                    deptNotes: this.getCurrentDeptNotes()
                 };
             }
 
-            return this.teamMembers.shiftData?.[id] || { bookedLoads: [], notes: "" };
+            return this.teamMembers.shiftData?.[id] || { bookedLoads: [], notes: "", deptNotes: {} };
         },
 
         // V51 item 6: preserves which employee wrote each note instead
@@ -452,7 +642,6 @@ Notes:
         buildReport() {
 
             const template = this.UI.template?.value || "";
-            const rawNotes = this.UI.raw?.value || "";
 
             const selectedIds = this.teamMembers.selected.size
                 ? Array.from(this.teamMembers.selected).sort()
@@ -480,7 +669,11 @@ Notes:
 
                 loads = RelayDesk.bookedLoads || [];
                 userToken = RelayDesk.currentUser || "";
-                notesToken = rawNotes;
+                // General ("green box") notes are read live, same as the
+                // current-user branch of getTeamMemberShiftData — the
+                // department textareas are a separate concern now and no
+                // longer feed {{notes}}.
+                notesToken = RelayDesk.workspace?.UI?.notes?.value || "";
             }
 
             const shiftTimes = this.getAssignedShiftTimes();
@@ -493,7 +686,8 @@ Notes:
                 "{{loadCount}}": String(loads.length),
                 "{{loads}}": this.formatLoadsForTemplate(loads, {
                     showOwner: isCombined,
-                    forceAllDivisions: isCombined
+                    forceAllDivisions: isCombined,
+                    selectedIds
                 }),
                 "{{notes}}": notesToken
             };
@@ -502,7 +696,7 @@ Notes:
                 .some(token => template.includes(token));
 
             if (!template.trim()) {
-                return rawNotes;
+                return notesToken;
             }
 
             let output = template;
@@ -513,10 +707,10 @@ Notes:
 
             // If the pasted template doesn't use any recognized
             // placeholders at all, treat it as a header and append
-            // the raw notes underneath rather than silently dropping
+            // the general notes underneath rather than silently dropping
             // them.
-            if (!hasKnownToken && rawNotes.trim()) {
-                output += "\n\n" + rawNotes;
+            if (!hasKnownToken && notesToken.trim()) {
+                output += "\n\n" + notesToken;
             }
 
             // Safety net: a template saved (in localStorage, per
@@ -532,7 +726,8 @@ Notes:
                 output += `\n\nLoads Booked (${loads.length}):\n` +
                     this.formatLoadsForTemplate(loads, {
                         showOwner: isCombined,
-                        forceAllDivisions: isCombined
+                        forceAllDivisions: isCombined,
+                        selectedIds
                     });
             }
 
@@ -684,8 +879,9 @@ Notes:
         },
 
         // Pulls each OTHER selected employee's current active shift
-        // data (bookedLoads + notes) straight off their live "users"
-        // doc — a READ only, used just for this report's generation.
+        // data (bookedLoads + notes + deptNotes) straight off their live
+        // "users" doc — a READ only, used just for this report's
+        // generation.
         async refreshTeamShiftData() {
 
             const ids = Array.from(this.teamMembers.selected)
@@ -700,12 +896,13 @@ Notes:
 
                     data[id] = {
                         bookedLoads: Array.isArray(d.bookedLoads) ? d.bookedLoads : [],
-                        notes: d.notes || ""
+                        notes: d.notes || "",
+                        deptNotes: d.deptNotes || {}
                     };
 
                 } catch (err) {
                     console.error("⚠️ Failed to load team member shift data:", id, err);
-                    data[id] = { bookedLoads: [], notes: "" };
+                    data[id] = { bookedLoads: [], notes: "", deptNotes: {} };
                 }
             }));
 
@@ -792,9 +989,9 @@ function updateShiftCountdown() {
         shiftWarningHandled = true;
 
         if (typeof window.NotificationManager === "object") {
-            window.NotificationManager.notify("⏳ 15 minutes left in your shift.", "warning", { category: "alerts" });
+            window.NotificationManager.notify(window.I18N ? window.I18N.t("workspace.shiftEndingSoon") : "⏳ 15 minutes left in your shift.", "warning", { category: "alerts" });
         } else if (typeof window.showToast === "function") {
-            window.showToast("⏳ 15 minutes left in your shift.", "warn");
+            window.showToast(window.I18N ? window.I18N.t("workspace.shiftEndingSoon") : "⏳ 15 minutes left in your shift.", "warn");
         }
 
         try {
@@ -807,12 +1004,13 @@ function updateShiftCountdown() {
 
         shiftHandled = true;
 
-        // Shift-end automation: notifications -> Auto Break -> Auto Off
-        // Duty if nobody clocks out. See shiftautomation.js for the full
-        // sequence. Only meaningful if the employee is still (unattended)
-        // On Duty — if they'd already put themselves on Break/Away,
-        // nothing unfair is accumulating, so there's nothing to catch.
-        window.beginShiftEndGrace?.();
+        // NOTE: the old shift-end grace automation (3 notifications every
+        // 5 min -> Auto Break -> Auto Off Duty) has been removed. The new
+        // Employee Activity Detection system (activitydetection.js) is
+        // its substitute — it already auto-switches an unattended
+        // On-Duty employee to Break/Off Duty based on real inactivity,
+        // independent of the shift countdown, so a second parallel
+        // "shift ended and nobody clocked out" sequence is redundant.
 
         const endedAt = Date.now();
 
@@ -891,6 +1089,12 @@ window.LOAD_DIVISIONS = window.LOAD_DEPARTMENTS;
 // Shift History Searcher can filter loads by VRID directly.
 window.VRID_TYPES = ["Trip", "Load", "Block/Contract"];
 
+// V52 note: the Load modal's Driver field no longer calls this — it's
+// now a searchable dropdown (see the "DRIVER COMBOBOX" section further
+// down) that always saves an exact, validated name, so there's no more
+// free-typed "For <name>" text to parse there. Left in place in case
+// anything else in the app still wants this same parsing behavior.
+//
 // Phase 2 item 4: parses the Driver field. Typing "For <name>" strips
 // the "For" keyword and keeps everything typed after it — including a
 // last name — as the driver's name (e.g. "For Mahdi Harb" -> "Mahdi
@@ -989,154 +1193,11 @@ function initializeBookedLoads() {
     btn.onclick = () => openLoadModal(null);
 
     bindLoadModal();
-    bindLoadToolbar();
 
     // one live listener drives users.bookedLoads for this employee —
     // it fires immediately with whatever's cached/on the server, so
     // there's no need for a separate one-time fetch on top of it
     window.startLoadsListener?.();
-}
-
-// ===========================================
-// LOAD TOOLBAR — sort + filters (Load Management, Phase 5)
-// ===========================================
-// Sort/filter choices live in localStorage (per-computer, same pattern
-// as everything else here) rather than in ESMSettings, since these are
-// live workspace state, not a fixed preference — Settings only controls
-// the STARTING value (defaultLoadSorting) and whether a change made here
-// should stick around ("Remember last-used sort order" / "...filters").
-
-const LAST_LOAD_SORT_KEY = "esm_last_load_sort";
-const LAST_LOAD_FILTERS_KEY = "esm_last_load_filters";
-
-let loadToolbarUI = {};
-let currentLoadSort = null;
-let currentLoadFilters = { department: "", driver: "", vridType: "" };
-let completedLoadsExpanded = null; // null = follow "Auto-collapse completed loads" setting
-
-function getEffectiveLoadSort() {
-    if (window.ESMSettings?.get("rememberLastLoadSort")) {
-        try {
-            const remembered = localStorage.getItem(LAST_LOAD_SORT_KEY);
-            if (remembered) return remembered;
-        } catch (e) {}
-    }
-    return window.ESMSettings?.get("defaultLoadSorting") || "Newest";
-}
-
-function getEffectiveLoadFilters() {
-    if (window.ESMSettings?.get("rememberLastLoadFilters")) {
-        try {
-            const raw = localStorage.getItem(LAST_LOAD_FILTERS_KEY);
-            if (raw) return { department: "", driver: "", vridType: "", ...JSON.parse(raw) };
-        } catch (e) {}
-    }
-    return { department: "", driver: "", vridType: "" };
-}
-
-// Exposed so settings.js can drop the remembered override the instant
-// "Remember last-used sort/filters" gets turned off, instead of it
-// lingering until the next add/edit/delete happens to re-render.
-window.clearRememberedLoadSort = function () {
-    try { localStorage.removeItem(LAST_LOAD_SORT_KEY); } catch (e) {}
-    currentLoadSort = window.ESMSettings?.get("defaultLoadSorting") || "Newest";
-    if (loadToolbarUI.sort) loadToolbarUI.sort.value = currentLoadSort;
-};
-
-window.clearRememberedLoadFilters = function () {
-    try { localStorage.removeItem(LAST_LOAD_FILTERS_KEY); } catch (e) {}
-    currentLoadFilters = { department: "", driver: "", vridType: "" };
-    if (loadToolbarUI.deptFilter) loadToolbarUI.deptFilter.value = "";
-    if (loadToolbarUI.driverFilter) loadToolbarUI.driverFilter.value = "";
-    if (loadToolbarUI.vridFilter) loadToolbarUI.vridFilter.value = "";
-};
-
-function bindLoadToolbar() {
-
-    loadToolbarUI = {
-        sort: document.getElementById("loadSortSelect"),
-        deptFilter: document.getElementById("loadFilterDept"),
-        driverFilter: document.getElementById("loadFilterDriver"),
-        vridFilter: document.getElementById("loadFilterVrid"),
-        toggleCompletedBtn: document.getElementById("toggleCompletedLoadsBtn")
-    };
-
-    if (!loadToolbarUI.sort || loadToolbarUI.bound) return;
-    loadToolbarUI.bound = true;
-
-    if (loadToolbarUI.deptFilter) {
-        loadToolbarUI.deptFilter.innerHTML = `<option value="">All Departments</option>` +
-            window.LOAD_DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join("");
-    }
-    if (loadToolbarUI.vridFilter) {
-        loadToolbarUI.vridFilter.innerHTML = `<option value="">All VRID Types</option>` +
-            window.VRID_TYPES.map(v => `<option value="${v}">${v}</option>`).join("");
-    }
-
-    currentLoadSort = getEffectiveLoadSort();
-    currentLoadFilters = getEffectiveLoadFilters();
-
-    loadToolbarUI.sort.value = currentLoadSort;
-    if (loadToolbarUI.deptFilter) loadToolbarUI.deptFilter.value = currentLoadFilters.department || "";
-    if (loadToolbarUI.vridFilter) loadToolbarUI.vridFilter.value = currentLoadFilters.vridType || "";
-
-    loadToolbarUI.sort.addEventListener("change", () => {
-        currentLoadSort = loadToolbarUI.sort.value;
-        if (window.ESMSettings?.get("rememberLastLoadSort")) {
-            try { localStorage.setItem(LAST_LOAD_SORT_KEY, currentLoadSort); } catch (e) {}
-        }
-        renderBookedLoads();
-    });
-
-    [loadToolbarUI.deptFilter, loadToolbarUI.driverFilter, loadToolbarUI.vridFilter].forEach(el => {
-        el?.addEventListener("change", () => {
-            currentLoadFilters = {
-                department: loadToolbarUI.deptFilter?.value || "",
-                driver: loadToolbarUI.driverFilter?.value || "",
-                vridType: loadToolbarUI.vridFilter?.value || ""
-            };
-            if (window.ESMSettings?.get("rememberLastLoadFilters")) {
-                try { localStorage.setItem(LAST_LOAD_FILTERS_KEY, JSON.stringify(currentLoadFilters)); } catch (e) {}
-            }
-            renderBookedLoads();
-        });
-    });
-
-    loadToolbarUI.toggleCompletedBtn?.addEventListener("click", () => {
-        completedLoadsExpanded = !completedLoadsExpanded;
-        renderBookedLoads();
-    });
-}
-
-// Rebuilds the Driver filter's option list from whatever drivers are
-// actually present right now, keeping the currently-selected value if
-// it still exists. Done every render (not just once) since which
-// drivers exist changes as loads are added/edited.
-function refreshDriverFilterOptions(loads) {
-    if (!loadToolbarUI.driverFilter) return;
-
-    const drivers = [...new Set(
-        (loads || [])
-            .map(l => (l.driver || "").trim())
-            .filter(Boolean)
-    )].sort((a, b) => a.localeCompare(b));
-
-    const current = currentLoadFilters.driver || "";
-
-    loadToolbarUI.driverFilter.innerHTML = `<option value="">All Drivers</option>` +
-        drivers.map(d => `<option value="${d}">${d}</option>`).join("");
-
-    loadToolbarUI.driverFilter.value = drivers.includes(current) ? current : "";
-    if (!drivers.includes(current) && current) {
-        currentLoadFilters.driver = "";
-    }
-}
-
-function loadMatchesFilters(load) {
-    if (currentLoadFilters.department && load.division !== currentLoadFilters.department) return false;
-    if (currentLoadFilters.driver && (load.driver || "").trim() !== currentLoadFilters.driver) return false;
-    if (currentLoadFilters.vridType && load.vridType !== currentLoadFilters.vridType) return false;
-    return true;
 }
 
 // Settings feature: "Auto-collapse completed loads" (Load Management,
@@ -1174,8 +1235,59 @@ function saveLoad(load) {
     // to trigger a re-render before the window expires.
     setTimeout(renderBookedLoads, NEWLY_BOOKED_WINDOW_MS + 500);
 
-    // ---- queue the actual Firestore write for whenever we're online ----
-    RelayDesk.queue.enqueue("ADD_LOAD", { uid, load });
+    // ---- write straight to Firestore instead of going through the
+    // offline queue. New-employee accounts were seeing loads never
+    // reach shiftHistory (so Load History, Admin stats, and the
+    // per-user drilldown all stayed silent for them) — the queue only
+    // drains strictly in order and stops dead on the first failure,
+    // so anything queued behind one bad/slow item for a given session
+    // just never arrived. Booking a load is the one write that other
+    // screens' live listeners depend on seeing immediately, so it goes
+    // straight to Firestore now instead of waiting its turn. ----
+    saveLoadDirect(uid, load).catch(err => {
+        console.error("saveLoad: direct Firestore write failed:", err);
+        window.showToast?.(
+            window.I18N ? window.I18N.t("workspace.loadSaveFailed") : "Failed to save load — check your connection.",
+            "error"
+        );
+    });
+}
+
+// Mirrors what queue.js's old ADD_LOAD handler used to do, minus the
+// queue/retry wrapper — see the comment in saveLoad() above for why
+// this write no longer goes through RelayDesk.queue.
+async function saveLoadDirect(uid, load) {
+
+    const userRef = db.collection("users").doc(uid);
+    const userDoc = await userRef.get();
+    const userData = userDoc.data() || {};
+    const loads = Array.isArray(userData.bookedLoads) ? userData.bookedLoads : [];
+
+    if (!loads.some(l => l.id === load.id)) {
+        loads.push(load);
+        await userRef.set({ bookedLoads: loads }, { merge: true });
+    }
+
+    if (!load.shiftId) return;
+
+    const shiftRef = db.collection("shiftHistory").doc(load.shiftId);
+    const shiftDoc = await shiftRef.get();
+    const shiftData = shiftDoc.data() || {};
+    const loadsLog = Array.isArray(shiftData.loadsLog) ? shiftData.loadsLog : [];
+
+    if (loadsLog.some(l => l.id === load.id)) return;
+
+    loadsLog.push(load);
+    const current = shiftData.metrics?.bookedLoads ?? 0;
+
+    await shiftRef.set({
+        metrics: { bookedLoads: current + 1 },
+        loadsLog
+    }, { merge: true });
+
+    if (typeof logAudit === "function") {
+        await logAudit(uid, "LOAD_BOOKED", `Load ${load.vrid || load.id} booked`);
+    }
 }
 
 function editLoad(loadId, changes) {
@@ -1219,13 +1331,13 @@ function deleteLoad(id) {
 
     // ===== PERMISSION SYSTEM =====
     if (!window.hasPermission?.("canDeleteLoads")) {
-        alert("You don't have permission to delete loads.");
+        alert(window.I18N ? window.I18N.t("workspace.noPermissionDeleteLoad") : "You don't have permission to delete loads.");
         return;
     }
 
     // Settings feature: "Confirm before deleting loads" (Load Management)
     if (window.ESMSettings?.get("confirmBeforeDeletingLoads")) {
-        if (!confirm("Delete this load? This can't be undone.")) {
+        if (!confirm(window.I18N ? window.I18N.t("workspace.confirmDeleteLoad") : "Delete this load? This can't be undone.")) {
             return;
         }
     }
@@ -1356,23 +1468,16 @@ function renderBookedLoads() {
     const container = document.getElementById("bookedLoads");
     if (!container) return;
 
-    bindLoadToolbar();
-
     const rawLoads = RelayDesk.bookedLoads || [];
-    const toolbarEl = document.getElementById("loadToolbar");
 
     container.innerHTML = "";
 
     if (!rawLoads.length) {
-        toolbarEl?.classList.add("hidden");
         container.innerHTML =
             '<div class="workspaceEmpty">No booked loads.</div>';
         RelayDesk.reportFormatter?.refresh();
         return;
     }
-
-    toolbarEl?.classList.remove("hidden");
-    refreshDriverFilterOptions(rawLoads);
 
     // Settings feature: "Auto-collapse completed loads" (Load
     // Management, Phase 5) — see isCompletedLoad() above for what
@@ -1380,53 +1485,27 @@ function renderBookedLoads() {
     const completedRaw = rawLoads.filter(isCompletedLoad);
     const activeRaw = rawLoads.filter(l => !isCompletedLoad(l));
 
-    // Settings feature: "Default sorting" (Load Management), overridden
-    // live by the toolbar's Sort dropdown. Grouping by Department/
-    // Driver/VRID Type still applies on top of this — sorting only
-    // decides the order of loads *within* each of those groups.
-    const sortMode = currentLoadSort || getEffectiveLoadSort();
+    // Settings feature: "Default sorting" (Load Management). Grouping
+    // by Department/Driver/VRID Type still applies on top of this —
+    // sorting only decides the order of loads *within* each group.
+    const sortMode = window.ESMSettings?.get("defaultLoadSorting") || "Newest";
     const activeSorted = sortLoadsBy(activeRaw, sortMode);
     const completedSorted = sortLoadsBy(completedRaw, sortMode);
 
-    const activeFiltered = activeSorted.filter(loadMatchesFilters);
-    const completedFiltered = completedSorted.filter(loadMatchesFilters);
-
-    const filtersActive = !!(currentLoadFilters.department || currentLoadFilters.driver || currentLoadFilters.vridType);
-
-    if (activeFiltered.length) {
-        renderLoadGroupTree(container, activeFiltered);
+    if (activeSorted.length) {
+        renderLoadGroupTree(container, activeSorted);
     } else {
-        container.innerHTML = `<div class="workspaceEmpty">${
-            filtersActive ? "No loads match the current filters." : "No active loads."
-        }</div>`;
+        container.innerHTML = '<div class="workspaceEmpty">No active loads.</div>';
     }
 
-    // Completed (previous-shift) loads — collapsed by default per the
-    // "Auto-collapse completed loads" setting, toggleable either way.
-    const toggleBtn = document.getElementById("toggleCompletedLoadsBtn");
-
-    if (completedFiltered.length) {
-        toggleBtn?.classList.remove("hidden");
-
-        const expanded = completedLoadsExpanded !== null
-            ? completedLoadsExpanded
-            : !window.ESMSettings?.get("autoCollapseCompletedLoads");
-
-        if (toggleBtn) {
-            toggleBtn.textContent = expanded
-                ? `Hide completed (${completedFiltered.length})`
-                : `Show completed (${completedFiltered.length})`;
-        }
-
-        if (expanded) {
-            const completedWrap = document.createElement("div");
-            completedWrap.className = "loadGroupCompleted";
-            completedWrap.innerHTML = `<div class="loadGroupCompletedHeader">✅ Completed — previous shift(s)</div>`;
-            renderLoadGroupTree(completedWrap, completedFiltered);
-            container.appendChild(completedWrap);
-        }
-    } else {
-        toggleBtn?.classList.add("hidden");
+    // Completed (previous-shift) loads — shown/hidden per the
+    // "Auto-collapse completed loads" setting.
+    if (completedSorted.length && !window.ESMSettings?.get("autoCollapseCompletedLoads")) {
+        const completedWrap = document.createElement("div");
+        completedWrap.className = "loadGroupCompleted";
+        completedWrap.innerHTML = `<div class="loadGroupCompletedHeader">✅ Completed — previous shift(s) (${completedSorted.length})</div>`;
+        renderLoadGroupTree(completedWrap, completedSorted);
+        container.appendChild(completedWrap);
     }
 
     // Report Formatter's live preview always reflects whatever just
@@ -1453,16 +1532,31 @@ function bindLoadModal() {
         overlay: document.getElementById("loadModal"),
         title: document.getElementById("loadModalTitle"),
         date: document.getElementById("loadModalDate"),
-        price: document.getElementById("loadModalPrice"),
         department: document.getElementById("loadModalDepartment"),
-        driver: document.getElementById("loadModalDriver"),
-        vridType: document.getElementById("loadModalVridType"),
+        from: document.getElementById("loadModalFrom"),
+        to: document.getElementById("loadModalTo"),
+        fromToContainer: document.getElementById("loadModalFromToContainer"),
         vridNumber: document.getElementById("loadModalVridNumber"),
+        vridType: document.getElementById("loadModalVridType"),
+        stopsContainer: document.getElementById("loadModalStopsContainer"),
+        stopsList: document.getElementById("loadModalStopsList"),
+        addStopBtn: document.getElementById("loadModalAddStopBtn"),
+        includeStopsToggle: document.getElementById("loadModalIncludeStopsToggle"),
+        price: document.getElementById("loadModalPrice"),
+        pricePerMile: document.getElementById("loadModalPricePerMile"),
+        // `driver` is the HIDDEN field — the canonical, validated value
+        // that actually gets saved. `driverInput` is the visible
+        // searchable text box the user types/clicks in. See the
+        // "DRIVER COMBOBOX" section below for why they're split.
+        driver: document.getElementById("loadModalDriver"),
+        driverInput: document.getElementById("loadModalDriverSearch"),
+        driverList: document.getElementById("loadModalDriverListbox"),
         note: document.getElementById("loadModalNote"),
         dateError: document.getElementById("loadModalDateError"),
         priceError: document.getElementById("loadModalPriceError"),
         departmentError: document.getElementById("loadModalDepartmentError"),
         vridNumberError: document.getElementById("loadModalVridNumberError"),
+        driverError: document.getElementById("loadModalDriverError"),
         saveBtn: document.getElementById("loadModalSaveBtn"),
         cancelBtn: document.getElementById("loadModalCancelBtn")
     };
@@ -1471,17 +1565,378 @@ function bindLoadModal() {
 
     loadModalUI.saveBtn?.addEventListener("click", saveLoadModal);
     loadModalUI.cancelBtn?.addEventListener("click", closeLoadModal);
+    loadModalUI.department?.addEventListener("change", onLoadModalDepartmentChange);
+    bindDriverCombobox();
+    bindLoadModalVridAutoDetect();
+    bindLoadModalPricePaste();
+    bindLoadModalStops();
 }
+
+// ===========================================
+// DRIVER COMBOBOX (searchable dropdown, V52)
+// ===========================================
+//
+// Replaces the old free-text Driver input, which caused inconsistent
+// data ("for Ahmed" / "Ahmed" / "FOR AHMED" / "ahmed" all landing as
+// different drivers). Drivers now come from a fixed, per-department
+// list in drivers.js (window.DRIVER_LISTS), so the exact same spelling
+// is always stored and a driver can never end up saved against the
+// wrong department.
+//
+// Two inputs work together (see index.html):
+//   - loadModalUI.driverInput — the VISIBLE text box. This is what the
+//     user types into to search, and what the dropdown list is
+//     rendered under. Free typing here does NOT by itself save
+//     anything.
+//   - loadModalUI.driver — a HIDDEN input that only ever gets a value
+//     once a driver is *confirmed*: clicked, Enter'd while highlighted,
+//     or an exact case-insensitive match on blur. This hidden value is
+//     the one saveLoadModal() actually reads, and it's what
+//     validateLoadModal() checks — so a typed-but-never-resolved name
+//     behaves exactly like an empty required <select> would: it blocks
+//     save with an inline error instead of silently going through.
+let driverComboState = {
+    department: null,
+    options: [],   // every driver for the currently selected department
+    filtered: [],  // options narrowed by the current search text
+    highlighted: -1
+};
+
+function getDriverListForDepartment(dept) {
+    if (!dept || !window.DRIVER_LISTS) return [];
+    return window.DRIVER_LISTS[dept] || [];
+}
+
+function renderDriverOptions() {
+    const list = loadModalUI.driverList;
+    if (!list) return;
+
+    list.innerHTML = "";
+
+    if (!driverComboState.filtered.length) {
+        const empty = document.createElement("li");
+        empty.className = "driverComboboxEmpty";
+        empty.textContent = driverComboState.options.length
+            ? "No matching drivers"
+            : "No drivers set up for this department yet";
+        list.appendChild(empty);
+        return;
+    }
+
+    driverComboState.filtered.forEach((name, i) => {
+        const li = document.createElement("li");
+        li.className = "driverComboboxOption" + (i === driverComboState.highlighted ? " isHighlighted" : "");
+        li.textContent = name;
+        li.setAttribute("role", "option");
+        li.setAttribute("aria-selected", i === driverComboState.highlighted ? "true" : "false");
+        // mousedown (not click) fires before the input's blur handler,
+        // so the pick registers before blur's "didn't resolve" logic runs
+        li.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            selectDriver(name);
+        });
+        list.appendChild(li);
+    });
+}
+
+function filterDriverOptions(query) {
+    const q = (query || "").trim().toLowerCase();
+    driverComboState.filtered = q
+        ? driverComboState.options.filter(name => name.toLowerCase().includes(q))
+        : driverComboState.options.slice();
+    driverComboState.highlighted = driverComboState.filtered.length ? 0 : -1;
+    renderDriverOptions();
+}
+
+function openDriverDropdown() {
+    if (!loadModalUI.driverList || !loadModalUI.driverInput || loadModalUI.driverInput.disabled) return;
+    loadModalUI.driverList.classList.remove("hidden");
+    loadModalUI.driverInput.setAttribute("aria-expanded", "true");
+}
+
+function closeDriverDropdown() {
+    if (!loadModalUI.driverList || !loadModalUI.driverInput) return;
+    loadModalUI.driverList.classList.add("hidden");
+    loadModalUI.driverInput.setAttribute("aria-expanded", "false");
+    driverComboState.highlighted = -1;
+}
+
+function selectDriver(name) {
+    if (loadModalUI.driver) loadModalUI.driver.value = name;
+    if (loadModalUI.driverInput) loadModalUI.driverInput.value = name;
+    closeDriverDropdown();
+    loadModalUI.driverInput?.classList.remove("fieldError");
+    if (loadModalUI.driverError) loadModalUI.driverError.textContent = "";
+}
+
+function clearDriverSelection() {
+    if (loadModalUI.driver) loadModalUI.driver.value = "";
+    if (loadModalUI.driverInput) loadModalUI.driverInput.value = "";
+    loadModalUI.driverInput?.classList.remove("fieldError");
+    if (loadModalUI.driverError) loadModalUI.driverError.textContent = "";
+}
+
+// Rebuilds the dropdown's source list for whatever department is
+// currently selected. Called on modal open and whenever Department
+// changes. Disables the field entirely (with an explanatory
+// placeholder) until a department is picked, since drivers are always
+// department-scoped.
+function reloadDriverOptionsForDepartment(dept) {
+    driverComboState.department = dept || null;
+    driverComboState.options = getDriverListForDepartment(dept);
+    filterDriverOptions(loadModalUI.driverInput?.value || "");
+
+    if (loadModalUI.driverInput) {
+        loadModalUI.driverInput.disabled = !dept;
+        loadModalUI.driverInput.placeholder = dept ? "Select driver..." : "Select department first...";
+    }
+}
+
+// Department dependency (per spec): changing Department always clears
+// whatever driver was picked and reloads the list, so a driver from
+// the old department can never linger selected under the new one.
+function onLoadModalDepartmentChange() {
+    clearDriverSelection();
+    closeDriverDropdown();
+    reloadDriverOptionsForDepartment(loadModalUI.department?.value || "");
+}
+
+function bindDriverCombobox() {
+    const input = loadModalUI.driverInput;
+    const list = loadModalUI.driverList;
+    if (!input || !list || input.bound) return;
+    input.bound = true;
+
+    input.addEventListener("focus", () => {
+        filterDriverOptions(input.value);
+        openDriverDropdown();
+    });
+
+    input.addEventListener("input", () => {
+        // typing invalidates any previously confirmed pick until it
+        // resolves to an exact match again (see selectDriver/blur below)
+        if (loadModalUI.driver) loadModalUI.driver.value = "";
+        filterDriverOptions(input.value);
+        openDriverDropdown();
+    });
+
+    input.addEventListener("keydown", (e) => {
+        if (input.disabled) return;
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (list.classList.contains("hidden")) {
+                filterDriverOptions(input.value);
+                openDriverDropdown();
+                return;
+            }
+            if (driverComboState.filtered.length) {
+                driverComboState.highlighted = (driverComboState.highlighted + 1) % driverComboState.filtered.length;
+                renderDriverOptions();
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (driverComboState.filtered.length) {
+                driverComboState.highlighted =
+                    (driverComboState.highlighted - 1 + driverComboState.filtered.length) % driverComboState.filtered.length;
+                renderDriverOptions();
+            }
+        } else if (e.key === "Enter") {
+            if (!list.classList.contains("hidden") && driverComboState.highlighted > -1) {
+                e.preventDefault();
+                selectDriver(driverComboState.filtered[driverComboState.highlighted]);
+            }
+        } else if (e.key === "Escape") {
+            if (!list.classList.contains("hidden")) {
+                e.preventDefault();
+                closeDriverDropdown();
+            }
+        }
+    });
+
+    input.addEventListener("blur", () => {
+        // deferred so an option's mousedown (which already fired its own
+        // selectDriver call) isn't clobbered by blur running first
+        setTimeout(() => {
+            const typed = input.value.trim();
+
+            if (!typed) {
+                clearDriverSelection();
+                closeDriverDropdown();
+                return;
+            }
+
+            const exact = driverComboState.options.find(name => name.toLowerCase() === typed.toLowerCase());
+
+            if (exact) {
+                selectDriver(exact);
+            } else if (loadModalUI.driver) {
+                // doesn't resolve to a real driver in this department —
+                // leave the typed text visible so the user can see/fix
+                // it, but keep the hidden value empty so validation
+                // catches it at save time
+                loadModalUI.driver.value = "";
+            }
+
+            closeDriverDropdown();
+        }, 120);
+    });
+
+    document.addEventListener("click", (e) => {
+        if (!loadModalUI.overlay || loadModalUI.overlay.classList.contains("hidden")) return;
+        if (!e.target.closest("#loadModalDriverCombobox")) closeDriverDropdown();
+    });
+}
+
+// ===========================================
+// VRID TYPE AUTO-DETECT
+// ===========================================
+// As the user types/pastes into VRID Number, guess the VRID Type from
+// its first character(s): a leading digit -> Load, "T-" -> Trip,
+// "B-"/"C-" -> Block/Contract. Never fights a deliberate manual pick —
+// once the user has touched the VRID Type dropdown themselves (or
+// we're editing a load that already had a type saved), auto-detect
+// stops overwriting it.
+let loadModalVridTypeManualOverride = false;
+
+function detectVridTypeFromNumber(vridNumber) {
+    const trimmed = (vridNumber || "").trim();
+    if (!trimmed) return "";
+    if (/^\d/.test(trimmed)) return "Load";
+    if (/^t-/i.test(trimmed)) return "Trip";
+    if (/^[bc]-/i.test(trimmed)) return "Block/Contract";
+    return "";
+}
+
+function bindLoadModalVridAutoDetect() {
+    loadModalUI.vridNumber?.addEventListener("input", () => {
+        if (loadModalVridTypeManualOverride) return;
+        const detected = detectVridTypeFromNumber(loadModalUI.vridNumber.value);
+        if (detected && loadModalUI.vridType) {
+            loadModalUI.vridType.value = detected;
+            onLoadModalVridTypeChange();
+        }
+    });
+
+    loadModalUI.vridType?.addEventListener("change", () => {
+        // any manual touch of the dropdown, from here on, wins over
+        // auto-detect for the rest of this modal session
+        loadModalVridTypeManualOverride = true;
+        onLoadModalVridTypeChange();
+    });
+}
+
+// Shows/hides the multi-stop list — only relevant for Trip-type VRIDs.
+// From/To are single-origin/single-destination fields that don't make
+// sense once there's a multi-stop route, so they swap places: Trip
+// hides From/To and shows the stops list; anything else is the reverse.
+function onLoadModalVridTypeChange() {
+    const isTrip = loadModalUI.vridType?.value === "Trip";
+    loadModalUI.stopsContainer?.classList.toggle("hidden", !isTrip);
+    loadModalUI.fromToContainer?.classList.toggle("hidden", isTrip);
+}
+
+// ===========================================
+// MULTI-STOP LIST (Trip VRID type)
+// ===========================================
+let loadModalStops = [];
+
+function escapeHtmlAttr(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+}
+
+function renderLoadModalStops() {
+    const list = loadModalUI.stopsList;
+    if (!list) return;
+
+    if (!loadModalStops.length) {
+        list.innerHTML = `<div class="workspaceEmpty">No additional stops yet.</div>`;
+    } else {
+        list.innerHTML = loadModalStops.map((stop, i) => `
+            <div class="loadModalStopRow" data-index="${i}">
+                <input type="text" class="loadModalStopInput" placeholder="Stop ${i + 1}..." value="${escapeHtmlAttr(stop)}">
+                <button type="button" class="dangerButton loadModalRemoveStopBtn" data-index="${i}">🗑</button>
+            </div>
+        `).join("");
+    }
+
+    list.querySelectorAll(".loadModalStopRow").forEach(row => {
+        const i = Number(row.dataset.index);
+        row.querySelector(".loadModalStopInput")?.addEventListener("input", (e) => {
+            loadModalStops[i] = e.target.value;
+        });
+    });
+
+    list.querySelectorAll(".loadModalRemoveStopBtn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const i = Number(btn.dataset.index);
+            loadModalStops.splice(i, 1);
+            renderLoadModalStops();
+        });
+    });
+}
+
+function bindLoadModalStops() {
+    loadModalUI.addStopBtn?.addEventListener("click", () => {
+        loadModalStops.push("");
+        renderLoadModalStops();
+    });
+}
+
+// ===========================================
+// PRICE / PRICE-PER-MILE PASTE SPLITTING
+// ===========================================
+// Handles pasting a combined clipboard blob like:
+//   $278.51
+//
+//   $3.99/mi
+// into the Price field — splits the dollar amount into Price and the
+// "$X.XX/mi" amount into Price per Mile, instead of dumping the raw
+// (unparseable, for a number input) text in.
+function parsePricePaste(text) {
+    if (!text) return null;
+
+    const perMileMatch = text.match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
+    const perMile = perMileMatch ? perMileMatch[1].replace(/,/g, "") : null;
+
+    // Strip the matched per-mile chunk out before looking for the
+    // price, so the same number can't get matched twice.
+    const remainder = perMileMatch
+        ? text.slice(0, perMileMatch.index) + text.slice(perMileMatch.index + perMileMatch[0].length)
+        : text;
+
+    const priceMatch = remainder.match(/\$\s*([\d,]+(?:\.\d{2})?)/) || remainder.match(/([\d,]+\.\d{2})/);
+    const price = priceMatch ? priceMatch[1].replace(/,/g, "") : null;
+
+    if (!price && !perMile) return null;
+    return { price, perMile };
+}
+
+function bindLoadModalPricePaste() {
+    loadModalUI.price?.addEventListener("paste", (e) => {
+        const text = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+        const parsed = parsePricePaste(text);
+        if (!parsed) return; // not a recognized combined blob — let the normal paste happen
+
+        e.preventDefault();
+        if (parsed.price && loadModalUI.price) loadModalUI.price.value = parsed.price;
+        if (parsed.perMile && loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = parsed.perMile;
+    });
+}
+
+
 
 function openLoadModal(load) {
 
     if (RelayDesk.currentUserData?.frozen) {
-        alert("Account frozen — action blocked");
+        alert(window.I18N ? window.I18N.t("workspace.accountFrozenBlocked") : "Account frozen — action blocked");
         return;
     }
 
     if (load && !window.hasPermission?.("canEditLoads")) {
-        alert("You don't have permission to edit loads.");
+        alert(window.I18N ? window.I18N.t("workspace.noPermissionEditLoad") : "You don't have permission to edit loads.");
         return;
     }
 
@@ -1494,13 +1949,43 @@ function openLoadModal(load) {
         loadModalUI.title.textContent = load ? "✏️ Edit Load" : "📦 Add Load";
     }
 
-    if (loadModalUI.date) loadModalUI.date.value = load?.date || "";
+    // New load: default the date picker to today (same idiom already
+    // used by the Report Generator's date input) so booking a load
+    // doesn't require touching the calendar field for the common case
+    // of same-day loads — still fully editable for a load booked a few
+    // days out. Editing an existing load keeps its saved date, never
+    // overwritten with today's date.
+    if (loadModalUI.date) loadModalUI.date.value = load?.date || new Date().toISOString().split("T")[0];
     if (loadModalUI.price) loadModalUI.price.value = load?.price || "";
+    if (loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = load?.pricePerMile || "";
     if (loadModalUI.department) loadModalUI.department.value = load?.division || "";
+    if (loadModalUI.from) loadModalUI.from.value = load?.from || "";
+    if (loadModalUI.to) loadModalUI.to.value = load?.to || "";
+
+    // Driver combobox: reload the dropdown for whatever department this
+    // load already has (or "" for a brand-new load, which leaves the
+    // field disabled until Department is picked), THEN seed the
+    // visible/hidden values from the existing load, if any. Order
+    // matters — reloadDriverOptionsForDepartment() enables/disables the
+    // input and would otherwise stomp on the value set here.
+    reloadDriverOptionsForDepartment(loadModalUI.department?.value || "");
     if (loadModalUI.driver) loadModalUI.driver.value = load?.driver || "";
+    if (loadModalUI.driverInput) loadModalUI.driverInput.value = load?.driver || "";
+
     if (loadModalUI.vridType) loadModalUI.vridType.value = load?.vridType || "";
     if (loadModalUI.vridNumber) loadModalUI.vridNumber.value = load?.vrid || "";
     if (loadModalUI.note) loadModalUI.note.value = load?.note || "";
+
+    // Auto-detect only kicks in for a brand-new load with nothing typed
+    // yet — an existing load already has a deliberate VRID Type saved,
+    // so re-typing its VRID Number during an edit must never silently
+    // swap the type out from under it.
+    loadModalVridTypeManualOverride = !!load;
+
+    loadModalStops = Array.isArray(load?.stops) ? [...load.stops] : [];
+    if (loadModalUI.includeStopsToggle) loadModalUI.includeStopsToggle.checked = !!load?.includeStopsInReport;
+    renderLoadModalStops();
+    onLoadModalVridTypeChange();
 
     clearLoadModalErrors();
 
@@ -1526,14 +2011,16 @@ function closeLoadModal() {
     clearLoadModalErrors();
     document.activeElement?.blur();
     loadModalEditingId = null;
+    loadModalStops = [];
+    loadModalVridTypeManualOverride = false;
 }
 
 function clearLoadModalErrors() {
 
-    [loadModalUI.date, loadModalUI.price, loadModalUI.department, loadModalUI.vridNumber].forEach(el =>
+    [loadModalUI.date, loadModalUI.price, loadModalUI.department, loadModalUI.vridNumber, loadModalUI.driverInput].forEach(el =>
         el?.classList.remove("fieldError"));
 
-    [loadModalUI.dateError, loadModalUI.priceError, loadModalUI.departmentError, loadModalUI.vridNumberError].forEach(el => {
+    [loadModalUI.dateError, loadModalUI.priceError, loadModalUI.departmentError, loadModalUI.vridNumberError, loadModalUI.driverError].forEach(el => {
         if (el) el.textContent = "";
     });
 }
@@ -1566,8 +2053,30 @@ function validateLoadModal() {
         valid = false;
     }
 
-    // Driver is still a fully optional enhancement (Phase 2 item 4) —
-    // no validation enforced on it.
+    // Driver combobox (V52 rework of Phase 2 item 4): the driver is
+    // still optional overall — an "Unassigned" load is fine, same as
+    // before — but if the user typed or picked *something*, it has to
+    // resolve to a real, confirmed driver that belongs to the selected
+    // department. loadModalUI.driver (hidden) only ever holds a
+    // confirmed pick (see bindDriverCombobox), so:
+    //   - typed text with no confirmed pick -> blocked, "pick from the list"
+    //   - a confirmed pick that's somehow not in this department's list
+    //     (e.g. stale data from before a department switch) -> blocked too
+    const driverTyped = loadModalUI.driverInput?.value?.trim() || "";
+    const driverValue = loadModalUI.driver?.value?.trim() || "";
+
+    if (driverTyped && !driverValue) {
+        loadModalUI.driverInput?.classList.add("fieldError");
+        if (loadModalUI.driverError) loadModalUI.driverError.textContent = "Select a driver from the list.";
+        valid = false;
+    } else if (driverValue) {
+        const validDrivers = getDriverListForDepartment(department);
+        if (!validDrivers.some(name => name.toLowerCase() === driverValue.toLowerCase())) {
+            loadModalUI.driverInput?.classList.add("fieldError");
+            if (loadModalUI.driverError) loadModalUI.driverError.textContent = "Selected driver doesn't belong to this department.";
+            valid = false;
+        }
+    }
 
     // Load History feature: VRID is now the permanent, searchable
     // Load ID, so every NEW load must have one (existing loads that
@@ -1593,13 +2102,30 @@ async function saveLoadModal() {
 
     const date = loadModalUI.date.value.trim();
     const price = loadModalUI.price.value;
-    // Kept as `division` on the load object/Firestore for backward
-    // compatibility (Phase 2 item 5) — only the UI label is "Department".
+    const pricePerMile = loadModalUI.pricePerMile?.value?.trim() || "";
     const division = loadModalUI.department.value;
-    const note = loadModalUI.note?.value?.trim() || "";
-    const driver = window.parseDriverName(loadModalUI.driver?.value || "");
     const vridType = loadModalUI.vridType?.value || "";
+    // From/To are hidden for Trip loads (the multi-stop list replaces
+    // them) — ignore whatever's still sitting in those hidden inputs
+    // rather than saving stale text left over from before the type was
+    // switched to Trip.
+    const from = vridType === "Trip" ? "" : (loadModalUI.from?.value?.trim() || "");
+    const to = vridType === "Trip" ? "" : (loadModalUI.to?.value?.trim() || "");
+    const note = loadModalUI.note?.value?.trim() || "";
+    // V52: loadModalUI.driver (hidden) already holds the exact,
+    // department-validated driver name confirmed by the combobox — see
+    // validateLoadModal() above and bindDriverCombobox() — so no more
+    // "For <name>" free-text parsing is needed here.
+    const driver = loadModalUI.driver?.value?.trim() || "";
     const vrid = loadModalUI.vridNumber?.value?.trim() || "";
+    // Multi-stop list only makes sense for Trip-type VRIDs — empty
+    // entries dropped so a stray "+ Add Stop" click with nothing typed
+    // never gets saved as a blank stop.
+    const stops = vridType === "Trip" ? loadModalStops.map(s => s.trim()).filter(Boolean) : [];
+    // Optional per-load toggle: pulls this load's stops into the
+    // End-of-Shift Report as an extra line (see formatLoadsForTemplate
+    // above). Only meaningful for a Trip load that actually has stops.
+    const includeStopsInReport = vridType === "Trip" && stops.length ? !!loadModalUI.includeStopsToggle?.checked : false;
 
     // Load History feature: VRID doubles as the permanent, searchable
     // Load ID, so it must be unique across every load ever booked.
@@ -1653,7 +2179,7 @@ async function saveLoadModal() {
 
     if (loadModalEditingId) {
 
-        editLoad(loadModalEditingId, { date, price, division, note, driver, vridType, vrid, editedAt: Date.now() });
+        editLoad(loadModalEditingId, { date, price, pricePerMile, division, from, to, note, driver, vridType, vrid, stops, includeStopsInReport, editedAt: Date.now() });
 
     } else {
 
@@ -1661,10 +2187,15 @@ async function saveLoadModal() {
             id: Date.now(),
             date,
             price,
+            pricePerMile,
             division,
+            from,
+            to,
             driver,
             vridType,
             vrid,
+            stops,
+            includeStopsInReport,
             bookedBy: RelayDesk.currentUser,
             note
         });

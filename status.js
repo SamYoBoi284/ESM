@@ -6,6 +6,24 @@ window.bindStatusButtons = bindStatusButtons;
 window.changeUserStatus = changeUserStatus;
 window.updateStatusDisplay = updateStatusDisplay;
 
+// Phase 11, batch 4: toast/alert/confirm strings via shared I18N.
+if (window.I18N) {
+    window.I18N.register("status", {
+        en: {
+            accountFrozen: "Your account is currently frozen by the Administrator.",
+            confirmResetTimers: "Reset timers?",
+            offDayShiftStarted: "📴 You're clocking in on a scheduled day off — this entire shift will count as overtime.",
+            clockedInLate: "⏰ You clocked on {minutes} min late for your assigned shift."
+        },
+        ar: {
+            accountFrozen: "حسابك مجمّد حاليًا من قبل المشرف.",
+            confirmResetTimers: "إعادة ضبط المؤقتات؟",
+            offDayShiftStarted: "📴 أنت تسجل دخولك في يوم إجازة مجدول — ستُحتسب هذه الوردية بالكامل كعمل إضافي.",
+            clockedInLate: "⏰ سجلت دخولك متأخرًا بـ {minutes} دقيقة عن ورديتك المحددة."
+        }
+    });
+}
+
 
 // ===========================================
 // HELPERS
@@ -60,16 +78,15 @@ async function changeUserStatus(newStatus, opts = {}) {
     if (!RelayDesk.currentUser) return;
 
     // ======================
-    // SHIFT-END GRACE PERIOD CANCELLATION
+    // IDLE-DETECTION AUTOMATION CANCELLATION
     // ======================
-    // Any genuine manual status action (the employee clicking a button
-    // themselves) is proof they're actually present, so it cancels the
-    // shift-end auto Break/Off-Duty sequence and gives back whatever
-    // Work time had been provisionally reclassified as Break. Steps
-    // that are themselves part of the automation pass
-    // { isAutomationStep: true } so they don't cancel their own sequence.
-    if (RelayDesk.shiftGrace?.active && !opts.isAutomationStep) {
-        window.cancelShiftGrace?.();
+    // Same idea as the shift-grace hook above: any genuine manual status
+    // action is proof of presence, so it cancels the idle-warning /
+    // auto-Break / auto-Off-Duty sequence in activitydetection.js.
+    // Automation-driven steps pass { isAutomationStep: true } so they
+    // don't cancel their own sequence.
+    if (!opts.isAutomationStep) {
+        window.ActivityDetection?.cancelIdleAuto();
     }
 
     // ======================
@@ -81,7 +98,7 @@ if (RelayDesk.currentUserData?.frozen) {
     // Only these actions are allowed while frozen
     if (newStatus !== "Off Duty" && newStatus !== "End Shift") {
 
-        alert("Your account is currently frozen by the Administrator.");
+        alert(window.I18N ? window.I18N.t("status.accountFrozen") : "Your account is currently frozen by the Administrator.");
 
         return;
     }
@@ -149,6 +166,13 @@ if (RelayDesk.currentUserData?.frozen) {
     const overtimeBaselineForCalc = RelayDesk.overtimeBaseline || RelayDesk.shiftEndTime;
     const wasOffDayShift = RelayDesk.isOffDayShift === true;
 
+    // STEP 5 CUTOVER: same "capture before overwrite" reasoning as
+    // overtimeBaselineForCalc above — this is the *scheduled* end
+    // (shiftStart + the employee's actual assigned shift duration,
+    // set at clock-in), used below for the "ended early" flag instead
+    // of a hardcoded 9-hour assumption.
+    const scheduledShiftEndForCalc = RelayDesk.shiftEndTime;
+
     RelayDesk.shiftEndTime = now;
     RelayDesk.shiftEnded = true;
 
@@ -178,7 +202,7 @@ await db.collection("shiftHistory")
     status: "completed",
 
     metrics: {
-        endedEarly: (now < RelayDesk.shiftStart + 9 * 60 * 60 * 1000)
+        endedEarly: (now < scheduledShiftEndForCalc)
     }
 
 }, { merge: true });
@@ -452,7 +476,7 @@ await db.collection("shiftHistory")
     if (newStatus === "Off Duty") {
 
         if (!opts.auto) {
-            const ok = confirm("Reset timers?");
+            const ok = confirm(window.I18N ? window.I18N.t("status.confirmResetTimers") : "Reset timers?");
             if (!ok) return;
         }
 
@@ -480,8 +504,19 @@ await db.collection("shiftHistory")
         // FIRST TIME START ONLY
         if (!RelayDesk.shiftStart) {
 
+            // STEP 5 CUTOVER: shift length now comes from the employee's
+            // actual assigned shift (RelayDesk.currentUserShift, resolved
+            // at login / kept live via shiftsChanged — see auth.js) instead
+            // of a hardcoded 9 hours. e.g. a shift configured 4:00-9:00
+            // (5 hours) now gives a 5-hour countdown/overtime baseline
+            // instead of the old fixed 9-hour one. Falls back to the old
+            // 9-hour default only if the employee has no resolved shift
+            // (e.g. not yet assigned to any shift in the new system) —
+            // keeps clock-in from breaking for anyone not yet migrated.
+            const shiftDurationMs = window.getShiftDurationMs?.(RelayDesk.currentUserShift) ?? (9 * 60 * 60 * 1000);
+
             RelayDesk.shiftStart = now;
-            RelayDesk.shiftEndTime = now + (9 * 60 * 60 * 1000);
+            RelayDesk.shiftEndTime = now + shiftDurationMs;
             RelayDesk.shiftEnded = false;
 
             // ======================
@@ -504,10 +539,16 @@ await db.collection("shiftHistory")
             // ======================
             // LATENESS CHECK
             // ======================
+            // STEP 4 CUTOVER: checkLateness now resolves the employee's
+            // shift itself via the new Shift Management system — pass the
+            // userId, not the old assignedShift key. `assignedShift`
+            // (old field) is still read/stamped below purely for the
+            // shiftHistory doc's historical record; it no longer drives
+            // the lateness calculation itself.
 
             const assignedShift = RelayDesk.currentUserData?.assignedShift || null;
             const lateness = (typeof window.checkLateness === "function")
-                ? window.checkLateness(assignedShift, now, RelayDesk.currentUserData)
+                ? window.checkLateness(RelayDesk.currentUser, now, RelayDesk.currentUserData)
                 : { assigned: false, late: false };
 
             try {
@@ -537,13 +578,13 @@ await db.collection("shiftHistory")
 
             if (isOffDayShift && typeof window.NotificationManager === "object") {
                 window.NotificationManager.notify(
-                    "📴 You're clocking in on a scheduled day off — this entire shift will count as overtime.",
+                    window.I18N ? window.I18N.t("status.offDayShiftStarted") : "📴 You're clocking in on a scheduled day off — this entire shift will count as overtime.",
                     "warning",
                     { category: "offday" }
                 );
             } else if (isOffDayShift && typeof window.showToast === "function") {
                 window.showToast(
-                    "📴 You're clocking in on a scheduled day off — this entire shift will count as overtime.",
+                    window.I18N ? window.I18N.t("status.offDayShiftStarted") : "📴 You're clocking in on a scheduled day off — this entire shift will count as overtime.",
                     "warn"
                 );
             }
@@ -565,13 +606,13 @@ await db.collection("shiftHistory")
 
                 if (typeof window.NotificationManager === "object") {
                     window.NotificationManager.notify(
-                        `⏰ You clocked on ${lateness.minutesLate} min late for your assigned shift.`,
+                        window.I18N ? window.I18N.t("status.clockedInLate", { minutes: lateness.minutesLate }) : `⏰ You clocked on ${lateness.minutesLate} min late for your assigned shift.`,
                         "warning",
                         { category: "alerts" }
                     );
                 } else if (typeof window.showToast === "function") {
                     window.showToast(
-                        `⏰ You clocked on ${lateness.minutesLate} min late for your assigned shift.`,
+                        window.I18N ? window.I18N.t("status.clockedInLate", { minutes: lateness.minutesLate }) : `⏰ You clocked on ${lateness.minutesLate} min late for your assigned shift.`,
                         "warn"
                     );
                 }
@@ -625,7 +666,13 @@ await db.collection("shiftHistory")
                 shiftEndTime: RelayDesk.shiftEndTime || null,
                 shiftId: RelayDesk.shiftId || null,
                 overtimeBaseline: RelayDesk.overtimeBaseline || null,
-                isOffDayShift: RelayDesk.isOffDayShift || false
+                isOffDayShift: RelayDesk.isOffDayShift || false,
+                // Employee Activity Detection: marks this status as having
+                // been set by the idle-detection automation (vs. the
+                // employee themselves) so the Admin Panel can display it
+                // distinctly ("Break (Auto Idle)"). Cleared on any manual
+                // status change.
+                autoIdleStatus: opts.isIdleAuto ? newStatus : null
             }, { merge: true });
 
         if (typeof window.logAudit === "function") {

@@ -224,12 +224,10 @@ function bindAddEmployeeForm() {
 
         const codeInput = document.getElementById("newEmpCode");
         const roleInput = document.getElementById("newEmpRole");
-        const shiftInput = document.getElementById("newEmpShift");
         const pinInput = document.getElementById("newEmpPin");
 
         const code = (codeInput?.value || "").trim().toUpperCase();
         const role = roleInput?.value || "Not Set";
-        const assignedShift = shiftInput?.value || null;
         const pin = (pinInput?.value || "").trim();
 
         const permissionLevel = levelSelect?.value || "Employee";
@@ -241,10 +239,9 @@ function bindAddEmployeeForm() {
             return;
         }
 
-        if (pin && pin.length !== 4) {
-            alert("PIN must be exactly 4 digits, or leave it blank");
-            return;
-        }
+        // Any PIN/password length is accepted now, or leave it blank
+        // entirely — if blank, the employee sets their own PIN (or
+        // chooses to stay blank/no-PIN) on their first login.
 
         try {
 
@@ -266,7 +263,6 @@ function bindAddEmployeeForm() {
                 lastChange: Date.now(),
                 adminStatus: "Not Authorized",
                 role,
-                assignedShift,
                 weeklyOffDays,
                 frozen: false,
                 lastStatusBeforeFreeze: null,
@@ -567,6 +563,27 @@ window.renderAdminAlerts = function (users) {
         `;
     }
 
+    // Approve = employee is excused for this alert, no penalty.
+    // Deny = the opposite — alert stands, decision is logged.
+    // Dismiss = alert is cleared from this panel outright (no badge left behind).
+    // Once resolved (approved/denied) the buttons are swapped for a badge;
+    // "resolution" is null for alerts nobody has acted on yet.
+    function resolutionHtml(userId, type, resolution) {
+
+        if (!resolution) {
+            return `
+                <div class="modalButtons">
+                    <button onclick="resolveAdminAlert('${userId}','${type}','approved')">✅ Approve</button>
+                    <button onclick="resolveAdminAlert('${userId}','${type}','denied')">❌ Deny</button>
+                    <button onclick="resolveAdminAlert('${userId}','${type}','dismissed')">🚫 Dismiss</button>
+                </div>
+            `;
+        }
+
+        const badge = resolution.status === "approved" ? "✅ Approved (excused)" : "❌ Denied";
+        return `<div><small>${badge}</small></div>`;
+    }
+
     if (lateBox) {
         lateBox.innerHTML = late.length
             ? `<h4>⏰ Late Clock-ins</h4>` + late.map(l => `
@@ -574,6 +591,7 @@ window.renderAdminAlerts = function (users) {
                     <b>${l.id}</b> — ${l.minutesLate} min late
                     <div><small>${l.shiftLabel}</small></div>
                     ${disputeHtml(l.id, "late", l.dispute)}
+                    ${resolutionHtml(l.id, "late", l.resolution)}
                 </div>
             `).join("")
             : `<h4>⏰ Late Clock-ins</h4><div class="workspaceEmpty">No one is late 🎉</div>`;
@@ -585,6 +603,7 @@ window.renderAdminAlerts = function (users) {
                 <div class="alertRow">
                     <b>${i.id}</b> — Away for ${i.minutesAway} min
                     ${disputeHtml(i.id, "away", i.dispute)}
+                    ${resolutionHtml(i.id, "away", i.resolution)}
                 </div>
             `).join("")
             : `<h4>🚶 Extended Away</h4><div class="workspaceEmpty">No idle stretches 👍</div>`;
@@ -596,9 +615,67 @@ window.renderAdminAlerts = function (users) {
                 <div class="alertRow">
                     <b>${b.id}</b> — On break for ${b.minutesOnBreak} min
                     ${disputeHtml(b.id, "break", b.dispute)}
+                    ${resolutionHtml(b.id, "break", b.resolution)}
                 </div>
             `).join("")
             : `<h4>☕ Extended Break</h4><div class="workspaceEmpty">No one's over on break 👍</div>`;
+    }
+};
+
+// ===========================================
+// ADMIN RESOLUTION FOR LATE / AWAY / BREAK ALERTS
+// (Approve = excuse the employee, no penalty. Deny = the opposite,
+// the alert stands as a logged decision. Dismiss = just clear it from
+// the Alerts panel — no badge, no record shown to admin afterward.)
+// ===========================================
+
+const ALERT_RESOLUTION_FIELDS = {
+    late: "lateAlertResolution",
+    away: "awayAlertResolution",
+    break: "breakAlertResolution"
+};
+
+const ALERT_AUDIT_LABELS = {
+    late: "LATE_ALERT",
+    away: "AWAY_ALERT",
+    break: "BREAK_ALERT"
+};
+
+window.resolveAdminAlert = async function (userId, type, action) {
+
+    const field = ALERT_RESOLUTION_FIELDS[type];
+    if (!field) return;
+
+    // ===== PERMISSION SYSTEM =====
+    if (!window.hasPermission?.("canManageEmployees")) {
+        alert("You don't have permission to resolve alerts.");
+        return;
+    }
+
+    try {
+
+        const today = new Date().toISOString().split("T")[0];
+
+        await db.collection("users").doc(userId).set({
+            [field]: {
+                date: today,
+                status: action,
+                by: window.RelayDesk?.currentUser || "A000",
+                at: Date.now()
+            }
+        }, { merge: true });
+
+        if (typeof logAudit === "function") {
+            await logAudit(
+                window.RelayDesk?.currentUser || "A000",
+                `${ALERT_AUDIT_LABELS[type]}_${action.toUpperCase()}`,
+                userId
+            );
+        }
+
+    } catch (err) {
+        console.error(`Resolve ${type} alert failed:`, err);
+        alert("Failed to update the alert.");
     }
 };
 

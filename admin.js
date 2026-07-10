@@ -3,6 +3,25 @@
 // admin.js (CLEAN FIXED VERSION)
 // ===========================================
 
+// Phase 11, batch 3: confirm() dialog strings registered with the
+// shared language manager so they follow the global Settings
+// language choice. See ESM_Release_Context_Tracker.md.
+if (window.I18N) {
+    window.I18N.register("admin", {
+        en: {
+            confirmRebuildShiftHistory: "Rebuild missing active shift history?",
+            confirmResetAllUsers: "Reset ALL users?",
+            confirmDeleteUser: "Delete user {id}?",
+            confirmResetPin: "Reset PIN for {id}? They'll be asked to set a new one at next login."
+        },
+        ar: {
+            confirmRebuildShiftHistory: "إعادة بناء سجل الوردية النشطة المفقود؟",
+            confirmResetAllUsers: "إعادة تعيين جميع المستخدمين؟",
+            confirmDeleteUser: "حذف المستخدم {id}؟",
+            confirmResetPin: "إعادة تعيين الرقم السري لـ {id}؟ سيُطلب منه تعيين رقم جديد عند تسجيل الدخول التالي."
+        }
+    });
+}
 
 // ===========================================
 // INIT ADMIN
@@ -98,7 +117,6 @@ function applyAdminPermissionVisibility() {
 
     const statsCard = document.getElementById("adminStatsCard")?.closest(".card");
     const addEmployeeSection = document.getElementById("addEmployeeBtn")?.closest("section");
-    const actionCenterSection = document.getElementById("resetAllUsersBtn")?.closest("section");
 
     if (statsCard) {
         statsCard.classList.toggle("hidden", !window.hasPermission?.("canViewStatistics"));
@@ -110,13 +128,6 @@ function applyAdminPermissionVisibility() {
         // "manage employees" — only A000 / Owner-level users get this
         // section now.
         addEmployeeSection.classList.toggle("hidden", !window.canCreateEmployeeAccounts?.());
-    }
-
-    if (actionCenterSection) {
-        const canSeeActionCenter =
-            window.hasPermission?.("canManageEmployees") ||
-            window.hasPermission?.("canFreezeAccounts");
-        actionCenterSection.classList.toggle("hidden", !canSeeActionCenter);
     }
 }
 
@@ -192,6 +203,11 @@ function initializeAdmin() {
         initMonthlyArchiveAdmin();
     }
 
+    // ===== VIOLATIONS LOG (violations.js) =====
+    if (window.initViolationsAdmin) {
+        initViolationsAdmin();
+    }
+
     const adminList = $("adminList");
     const adminOnlineBtn = $("adminOnlineBtn");
     const adminOfflineBtn = $("adminOfflineBtn");
@@ -237,7 +253,7 @@ if (shiftHistoryContainer) {
 
         rebuildBtn.onclick = async () => {
 
-            if (!confirm("Rebuild missing active shift history?")) return;
+            if (!confirm(window.I18N ? window.I18N.t("admin.confirmRebuildShiftHistory") : "Rebuild missing active shift history?")) return;
 
             isRebuilding = true;
 
@@ -366,15 +382,16 @@ setInterval(loadStatisticsPanel, 10000);
 
     window.resetAdminPin = async () => {
 
-        const newPin = prompt("Enter NEW admin PIN:");
+        const newPin = prompt("Enter NEW admin PIN/Password (leave blank for no PIN):");
 
-        if (!newPin || newPin.length !== 4) {
-            alert("PIN must be 4 digits");
-            return;
-        }
+        // prompt() returns null only if the dialog was cancelled —
+        // that's the one case that should abort. An empty string means
+        // the admin deliberately submitted a blank PIN, which is
+        // allowed, same as any employee account.
+        if (newPin === null) return;
 
         await db.collection("users").doc("A000").set({
-            pin: newPin
+            pin: newPin.trim()
         }, { merge: true });
 
         logAudit("A000", "PIN_RESET", "Admin changed PIN");
@@ -393,7 +410,14 @@ setInterval(loadStatisticsPanel, 10000);
     // LIVE ADMIN PANEL
     // =====================
 
-    db.collection("users").onSnapshot(snapshot => {
+    // Cached so the panel can re-render purely off a `shiftsChanged` event
+    // (new Shift Management system) without waiting for the next `users`
+    // snapshot — e.g. renaming a shift or moving an employee to a
+    // different shift from the Shift Management UI should update this
+    // list immediately even though no `users/{id}` doc changed.
+    window._lastAdminUsersSnapshot = null;
+
+    function renderAdminUserList(snapshot) {
 
         adminList.innerHTML = "";
         window.adminLiveUsers = {};
@@ -461,14 +485,14 @@ setInterval(loadStatisticsPanel, 10000);
             card.innerHTML = `
                 <div class="adminHeader">
                     <b>${id}</b>
-                    <span>${u.status || "Off Duty"}</span>
+                    <span>${u.status || "Off Duty"}${(u.autoIdleStatus && u.autoIdleStatus === u.status) ? ' <span class="autoIdleBadge">Auto Idle</span>' : ""}</span>
                 </div>
 
                 ${window.isOffDayToday?.(u) ? `<div class="offTodayBadge">📴 Off Today</div>` : ""}
                 ${u.pinResetRequested ? `<div class="pinResetBadge">🔑 PIN Reset Request</div>` : ""}
 
                 <div>
-                    <small>PIN: ${u.pin || "Not Set"}</small>
+                    <small>PIN: <span id="adminPinValue-${id}" class="adminPinValue${window.adminRevealedPins?.has(id) ? " revealed" : ""}">${u.pin || "Not Set"}</span> <button type="button" class="adminPinToggleBtn" id="adminPinToggleBtn-${id}" onclick="toggleAdminPinVisibility('${id}')" title="Show/hide this employee's PIN/Password">${window.adminRevealedPins?.has(id) ? "🙈" : "👁️"}</button></small>
                 </div>
 
                 <div class="adminTimers" id="timer-${id}">
@@ -479,12 +503,16 @@ setInterval(loadStatisticsPanel, 10000);
 
                 <div class="shiftAssignRow">
                     <label>Shift:</label>
-                    <select onchange="assignEmployeeShift('${id}', this.value)" ${window.hasPermission?.("canAssignShifts") ? "" : "disabled"}>
-                        <option value="" ${!u.assignedShift ? "selected" : ""}>Unassigned</option>
-                        <option value="shift1" ${u.assignedShift === "shift1" ? "selected" : ""}>Shift 1 (12AM-9AM)</option>
-                        <option value="shift2" ${u.assignedShift === "shift2" ? "selected" : ""}>Shift 2 (8AM-5PM)</option>
-                        <option value="shift3" ${u.assignedShift === "shift3" ? "selected" : ""}>Shift 3 (4PM-12AM)</option>
-                    </select>
+                    ${(() => {
+                        // Resolved from the new Shift Management system —
+                        // assignment now happens from the shift's own
+                        // "Assigned Employees" multi-select (Owner Panel →
+                        // Shift Management), not from a per-employee picker.
+                        const resolved = window.getEmployeeAssignedShift?.(id);
+                        if (!resolved) return `<span class="shiftResolvedDisplay shiftUnassigned">Unassigned</span>`;
+                        const zone = window.getShiftTimezoneZone?.(resolved.timezoneRegion);
+                        return `<span class="shiftResolvedDisplay">${resolved.name} (${resolved.startTime}–${resolved.endTime}${zone ? " " + zone.label : ""})${resolved.enabled === false ? ' <span class="shiftMgmtBadge disabled">Disabled</span>' : ""}</span>`;
+                    })()}
                 </div>
 
                 <div class="adminButtons">
@@ -494,9 +522,12 @@ setInterval(loadStatisticsPanel, 10000);
 
                     ${window.hasPermission?.("canManageEmployees") ? `
                         <button onclick="resetUser('${id}')">Reset</button>
-                        <button onclick="deleteUser('${id}')">Delete</button>
                         <button onclick="resetUserPin('${id}')">Reset PIN</button>
                         <button onclick="openPermissionsEditor('${id}')">🔑 Permissions</button>
+                    ` : ""}
+
+                    ${window.isOwnerOrAbove?.() ? `
+                        <button onclick="deleteUser('${id}')">Delete</button>
                     ` : ""}
 
                 </div>
@@ -510,172 +541,24 @@ setInterval(loadStatisticsPanel, 10000);
         if (typeof window.renderAdminAlerts === "function") {
             window.renderAdminAlerts(allUsersForAlerts);
         }
+    }
+
+    db.collection("users").onSnapshot(snapshot => {
+        window._lastAdminUsersSnapshot = snapshot;
+        renderAdminUserList(snapshot);
     });
 
-    // =============================
-// 🕹️ ADMIN ACTION CENTER (NEW)
-// =============================
-
-const resetAllBtn = $("resetAllUsersBtn");
-const freezeBtn = $("freezeUserBtn");
-const forceEndBtn = $("forceEndShiftBtn");
-const broadcastBtn = $("broadcastMsgBtn");
-const unfreezeBtn = $("unfreezeUserBtn");
-
-// RESET ALL USERS
-if (resetAllBtn) {
-    resetAllBtn.onclick = async () => {
-
-        if (!window.hasPermission?.("canManageEmployees")) {
-            alert("You don't have permission to reset all users.");
-            return;
+    // New Shift Management system fires this whenever `shifts` docs
+    // change (create/edit/delete/enable-disable/reassign). No `users`
+    // doc changes in that case, so without this the "Shift:" line on
+    // each employee card would go stale until the next unrelated
+    // `users` snapshot. Re-render off the cached snapshot instead of
+    // waiting on Firestore again.
+    document.addEventListener("shiftsChanged", () => {
+        if (window._lastAdminUsersSnapshot) {
+            renderAdminUserList(window._lastAdminUsersSnapshot);
         }
-
-        if (!confirm("Reset ALL users?")) return;
-
-        const users = await db.collection("users").get();
-
-        users.forEach(doc => {
-            const id = doc.id;
-
-            if (id === "A000") return;
-
-            db.collection("users").doc(id).set({
-                work: 0,
-                breakT: 0,
-                away: 0,
-                status: "Off Duty",
-                lastSwitchTime: Date.now(),
-                lastChange: Date.now()
-            }, { merge: true });
-
-            logAudit(RelayDesk.currentUser, "RESET_ALL_USERS", `Reset ${id}`);
-        });
-
-        alert("All users reset ✔");
-    };
-}
-
-// FREEZE USER
-if (freezeBtn) {
-    freezeBtn.onclick = async () => {
-
-        if (!window.hasPermission?.("canFreezeAccounts")) {
-            alert("You don't have permission to freeze accounts.");
-            return;
-        }
-
-        const id = prompt("Enter User ID to freeze:");
-        if (!id) return;
-
-        const doc = await db.collection("users").doc(id).get();
-        const u = doc.data();
-
-        if (!u) {
-            alert("User not found");
-            return;
-        }
-
-        await db.collection("users").doc(id).set({
-            frozen: true,
-            previousStatus: u.status || "Off Duty",
-            status: "Frozen",
-            lastChange: Date.now()
-        }, { merge: true });
-
-        logAudit(RelayDesk.currentUser, "FREEZE_USER", id);
-
-        alert("User frozen ✔");
-    };
-}
-
-// UNFREEZE USER (RESTORE LAST STATUS)
-if (unfreezeBtn) {
-    unfreezeBtn.onclick = async () => {
-
-        if (!window.hasPermission?.("canFreezeAccounts")) {
-            alert("You don't have permission to unfreeze accounts.");
-            return;
-        }
-
-        const id = prompt("Enter User ID to unfreeze:");
-        if (!id) return;
-
-        const doc = await db.collection("users").doc(id).get();
-        const u = doc.data();
-
-        if (!u) {
-            alert("User not found");
-            return;
-        }
-
-        const restoreStatus = u.previousStatus || "Off Duty";
-
-        await db.collection("users").doc(id).set({
-            frozen: false,
-            status: restoreStatus,
-            previousStatus: null,
-            lastChange: Date.now()
-        }, { merge: true });
-
-        logAudit(RelayDesk.currentUser, "UNFREEZE_USER", `${id} -> ${restoreStatus}`);
-
-        alert(`User unfrozen ✔ (restored: ${restoreStatus})`);
-    };
-}
-
-// FORCE END SHIFT
-if (forceEndBtn) {
-    forceEndBtn.onclick = async () => {
-
-        if (!window.hasPermission?.("canManageEmployees")) {
-            alert("You don't have permission to force-end shifts.");
-            return;
-        }
-
-        const id = prompt("Enter User ID to force end shift:");
-
-        if (!id) return;
-
-        const now = Date.now();
-
-        await db.collection("users").doc(id).set({
-            status: "Off Duty",
-            shiftEndTime: now,
-            lastChange: now
-        }, { merge: true });
-
-        logAudit(RelayDesk.currentUser, "FORCE_END_SHIFT", id);
-
-        alert("Shift ended ✔");
-    };
-}
-
-// BROADCAST MESSAGE
-if (broadcastBtn) {
-    broadcastBtn.onclick = async () => {
-
-        if (!window.hasPermission?.("canManageEmployees")) {
-            alert("You don't have permission to send a broadcast.");
-            return;
-        }
-
-        const msg = prompt("Broadcast message:");
-
-        if (!msg) return;
-
-        await db.collection("system").doc("broadcast").set({
-            message: msg,
-            time: Date.now(),
-            from: RelayDesk.currentUser
-        });
-
-        logAudit(RelayDesk.currentUser, "BROADCAST", msg);
-
-        alert("Message sent ✔");
-    };
-}
-
+    });
 }
 
 
@@ -913,17 +796,47 @@ window.clearUserStats = async function (userId) {
 
 window.deleteUser = async (id) => {
 
-    if (!window.hasPermission?.("canManageEmployees")) {
+    // Deliberately Owner+A000 only (not canManageEmployees) — account
+    // deletion is more sensitive than the everyday employee-management
+    // actions that permission covers.
+    if (!window.isOwnerOrAbove?.()) {
         alert("You don't have permission to delete employees.");
         return;
     }
 
-    if (!confirm("Delete user " + id + "?")) return;
+    if (!confirm(window.I18N ? window.I18N.t("admin.confirmDeleteUser", { id: id }) : "Delete user " + id + "?")) return;
 
     await db.collection("users").doc(id).delete();
 
     // 🔥 AUDIT FIX
     logAudit(id, "User Deleted", "Account removed");
+};
+
+// =====================================
+// SHOW/HIDE ONE EMPLOYEE'S PIN/PASSWORD
+// =====================================
+// Masked (dots) by default, per employee — the admin list otherwise
+// shows every employee's PIN/password in plain text at all times.
+// Kept as a plain Set (not per-card local state) so it survives the
+// user card list being torn down and rebuilt on every live snapshot
+// update — the render below just checks membership each time it draws
+// a card. Toggling also updates the DOM directly for instant feedback,
+// since the next live re-render might not fire right away.
+window.adminRevealedPins = window.adminRevealedPins || new Set();
+
+window.toggleAdminPinVisibility = function (id) {
+
+    const set = window.adminRevealedPins;
+    const nowRevealed = !set.has(id);
+
+    if (nowRevealed) set.add(id);
+    else set.delete(id);
+
+    const span = document.getElementById(`adminPinValue-${id}`);
+    const btn = document.getElementById(`adminPinToggleBtn-${id}`);
+
+    if (span) span.classList.toggle("revealed", nowRevealed);
+    if (btn) btn.textContent = nowRevealed ? "🙈" : "👁️";
 };
 
 window.resetUserPin = async (id) => {
@@ -933,7 +846,7 @@ window.resetUserPin = async (id) => {
         return;
     }
 
-    if (!confirm("Reset PIN for " + id + "? They'll be asked to set a new one at next login.")) return;
+    if (!confirm(window.I18N ? window.I18N.t("admin.confirmResetPin", { id: id }) : "Reset PIN for " + id + "? They'll be asked to set a new one at next login.")) return;
 
     // ===== LOGIN CHANGES (Phase 9) =====
     // Blank the PIN instead of the Admin picking one — the employee
@@ -1687,7 +1600,7 @@ totalShiftTime += (end - start);
 
     document.getElementById("drillLiveSection").innerHTML = `
         <h4>📡 Live Status</h4>
-        <div>Status: ${u.status}</div>
+        <div>Status: ${u.status}${(u.autoIdleStatus && u.autoIdleStatus === u.status) ? ' <span class="autoIdleBadge">Auto Idle</span>' : ""}</div>
         <div>Role: ${u.role}</div>
         <div>Shift ID: ${u.shiftId || "N/A"}</div>
         <button class="dangerBtn" onclick="clearUserStats('${userId}')" style="margin-top:8px;">

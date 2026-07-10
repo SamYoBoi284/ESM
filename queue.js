@@ -25,11 +25,17 @@
 //   RelayDesk.queue.newId()          -> for generating Firestore doc ids
 //                                       client-side (works offline)
 //
-// Built-in types: SAVE_NOTES, ADD_LOAD, EDIT_LOAD, DELETE_LOAD,
+// Built-in types: SAVE_NOTES, EDIT_LOAD, DELETE_LOAD,
 // CHAT_MESSAGE, DELETE_CHAT_MESSAGE, DELETE_CHAT, FIRESTORE_MERGE
 // (generic escape hatch for anything else — e.g. shift status
 // updates, end-of-shift report submission — pass
 // { collection, docId, data }).
+//
+// ADD_LOAD is NOT queued (as of the fix below) — see workspace.js's
+// saveLoad()/saveLoadDirect() for why: queued writes drain strictly
+// in order and stop on the first failure, which was silently
+// blocking new employees' booked loads from ever reaching
+// shiftHistory.
 
 (function () {
 
@@ -167,42 +173,15 @@
         }
     });
 
-    Queue.registerHandler("ADD_LOAD", async (payload) => {
-
-        const { uid, load } = payload;
-        if (!uid || !load) return;
-
-        const userRef = db.collection("users").doc(uid);
-        const doc = await userRef.get();
-        const data = doc.data() || {};
-        const loads = Array.isArray(data.bookedLoads) ? data.bookedLoads : [];
-
-        // idempotent: if a retry lands after the first attempt actually
-        // went through, don't push a second copy of the same load
-        if (!loads.some(l => l.id === load.id)) {
-            loads.push(load);
-            await userRef.set({ bookedLoads: loads }, { merge: true });
-        }
-
-        if (load.shiftId) {
-
-            const shiftRef = db.collection("shiftHistory").doc(load.shiftId);
-            const shiftDoc = await shiftRef.get();
-            const shiftData = shiftDoc.data() || {};
-            const loadsLog = Array.isArray(shiftData.loadsLog) ? shiftData.loadsLog : [];
-
-            if (!loadsLog.some(l => l.id === load.id)) {
-
-                loadsLog.push(load);
-                const current = shiftData.metrics?.bookedLoads ?? 0;
-
-                await shiftRef.set({
-                    metrics: { bookedLoads: current + 1 },
-                    loadsLog
-                }, { merge: true });
-            }
-        }
-    });
+    // NOTE: ADD_LOAD used to be a queued handler here. Removed —
+    // workspace.js's saveLoad() now writes straight to Firestore
+    // (see saveLoadDirect() there) instead of going through the queue,
+    // because queued writes only drain strictly in order and stop
+    // dead on the first failure, which was silently blocking new
+    // employees' loads from ever reaching shiftHistory (and therefore
+    // never showing up in Load History, Admin stats, or the
+    // per-user drilldown). EDIT_LOAD and DELETE_LOAD are untouched —
+    // this was scoped to the specific symptom reported.
 
     Queue.registerHandler("EDIT_LOAD", async (payload) => {
 
@@ -321,6 +300,97 @@
         }
     });
 
+    // ===========================================
+    // DELETE_HISTORICAL_LOAD (Load History feature — admin only)
+    // ===========================================
+    //
+    // Mirrors EDIT_HISTORICAL_LOAD's shape (editor may not be the
+    // owner, found by id inside a specific shift's permanent
+    // shiftHistory.loadsLog) but performs the same soft-delete
+    // DELETE_LOAD already does elsewhere (active:false, never a hard
+    // delete — the row stays for audit purposes, it's just excluded
+    // from Load History search). Also releases the VRID reservation
+    // so that ID becomes bookable again, which is the whole point:
+    // clearing out a mistaken/duplicate reservation quickly.
+    Queue.registerHandler("DELETE_HISTORICAL_LOAD", async (payload) => {
+
+        const { editorUid, ownerUid, shiftId, loadId, vrid } = payload;
+        if (!editorUid || !shiftId || !loadId) return;
+
+        // 1. permanent record: shiftHistory/{shiftId}.loadsLog
+        const shiftRef = db.collection("shiftHistory").doc(shiftId);
+        const shiftDoc = await shiftRef.get();
+        const shiftData = shiftDoc.data() || {};
+        const loadsLog = Array.isArray(shiftData.loadsLog) ? shiftData.loadsLog : [];
+
+        const target = loadsLog.find(l => l.id === loadId);
+
+        // idempotent: only write (and decrement the counter) if the
+        // load was actually still active
+        if (target && target.active !== false) {
+
+            const current = shiftData.metrics?.bookedLoads ?? 0;
+            const updatedLog = loadsLog.map(l =>
+                l.id === loadId ? { ...l, active: false, deletedAt: Date.now(), deletedBy: editorUid } : l
+            );
+
+            await shiftRef.set({
+                metrics: { bookedLoads: Math.max(current - 1, 0) },
+                loadsLog: updatedLog
+            }, { merge: true });
+        }
+
+        // 2. mirror into the owner's live bookedLoads, only if the
+        // load is still sitting there (their shift may have already
+        // ended and been archived, in which case the shiftHistory
+        // write above already covers it)
+        if (ownerUid) {
+
+            const ownerRef = db.collection("users").doc(ownerUid);
+            const ownerDoc = await ownerRef.get();
+            const ownerData = ownerDoc.data() || {};
+            const liveLoads = Array.isArray(ownerData.bookedLoads) ? ownerData.bookedLoads : [];
+
+            if (liveLoads.some(l => l.id === loadId)) {
+                const remaining = liveLoads.filter(l => l.id !== loadId);
+                await ownerRef.set({ bookedLoads: remaining }, { merge: true });
+            }
+        }
+
+        // 3. free up the VRID so it can be reserved again — this is
+        // the actual goal (clearing out a stuck/mistaken reservation)
+        if (vrid && window.releaseVrid) {
+            await window.releaseVrid(vrid);
+        }
+
+        // 4. structured audit entry
+        if (typeof logAudit === "function") {
+            await logAudit(
+                editorUid,
+                "LOAD_HISTORY_DELETED",
+                `Load ${vrid || loadId} deleted from Load History`
+            );
+        }
+
+        // 5. notify the original booker, unless they deleted their
+        // own load themselves
+        if (ownerUid && ownerUid !== editorUid) {
+            await db.collection("loadChangeNotifications").add({
+                ownerUid,
+                editorUid,
+                loadId,
+                vrid: vrid || loadId,
+                shiftId,
+                before: { status: target?.status || "Booked" },
+                after: { status: "Deleted" },
+                reason: "Load deleted by admin",
+                time: Date.now(),
+                acknowledged: false,
+                toastShown: false
+            });
+        }
+    });
+
     Queue.registerHandler("DELETE_LOAD", async (payload) => {
 
         const { uid, loadId, shiftId } = payload;
@@ -359,6 +429,10 @@
                     metrics: { bookedLoads: Math.max(current - 1, 0) },
                     loadsLog: updatedLog
                 }, { merge: true });
+
+                if (typeof logAudit === "function") {
+                    await logAudit(uid, "LOAD_DELETED", `Load ${target.vrid || loadId} deleted`);
+                }
             }
             // Refresh Load History if it's currently open.
             if (window.refreshLoadHistoryLive) {
@@ -597,6 +671,16 @@
 
         if (Queue.UI.el) return Queue.UI.el;
 
+        // Prefer an existing static placeholder already in the page (e.g. the
+        // top bar slot in index.html) over creating a new floating badge —
+        // same pattern used for the report formatter panel. Falls back to a
+        // fixed-position badge for any screen that doesn't have that slot.
+        const existing = document.getElementById("queueStatusIndicator");
+        if (existing) {
+            Queue.UI.el = existing;
+            return existing;
+        }
+
         const el = document.createElement("div");
         el.id = "queueStatusIndicator";
         el.className = "queueStatusIndicator";
@@ -621,12 +705,17 @@
         const el = ensureIndicator();
         const pending = Queue.pendingCount();
 
+        el.classList.remove("connected", "reconnecting", "disconnected");
+
         if (Queue.assumedOffline || !navigator.onLine) {
             el.textContent = `🔴 Offline${pending ? ` (${pending} pending)` : ""}`;
+            el.classList.add("disconnected");
         } else if (Queue.isSyncing || pending > 0) {
             el.textContent = `🟡 Syncing...${pending ? ` (${pending})` : ""}`;
+            el.classList.add("reconnecting");
         } else {
             el.textContent = "🟢 Synced";
+            el.classList.add("connected");
         }
     }
 

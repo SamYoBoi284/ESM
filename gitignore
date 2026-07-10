@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Firebase local cache/emulator state
+.firebase/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

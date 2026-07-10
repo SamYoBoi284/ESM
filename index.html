@@ -16,23 +16,28 @@
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- RelayDesk -->
     <script defer src="firebase.js"></script>
     <script defer src="utils.js"></script>
+    <script defer src="drivers.js"></script>
+    <script defer src="i18n.js"></script>
     <script defer src="notificationmanager.js"></script>
     <script defer src="queue.js"></script>
     <script defer src="permissions.js"></script>
     <script defer src="shifts.js"></script>
+    <script defer src="shiftmanagement.js"></script>
     <script defer src="auth.js"></script>
     <script defer src="firstlogin.js"></script>
     <script defer src="presence.js"></script>
     <script defer src="status.js"></script>
-    <script defer src="shiftautomation.js"></script>
+    <script defer src="activitydetection.js"></script>
     <script defer src="timers.js"></script>
     <script defer src="colleagues.js"></script>
     <script defer src="admin.js"></script>
     <script defer src="admin-extras.js"></script>
+    <script defer src="violations.js"></script>
     <script defer src="monthlystats.js"></script>
     <script defer src="reports.js"></script>
     <script defer src="announcements.js"></script>
@@ -43,6 +48,7 @@
     <script defer src="chat.js"></script>
     <script defer src="overtime.js"></script>
     <script defer src="disputes.js"></script>
+    <script defer src="feedback.js"></script>
     <script defer src="userguide.js"></script>
     <script defer src="adminguide.js"></script>
     <script defer src="settings.js"></script>
@@ -63,9 +69,9 @@
         ⚙️
     </button>
 
-    <div id="clock">🇺🇸 --:--:--</div>
-
     <div id="damascusClock" title="Damascus, Syria (UTC+3)">🇸🇾 --:--:--</div>
+
+    <div id="clock">🇺🇸 --:--:--</div>
 
     <div class="topBarCenterGroup">
 
@@ -74,8 +80,8 @@
             <span class="miniTimer">☕ <span id="miniBreakTimer">00:00:00</span></span>
         </div>
 
-        <div id="connectionStatus" class="connected">
-            🟢 Connected
+        <div id="queueStatusIndicator" class="queueStatusIndicator connected" title="Local sync status">
+            🟢 Synced
         </div>
 
         <div id="miniTimersRight" class="miniTimerGroup">
@@ -99,7 +105,7 @@
 
     <div class="card loginCard">
 
-        <h1>HoS | STS ESM Release V1.1.5</h1>
+        <h1>HoS | STS ESM </h1>
 
         <p class="subtitle">
             STS Employee Status Monitor
@@ -107,34 +113,38 @@
 
         <hr>
 
-        <label for="codeInput">Employee Code</label>
+        <label for="codeInput" data-en="Employee Code" data-ar="رمز الموظف">Employee Code</label>
 
         <input
             id="codeInput"
             type="text"
+            data-en-placeholder="Example: A0XX"
+            data-ar-placeholder="مثال: A0XX"
             placeholder="Example: A0XX"
             autocomplete="off"
             spellcheck="false">
 
-        <label for="pinInput">PIN</label>
+        <label for="pinInput" data-en="PIN / Password" data-ar="الرقم السري / كلمة المرور">PIN / Password</label>
 
         <input
             id="pinInput"
             type="password"
-            placeholder="4 Digit PIN"
+            data-en-placeholder="PIN or Password (optional)"
+            data-ar-placeholder="رمز سري أو كلمة مرور (اختياري)"
+            placeholder="PIN or Password (optional)"
             autocomplete="current-password">
 
-        <button id="loginBtn" type="button">
+        <button id="loginBtn" type="button" data-en="Login" data-ar="تسجيل الدخول">
 
             Login
 
         </button>
 
-        <button id="forgotPinBtn" class="forgotPinBtn" type="button">
+        <button id="forgotPinBtn" class="forgotPinBtn" type="button" data-en="Forgot PIN?" data-ar="نسيت الرقم السري؟">
             Forgot PIN?
         </button>
 
-        <button id="openUserGuideBtn" class="guideOpenBtn" type="button">
+        <button id="openUserGuideBtn" class="guideOpenBtn" type="button" data-en="📖 User Guide" data-ar="📖 دليل المستخدم">
             📖 User Guide
         </button>
 
@@ -161,8 +171,8 @@
                 <button id="guideBackBtn" class="smallButton guideBackBtn" type="button">← Back to Login</button>
             </div>
 
-            <p class="subtitle guideSubtitle" data-en="Employee Status Monitor / ESM Release V1.1.5" data-ar="نظام مراقبة حالة الموظف / ESM Release V1.1.5">
-                Employee Status Monitor / ESM Release V1.1.5
+            <p class="subtitle guideSubtitle" data-en="Employee Status Monitor / ESM" data-ar="نظام مراقبة حالة الموظف / ESM">
+                Employee Status Monitor / ESM
             </p>
 
             <div class="guideControls">
@@ -170,8 +180,8 @@
                     id="guideSearchInput"
                     type="text"
                     class="guideSearchInput"
-                    data-placeholder-en="🔎 Search the guide..."
-                    data-placeholder-ar="🔎 ابحث في الدليل..."
+                    data-en-placeholder="🔎 Search the guide..."
+                    data-ar-placeholder="🔎 ابحث في الدليل..."
                     placeholder="🔎 Search the guide...">
 
                 <div class="guideLangToggle" role="group" aria-label="Language">
@@ -258,13 +268,13 @@
 
         <div id="wizardStep_pin" class="wizardStep hidden">
             <h1>🔒 Set Your PIN</h1>
-            <p class="subtitle">Choose a 4-digit PIN you'll use to log in from now on.</p>
+            <p class="subtitle">Choose a PIN or password you'll use to log in from now on — or leave it blank for no PIN at all.</p>
 
-            <label for="wizardPinInput">New PIN</label>
-            <input id="wizardPinInput" type="password" placeholder="4 Digit PIN" autocomplete="new-password">
+            <label for="wizardPinInput">New PIN/Password</label>
+            <input id="wizardPinInput" type="password" placeholder="PIN or Password (optional)" autocomplete="new-password">
 
-            <label for="wizardPinConfirmInput">Confirm PIN</label>
-            <input id="wizardPinConfirmInput" type="password" placeholder="Re-enter PIN" autocomplete="new-password">
+            <label for="wizardPinConfirmInput">Confirm PIN/Password</label>
+            <input id="wizardPinConfirmInput" type="password" placeholder="Re-enter PIN/Password" autocomplete="new-password">
 
             <button id="wizardPinSubmitBtn" type="button">Set PIN</button>
             <p id="wizardPinMsg"></p>
@@ -319,9 +329,9 @@
             <p id="roleLabel" class="roleLabel"></p>
 
             <select id="roleSelect">
-                <option value="Dispatch">Dispatch</option>
-                <option value="Safety Employee">Safety Employee</option>
-                <option value="Dispatch + Safety">Dispatch + Safety</option>
+                <option value="Dispatch" data-en="Dispatch" data-ar="الإرسال">Dispatch</option>
+                <option value="Safety Employee" data-en="Safety Employee" data-ar="موظف السلامة">Safety Employee</option>
+                <option value="Dispatch + Safety" data-en="Dispatch + Safety" data-ar="الإرسال + السلامة">Dispatch + Safety</option>
             </select>
 
             <hr>
@@ -332,23 +342,23 @@
 
             <div class="buttonGrid">
 
-                <button id="onDutyBtn">🟢 On Duty</button>
+                <button id="onDutyBtn" data-en="🟢 On Duty" data-ar="🟢 في الخدمة">🟢 On Duty</button>
 
-                <button id="breakBtn">🟡 Break</button>
+                <button id="breakBtn" data-en="🟡 Break" data-ar="🟡 استراحة">🟡 Break</button>
 
-                <button id="awayBtn">🟣 Away</button>
+                <button id="awayBtn" data-en="🟣 Away" data-ar="🟣 غائب">🟣 Away</button>
 
-                <button id="offDutyBtn">🔴 Off Duty</button>
+                <button id="offDutyBtn" data-en="🔴 Off Duty" data-ar="🔴 خارج الخدمة">🔴 Off Duty</button>
 
-                <button id="endShiftBtn">⚫ End Shift</button>
+                <button id="endShiftBtn" data-en="⚫ End Shift" data-ar="⚫ إنهاء الوردية">⚫ End Shift</button>
 
-                <button id="requestOvertimeBtn">🕐 Request Overtime</button>
+                <button id="requestOvertimeBtn" data-en="🕐 Request Overtime" data-ar="🕐 طلب وقت إضافي">🕐 Request Overtime</button>
 
-                <button id="loadHistoryBtn" type="button">📜 Load History</button>
+                <button id="loadHistoryBtn" type="button" data-en="📜 Load History" data-ar="📜 سجل الشحنات">📜 Load History</button>
 
-                <button id="todaysTimersToggleBtn" type="button">🕐 Today's Timers ▾</button>
+                <button id="todaysTimersToggleBtn" type="button" data-en="🕐 Today's Timers ▾" data-ar="🕐 مؤقتات اليوم ▾">🕐 Today's Timers ▾</button>
 
-                <button id="monthlyStatsToggleBtn" type="button">📊 Monthly Statistics ▾</button>
+                <button id="monthlyStatsToggleBtn" type="button" data-en="📊 Monthly Statistics ▾" data-ar="📊 الإحصائيات الشهرية ▾">📊 Monthly Statistics ▾</button>
 
             </div>
 
@@ -356,7 +366,7 @@
 
             <div id="todaysTimersDropdown" class="todaysTimersDropdown hidden">
 
-            <h2 class="sectionTitle" id="todaysTimersDragHandle">
+            <h2 class="sectionTitle" id="todaysTimersDragHandle" data-en="🖐️ Today's Timers" data-ar="🖐️ مؤقتات اليوم">
 
                 🖐️ Today's Timers
 
@@ -366,7 +376,7 @@
 
                 <div class="timerCard">
 
-                    <h3>💼 Work</h3>
+                    <h3 data-en="💼 Work" data-ar="💼 العمل">💼 Work</h3>
 
                     <span id="workTimer">
 
@@ -378,7 +388,7 @@
 
                 <div class="timerCard">
 
-                    <h3>☕ Break</h3>
+                    <h3 data-en="☕ Break" data-ar="☕ استراحة">☕ Break</h3>
 
                     <span id="breakTimer">
 
@@ -390,7 +400,7 @@
 
                 <div class="timerCard">
 
-                    <h3>🚶 Away</h3>
+                    <h3 data-en="🚶 Away" data-ar="🚶 غائب">🚶 Away</h3>
 
                     <span id="awayTimer">
 
@@ -402,7 +412,7 @@
 
                 <div class="timerCard overtimeCard">
 
-                    <h3>🕐 Overtime</h3>
+                    <h3 data-en="🕐 Overtime" data-ar="🕐 وقت إضافي">🕐 Overtime</h3>
 
                     <span id="overtimeTimer">
 
@@ -420,11 +430,11 @@
 
             <h2 class="sectionTitle" id="monthlyStatsDragHandle">
 
-                📊 Monthly Statistics — <span id="monthlyStatsMonthLabel">This Month</span>
+                <span data-en="📊 Monthly Statistics —" data-ar="📊 الإحصائيات الشهرية —">📊 Monthly Statistics —</span> <span id="monthlyStatsMonthLabel">This Month</span>
 
             </h2>
 
-            <p class="monthlyStatsHint">
+            <p class="monthlyStatsHint" data-en="Company-wide totals — every employee combined. Cancelled and disputed loads aren't counted; edited loads are." data-ar="إجماليات على مستوى الشركة — جميع الموظفين مجتمعين. لا تُحتسب الشحنات الملغاة أو المتنازع عليها؛ أما الشحنات المعدَّلة فتُحتسب.">
                 Company-wide totals — every employee combined. Cancelled and
                 disputed loads aren't counted; edited loads are.
             </p>
@@ -432,12 +442,12 @@
             <div class="monthlyStatsSummary">
 
                 <div class="timerCard">
-                    <h3>📦 Total Loads</h3>
+                    <h3 data-en="📦 Total Loads" data-ar="📦 إجمالي الشحنات">📦 Total Loads</h3>
                     <span id="monthlyStatsTotalLoads">0</span>
                 </div>
 
                 <div class="timerCard">
-                    <h3>💰 Total Revenue</h3>
+                    <h3 data-en="💰 Total Revenue" data-ar="💰 إجمالي الإيرادات">💰 Total Revenue</h3>
                     <span id="monthlyStatsTotalRevenue">$0</span>
                 </div>
 
@@ -452,8 +462,8 @@
             <hr>
 
             <div class="monthlyStatsFooter">
-                <div>Overall Total Booked Loads: <b id="monthlyStatsFooterLoads">0</b></div>
-                <div>Overall Total Revenue: <b id="monthlyStatsFooterRevenue">$0</b></div>
+                <div><span data-en="Overall Total Booked Loads:" data-ar="إجمالي الشحنات المحجوزة:">Overall Total Booked Loads:</span> <b id="monthlyStatsFooterLoads">0</b></div>
+                <div><span data-en="Overall Total Revenue:" data-ar="إجمالي الإيرادات:">Overall Total Revenue:</span> <b id="monthlyStatsFooterRevenue">$0</b></div>
             </div>
 
             </div> <!-- /monthlyStatsDropdown -->
@@ -464,22 +474,25 @@
 
             <div class="workspaceCard">
 
-                <h2>📝 Workspace</h2>
+                <div class="panelCollapseHeader">
+                    <h2 data-en="📝 Workspace" data-ar="📝 مساحة العمل">📝 Workspace</h2>
+                    <button type="button" id="workspaceSectionToggleBtn" class="panelCollapseToggleBtn" aria-expanded="true" aria-controls="workspaceSectionBody" data-en-title="Collapse" data-ar-title="طي" title="Collapse">▾</button>
+                </div>
 
                 <hr>
 
-                <div class="workspaceGrid">
+                <div class="workspaceGrid" id="workspaceSectionBody">
 
                     <div class="workspaceGridItem">
-                        <h3>⏳ Shift Remaining</h3>
+                        <h3 data-en="⏳ Shift Remaining" data-ar="⏳ الوقت المتبقي للوردية">⏳ Shift Remaining</h3>
                         <div id="shiftCountdown" class="shiftCountdown">09:00:00</div>
                         <div id="shiftEndedAt"></div>
                     </div>
 
                     <div class="workspaceGridItem">
                         <div class="workspaceHeader" data-badge-category="chat">
-                            <h3>💬 Team Chat <span id="chatUnreadBadge" class="notifBadge hidden" data-badge-display="chat">0</span></h3>
-                            <button id="newChatBtn" class="smallButton">+ New</button>
+                            <h3><span data-en="💬 Team Chat" data-ar="💬 دردشة الفريق">💬 Team Chat</span> <span id="chatUnreadBadge" class="notifBadge hidden" data-badge-display="chat">0</span></h3>
+                            <button id="newChatBtn" class="smallButton" data-en="+ New" data-ar="+ جديد">+ New</button>
                         </div>
 
                         <div id="chatList" class="chatList"></div>
@@ -488,14 +501,14 @@
 
                             <div class="chatWindowHeader">
                                 <span id="chatWindowTitle">Chat</span>
-                                <button id="chatCloseBtn">✖</button>
+                                <button id="chatCloseBtn" data-en-title="Close" data-ar-title="إغلاق">✖</button>
                             </div>
 
                             <div id="chatMessages" class="chatMessages"></div>
 
                             <div class="chatInputRow">
-                                <textarea id="chatInput" rows="1" placeholder="Type a message..."></textarea>
-                                <button id="chatSendBtn">Send</button>
+                                <textarea id="chatInput" rows="1" placeholder="Type a message..." data-en-placeholder="Type a message..." data-ar-placeholder="اكتب رسالة..."></textarea>
+                                <button id="chatSendBtn" data-en="Send" data-ar="إرسال">Send</button>
                             </div>
 
                         </div>
@@ -503,18 +516,18 @@
 
                     <div class="workspaceGridItem">
                         <div class="workspaceHeader">
-                            <h3>📢 Announcements <span id="announcementUnreadBadge" class="announcementBadge hidden">0</span></h3>
+                            <h3><span data-en="📢 Announcements" data-ar="📢 الإعلانات">📢 Announcements</span> <span id="announcementUnreadBadge" class="announcementBadge hidden">0</span></h3>
                         </div>
 
                         <div id="announcementList" class="announcementList">
-                            <div class="workspaceEmpty">No announcements yet.</div>
+                            <div class="workspaceEmpty" data-en="No announcements yet." data-ar="لا توجد إعلانات بعد.">No announcements yet.</div>
                         </div>
 
-                        <button id="reportDelayBtn" class="smallButton fullWidthButton">
+                        <button id="reportDelayBtn" class="smallButton fullWidthButton" data-en="📨 Explain a Late Clock-in / Extended Away" data-ar="📨 توضيح تأخير تسجيل الدخول / غياب ممتد">
                             📨 Explain a Late Clock-in / Extended Away
                         </button>
 
-                        <button id="requestOffDayBtn" class="smallButton fullWidthButton">
+                        <button id="requestOffDayBtn" class="smallButton fullWidthButton" data-en="🗓️ Request Off-Day Change" data-ar="🗓️ طلب تغيير يوم إجازة">
                             🗓️ Request Off-Day Change
                         </button>
 
@@ -523,19 +536,21 @@
 
                     <div class="workspaceGridItem">
                         <div class="workspaceHeader" data-badge-category="overtime">
-                            <h3>🕐 Overtime Reason <span id="overtimeUnreadBadge" class="notifBadge hidden" data-badge-display="overtime">0</span></h3>
+                            <h3><span data-en="🕐 Overtime Reason" data-ar="🕐 سبب الوقت الإضافي">🕐 Overtime Reason</span> <span id="overtimeUnreadBadge" class="notifBadge hidden" data-badge-display="overtime">0</span></h3>
                         </div>
 
                         <textarea
                             id="overtimeReasonInput"
                             class="workspaceNotes"
-                            placeholder="Reason for staying past your shift (traffic, backlog, covering a colleague, etc.)"></textarea>
+                            placeholder="Reason for staying past your shift (traffic, backlog, covering a colleague, etc.)"
+                            data-en-placeholder="Reason for staying past your shift (traffic, backlog, covering a colleague, etc.)"
+                            data-ar-placeholder="سبب البقاء بعد نهاية وردتك (ازدحام مروري، تراكم عمل، تغطية لزميل، إلخ.)"></textarea>
                     </div>
 
                     <div class="workspaceGridItem">
                         <div class="workspaceHeader">
 
-                            <h3>📒 Personal Notes</h3>
+                            <h3 data-en="📒 Personal Notes" data-ar="📒 ملاحظات شخصية">📒 Personal Notes</h3>
 
                             <span id="workspaceSaveStatus">
 
@@ -551,15 +566,17 @@
 
                             class="workspaceNotes"
 
-                            placeholder="Write reminders, carrier notes, follow-ups, ongoing tasks..."></textarea>
+                            placeholder="Write reminders, carrier notes, follow-ups, ongoing tasks..."
+                            data-en-placeholder="Write reminders, carrier notes, follow-ups, ongoing tasks..."
+                            data-ar-placeholder="اكتب التذكيرات، ملاحظات الناقل، المتابعات، المهام الجارية..."></textarea>
                     </div>
 
                     <div class="workspaceGridItem">
                         <div class="workspaceHeader" data-badge-category="load">
 
-                            <h3>📦 Booked Loads <span id="loadUnreadBadge" class="notifBadge hidden" data-badge-display="load">0</span></h3>
+                            <h3><span data-en="📦 Booked Loads" data-ar="📦 الشحنات المحجوزة">📦 Booked Loads</span> <span id="loadUnreadBadge" class="notifBadge hidden" data-badge-display="load">0</span></h3>
 
-                            <button id="addLoadBtn" class="smallButton">
+                            <button id="addLoadBtn" class="smallButton" data-en="+ Add" data-ar="+ إضافة">
 
                                 + Add
 
@@ -567,21 +584,9 @@
 
                         </div>
 
-                        <div id="loadToolbar" class="loadToolbar">
-                            <select id="loadSortSelect" class="loadToolbarSelect" title="Sort loads">
-                                <option value="Newest">Sort: Newest</option>
-                                <option value="VRID">Sort: VRID</option>
-                                <option value="Price">Sort: Price</option>
-                            </select>
-                            <select id="loadFilterDept" class="loadToolbarSelect" title="Filter by department"></select>
-                            <select id="loadFilterDriver" class="loadToolbarSelect" title="Filter by driver"></select>
-                            <select id="loadFilterVrid" class="loadToolbarSelect" title="Filter by VRID type"></select>
-                            <button id="toggleCompletedLoadsBtn" class="smallButton loadToolbarToggle hidden" type="button">Show completed</button>
-                        </div>
-
                         <div id="bookedLoads" class="bookedLoads">
 
-                            <div class="workspaceEmpty">
+                            <div class="workspaceEmpty" data-en="No booked loads." data-ar="لا توجد شحنات محجوزة.">
 
                                 No booked loads.
 
@@ -598,7 +603,7 @@
 
         <div id="performanceCard" class="performanceCard">
 
-                <h2 class="sectionTitle">
+                <h2 class="sectionTitle" data-en="📈 Personal Performance" data-ar="📈 الأداء الشخصي">
                     📈 Personal Performance
                 </h2>
 
@@ -623,17 +628,17 @@
             <div class="performanceStats">
 
                 <div>
-                    💼 Work
+                    <span data-en="💼 Work" data-ar="💼 العمل">💼 Work</span>
                     <span id="workPercent">0%</span>
                 </div>
 
                 <div>
-                    ☕ Break
+                    <span data-en="☕ Break" data-ar="☕ استراحة">☕ Break</span>
                     <span id="breakPercent">0%</span>
                 </div>
 
                 <div>
-                    🚶 Away
+                    <span data-en="🚶 Away" data-ar="🚶 غائب">🚶 Away</span>
                     <span id="awayPercent">0%</span>
                 </div>
 
@@ -645,65 +650,70 @@
 
             <hr>
 
-            <h2 class="sectionTitle">
-
-                STS Team
-
-            </h2>
+            <div class="panelCollapseHeader">
+                <h2 class="sectionTitle" data-en="STS Team" data-ar="فريق STS">STS Team</h2>
+                <button type="button" id="stsTeamToggleBtn" class="panelCollapseToggleBtn" aria-expanded="true" aria-controls="colleaguesBox" data-en-title="Collapse" data-ar-title="طي" title="Collapse">▾</button>
+            </div>
 
             <div id="colleaguesBox"></div>
 
-            <hr>
+        </div>
 
-            <div class="footerBar">
+    </div>
 
-                Last Update:
+    <!-- ================================= -->
+    <!-- QUICK ACTIONS BAR (cut out of Personal Performance card, Phase 6) -->
+    <!-- ================================= -->
 
-                <strong id="lastChange">
+    <div id="quickActionsBar" class="quickActionsBar">
 
-                    🇺🇸 -- &nbsp;|&nbsp; 🇸🇾 --
+        <div class="footerBar quickActionsBarItem">
 
-                </strong>
+            <span data-en="Last Update:" data-ar="آخر تحديث:">Last Update:</span>
 
-            </div>
+            <strong id="lastChange">
 
-            <hr>
+                🇺🇸 -- &nbsp;|&nbsp; 🇸🇾 --
 
-            <button id="myHistoryBtn" class="smallButton" type="button">
-                📅 My Past Shifts
-            </button>
-
-            <hr>
-
-            <button id="openUserGuideDashboardBtn" class="smallButton" type="button">
-                📖 Help / User Guide
-            </button>
-
-            <hr>
-
-            <button id="adminPanelAccessBtn" class="hidden" type="button" data-badge-category="admin">
-                🛠 Admin Panel <span id="adminUnreadBadge" class="notifBadge hidden" data-badge-display="admin">0</span>
-            </button>
-
-            <hr>
-
-            <button id="devPanelAccessBtn" class="hidden" type="button">
-                🧑‍💻 Developer Panel
-            </button>
-
-            <hr>
-
-            <button id="logoutBtn" type="button">
-
-                🚪 Logout
-
-            </button>
-
-            <button type="button" class="esmCreditLink esmDashboardCredit">
-                Created by the STS Team, for the STS Team.
-            </button>
+            </strong>
 
         </div>
+
+        <button id="myHistoryBtn" class="smallButton quickActionsBarItem" type="button" data-en="📅 My Past Shifts" data-ar="📅 ورديّاتي السابقة">
+            📅 My Past Shifts
+        </button>
+
+        <button id="openUserGuideDashboardBtn" class="smallButton quickActionsBarItem" type="button" data-en="📖 Help / User Guide" data-ar="📖 المساعدة / دليل المستخدم">
+            📖 Help / User Guide
+        </button>
+
+        <button id="feedbackOpenBtn" class="smallButton quickActionsBarItem" type="button" data-en="🧩 Feedback / Feature Request" data-ar="🧩 ملاحظات / طلب ميزة">
+            🧩 Feedback / Feature Request
+        </button>
+
+        <button id="feedbackMyRequestsBtn" class="smallButton quickActionsBarItem" type="button" data-en="📋 My Submitted Requests" data-ar="📋 طلباتي المُرسلة">
+            📋 My Submitted Requests
+        </button>
+
+        <button id="feedbackBrowseBtn" class="smallButton quickActionsBarItem" type="button" data-en="🗳️ Browse &amp; Vote on Ideas" data-ar="🗳️ تصفح الأفكار والتصويت">
+            🗳️ Browse &amp; Vote on Ideas
+        </button>
+
+        <button id="adminPanelAccessBtn" class="hidden quickActionsBarItem" type="button" data-badge-category="admin">
+            <span data-en="🛠 Admin Panel" data-ar="🛠 لوحة المشرف">🛠 Admin Panel</span> <span id="adminUnreadBadge" class="notifBadge hidden" data-badge-display="admin">0</span>
+        </button>
+
+        <button id="devPanelAccessBtn" class="hidden quickActionsBarItem" type="button" data-en="🧑‍💻 Developer Panel" data-ar="🧑‍💻 لوحة المطورين">
+            🧑‍💻 Developer Panel
+        </button>
+
+        <button id="logoutBtn" class="quickActionsBarItem" type="button" data-en="🚪 Logout" data-ar="🚪 تسجيل الخروج">
+            🚪 Logout
+        </button>
+
+        <button type="button" class="esmCreditLink esmDashboardCredit quickActionsBarItem" data-en="Created by the STS Team, for the STS Team." data-ar="من إعداد فريق STS، لفريق STS.">
+            Created by the STS Team, for the STS Team.
+        </button>
 
     </div>
 
@@ -720,11 +730,11 @@
         <div class="settingsHeader">
 
             <div class="guideHeaderTop">
-                <h1 class="guideTitle">⚙️ Settings</h1>
-                <button id="settingsBackBtn" class="smallButton guideBackBtn" type="button">← Back</button>
+                <h1 class="guideTitle" data-en="⚙️ Settings" data-ar="⚙️ الإعدادات">⚙️ Settings</h1>
+                <button id="settingsBackBtn" class="smallButton guideBackBtn" type="button" data-en="← Back" data-ar="← رجوع">← Back</button>
             </div>
 
-            <p class="subtitle guideSubtitle">
+            <p class="subtitle guideSubtitle" data-en="Configure desktop behavior, notifications, chat, and appearance." data-ar="تهيئة سلوك سطح المكتب، والإشعارات، والدردشة، والمظهر.">
                 Configure desktop behavior, notifications, chat, and appearance.
             </p>
 
@@ -733,52 +743,65 @@
         <div class="settingsLayout">
 
             <aside class="settingsSidebar">
-                <button class="settingsTab active" type="button" data-section="general">General</button>
-                <button class="settingsTab" type="button" data-section="appearance">Appearance</button>
-                <button class="settingsTab" type="button" data-section="notifications">Notifications</button>
-                <button class="settingsTab" type="button" data-section="chat">Chat</button>
-                <button class="settingsTab" type="button" data-section="load">Load Management</button>
-                <button class="settingsTab" type="button" data-section="shift">Shift</button>
-                <button class="settingsTab" type="button" data-section="shortcuts">Keyboard Shortcuts</button>
-                <button class="settingsTab" type="button" data-section="about">About</button>
+                <button class="settingsTab active" type="button" data-section="general" data-en="General" data-ar="عام">General</button>
+                <button class="settingsTab" type="button" data-section="appearance" data-en="Appearance" data-ar="المظهر">Appearance</button>
+                <button class="settingsTab" type="button" data-section="notifications" data-en="Notifications" data-ar="الإشعارات">Notifications</button>
+                <button class="settingsTab" type="button" data-section="chat" data-en="Chat" data-ar="الدردشة">Chat</button>
+                <button class="settingsTab" type="button" data-section="load" data-en="Load Management" data-ar="إدارة الشحنات">Load Management</button>
+                <button class="settingsTab" type="button" data-section="shift" data-en="Shift" data-ar="الوردية">Shift</button>
+                <button class="settingsTab" type="button" data-section="shortcuts" data-en="Keyboard Shortcuts" data-ar="اختصارات لوحة المفاتيح">Keyboard Shortcuts</button>
+                <button class="settingsTab" type="button" data-section="about" data-en="About" data-ar="حول">About</button>
             </aside>
 
             <div class="settingsContent">
 
                 <section id="settings-general" class="settingsSection">
-                    <h2>General</h2>
+                    <h2 data-en="General" data-ar="عام">General</h2>
 
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="launchAtStartup"> Launch ESM when Windows starts</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="minimizeToTray"> Minimize to system tray instead of closing</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="confirmBeforeCloseWhileOnDuty"> Confirm before closing while On Duty</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLogin"> Remember login</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="launchAtStartup"> <span data-en="Launch ESM when Windows starts" data-ar="تشغيل ESM عند بدء تشغيل Windows">Launch ESM when Windows starts</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="minimizeToTray"> <span data-en="Minimize to system tray instead of closing" data-ar="التصغير إلى علبة النظام بدلاً من الإغلاق">Minimize to system tray instead of closing</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="confirmBeforeCloseWhileOnDuty"> <span data-en="Confirm before closing while On Duty" data-ar="التأكيد قبل الإغلاق أثناء الوردية (On Duty)">Confirm before closing while On Duty</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLogin"> <span data-en="Remember login" data-ar="تذكر تسجيل الدخول">Remember login</span></label>
 
                     <div class="settingsButtonRow">
-                        <button id="clearCacheBtn" class="settingsActionButton" type="button">Clear local cache</button>
-                        <button id="resetSettingsBtn" class="settingsActionButton" type="button">Reset all settings to default</button>
+                        <button id="clearCacheBtn" class="settingsActionButton" type="button" data-en="Clear local cache" data-ar="مسح الذاكرة المؤقتة المحلية">Clear local cache</button>
+                        <button id="resetSettingsBtn" class="settingsActionButton" type="button" data-en="Reset all settings to default" data-ar="إعادة ضبط جميع الإعدادات للوضع الافتراضي">Reset all settings to default</button>
                     </div>
                 </section>
 
                 <section id="settings-appearance" class="settingsSection hidden">
-                    <h2>Appearance</h2>
+                    <h2 data-en="Appearance" data-ar="المظهر">Appearance</h2>
 
-                    <label class="settingsLabel" for="themeSelect">Theme</label>
+                    <label class="settingsLabel" for="themeSelect" data-en="Theme" data-ar="السمة">Theme</label>
                     <select id="themeSelect" class="settingsInput settingsSelect" data-setting="theme">
-                        <option value="dark">Dark</option>
-                        <option value="light">Light</option>
-                        <option value="auto">Auto (based on Damascus time)</option>
+                        <option value="dark" data-en="Dark" data-ar="داكن">Dark</option>
+                        <option value="light" data-en="Light" data-ar="فاتح">Light</option>
+                        <option value="auto" data-en="Auto (based on Damascus time)" data-ar="تلقائي (حسب توقيت دمشق)">Auto (based on Damascus time)</option>
                     </select>
 
-                    <label class="settingsLabel" for="accentColorSelect">Accent Color</label>
+                    <!--
+                        No data-setting here on purpose: language isn't an
+                        ESMSettings/localStorage-only value like the rest of
+                        this section — it's owned end-to-end by i18n.js
+                        (window.I18N), which also syncs it to the user's
+                        Firestore doc. i18n.js wires this select directly.
+                    -->
+                    <label class="settingsLabel" for="languageSelect" data-en="Language" data-ar="اللغة">Language</label>
+                    <select id="languageSelect" class="settingsInput settingsSelect">
+                        <option value="en" data-en="English" data-ar="الإنجليزية">English</option>
+                        <option value="ar" data-en="Arabic (العربية)" data-ar="العربية">Arabic (العربية)</option>
+                    </select>
+
+                    <label class="settingsLabel" for="accentColorSelect" data-en="Accent Color" data-ar="لون التمييز">Accent Color</label>
                     <select id="accentColorSelect" class="settingsInput settingsSelect" data-setting="accentColor">
-                        <option value="blue">Blue</option>
-                        <option value="purple">Purple</option>
-                        <option value="green">Green</option>
-                        <option value="orange">Orange</option>
-                        <option value="red">Red</option>
+                        <option value="blue" data-en="Blue" data-ar="أزرق">Blue</option>
+                        <option value="purple" data-en="Purple" data-ar="أرجواني">Purple</option>
+                        <option value="green" data-en="Green" data-ar="أخضر">Green</option>
+                        <option value="orange" data-en="Orange" data-ar="برتقالي">Orange</option>
+                        <option value="red" data-en="Red" data-ar="أحمر">Red</option>
                     </select>
 
-                    <label class="settingsLabel" for="uiScaleSelect">UI Scale</label>
+                    <label class="settingsLabel" for="uiScaleSelect" data-en="UI Scale" data-ar="حجم الواجهة">UI Scale</label>
                     <select id="uiScaleSelect" class="settingsInput settingsSelect" data-setting="uiScale" data-type="number">
                         <option value="60">60%</option>
                         <option value="65">65%</option>
@@ -793,68 +816,72 @@
                         <option value="150">150%</option>
                     </select>
 
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlMouseWheel"> Support Ctrl + Mouse Wheel zoom</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlPlusMinusZero"> Support Ctrl + Plus / Minus / 0 shortcuts</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="saveZoomLevel"> Save zoom level permanently</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlMouseWheel"> <span data-en="Support Ctrl + Mouse Wheel zoom" data-ar="دعم التكبير بواسطة Ctrl + عجلة الفأرة">Support Ctrl + Mouse Wheel zoom</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlPlusMinusZero"> <span data-en="Support Ctrl + Plus / Minus / 0 shortcuts" data-ar="دعم اختصارات Ctrl + Plus / Minus / 0">Support Ctrl + Plus / Minus / 0 shortcuts</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="saveZoomLevel"> <span data-en="Save zoom level permanently" data-ar="حفظ مستوى التكبير بشكل دائم">Save zoom level permanently</span></label>
+
+                    <h3 data-en="24-Hour Time" data-ar="نظام 24 ساعة">24-Hour Time</h3>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="use24HourDamascus"> <span data-en="🇸🇾 Damascus Clock (top bar)" data-ar="🇸🇾 ساعة دمشق (الشريط العلوي)">🇸🇾 Damascus Clock (top bar)</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="use24HourUSA"> <span data-en="🇺🇸 USA Clock (top bar)" data-ar="🇺🇸 ساعة أمريكا (الشريط العلوي)">🇺🇸 USA Clock (top bar)</span></label>
                 </section>
 
                 <section id="settings-notifications" class="settingsSection hidden">
-                    <h2>Notifications</h2>
+                    <h2 data-en="Notifications" data-ar="الإشعارات">Notifications</h2>
 
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enableDesktopNotifications"> Enable Windows desktop notifications (master switch)</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enableNotificationSounds"> Enable notification sounds (master switch)</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enableDesktopNotifications"> <span data-en="Enable Windows desktop notifications (master switch)" data-ar="تفعيل إشعارات سطح مكتب Windows (المفتاح الرئيسي)">Enable Windows desktop notifications (master switch)</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enableNotificationSounds"> <span data-en="Enable notification sounds (master switch)" data-ar="تفعيل أصوات الإشعارات (المفتاح الرئيسي)">Enable notification sounds (master switch)</span></label>
 
-                    <p class="settingsHint" style="margin-top:16px;margin-bottom:4px;">Fine-tune per category. Desktop/Sound also require the master switches above to be on. Badge shows an unread count on the related panel.</p>
+                    <p class="settingsHint" style="margin-top:16px;margin-bottom:4px;" data-en="Fine-tune per category. Desktop/Sound also require the master switches above to be on. Badge shows an unread count on the related panel." data-ar="اضبط كل فئة على حدة. يتطلب Desktop/Sound أيضًا تفعيل المفاتيح الرئيسية أعلاه. يعرض Badge عدد العناصر غير المقروءة في اللوحة المرتبطة.">Fine-tune per category. Desktop/Sound also require the master switches above to be on. Badge shows an unread count on the related panel.</p>
 
                     <div class="notifCategoryGrid">
                         <div class="notifCategoryGridHeader">
-                            <span></span><span>Desktop</span><span>Sound</span><span>Badge</span>
+                            <span></span><span data-en="Desktop" data-ar="سطح المكتب">Desktop</span><span data-en="Sound" data-ar="الصوت">Sound</span><span data-en="Badge" data-ar="الشارة">Badge</span>
                         </div>
 
                         <div class="notifCategoryRow">
-                            <span class="notifCategoryLabel">💬 Chat</span>
+                            <span class="notifCategoryLabel" data-en="💬 Chat" data-ar="💬 الدردشة">💬 Chat</span>
                             <input type="checkbox" class="settingsInput" data-setting="notifChatDesktop">
                             <input type="checkbox" class="settingsInput" data-setting="notifChatSound">
                             <input type="checkbox" class="settingsInput" data-setting="notifChatBadge">
                         </div>
 
                         <div class="notifCategoryRow">
-                            <span class="notifCategoryLabel">📢 Announcements</span>
+                            <span class="notifCategoryLabel" data-en="📢 Announcements" data-ar="📢 الإعلانات">📢 Announcements</span>
                             <input type="checkbox" class="settingsInput" data-setting="notifAnnouncementsDesktop">
                             <input type="checkbox" class="settingsInput" data-setting="notifAnnouncementsSound">
                             <input type="checkbox" class="settingsInput" data-setting="notifAnnouncementsBadge">
                         </div>
 
                         <div class="notifCategoryRow">
-                            <span class="notifCategoryLabel">📦 Load updates</span>
+                            <span class="notifCategoryLabel" data-en="📦 Load updates" data-ar="📦 تحديثات الشحنات">📦 Load updates</span>
                             <input type="checkbox" class="settingsInput" data-setting="notifLoadDesktop">
                             <input type="checkbox" class="settingsInput" data-setting="notifLoadSound">
                             <input type="checkbox" class="settingsInput" data-setting="notifLoadBadge">
                         </div>
 
                         <div class="notifCategoryRow">
-                            <span class="notifCategoryLabel">🕐 Overtime</span>
+                            <span class="notifCategoryLabel" data-en="🕐 Overtime" data-ar="🕐 العمل الإضافي">🕐 Overtime</span>
                             <input type="checkbox" class="settingsInput" data-setting="notifOvertimeDesktop">
                             <input type="checkbox" class="settingsInput" data-setting="notifOvertimeSound">
                             <input type="checkbox" class="settingsInput" data-setting="notifOvertimeBadge">
                         </div>
 
                         <div class="notifCategoryRow">
-                            <span class="notifCategoryLabel">🚶 Away reminders</span>
+                            <span class="notifCategoryLabel" data-en="🚶 Away reminders" data-ar="🚶 تذكيرات الغياب">🚶 Away reminders</span>
                             <input type="checkbox" class="settingsInput" data-setting="notifAwayDesktop">
                             <input type="checkbox" class="settingsInput" data-setting="notifAwaySound">
                             <input type="checkbox" class="settingsInput" data-setting="notifAwayBadge">
                         </div>
 
                         <div class="notifCategoryRow">
-                            <span class="notifCategoryLabel">⏰ Shift reminders</span>
+                            <span class="notifCategoryLabel" data-en="⏰ Shift reminders" data-ar="⏰ تذكيرات الوردية">⏰ Shift reminders</span>
                             <input type="checkbox" class="settingsInput" data-setting="notifShiftDesktop">
                             <input type="checkbox" class="settingsInput" data-setting="notifShiftSound">
                             <input type="checkbox" class="settingsInput" data-setting="notifShiftBadge">
                         </div>
 
                         <div class="notifCategoryRow">
-                            <span class="notifCategoryLabel">🛠 Admin alerts</span>
+                            <span class="notifCategoryLabel" data-en="🛠 Admin alerts" data-ar="🛠 تنبيهات المشرف">🛠 Admin alerts</span>
                             <input type="checkbox" class="settingsInput" data-setting="notifAdminDesktop">
                             <input type="checkbox" class="settingsInput" data-setting="notifAdminSound">
                             <input type="checkbox" class="settingsInput" data-setting="notifAdminBadge">
@@ -863,85 +890,149 @@
                 </section>
 
                 <section id="settings-chat" class="settingsSection hidden">
-                    <h2>Chat</h2>
+                    <h2 data-en="Chat" data-ar="الدردشة">Chat</h2>
 
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enterToSendMessages"> Enter to send messages</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="ctrlEnterToSend"> Ctrl+Enter to send</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoScrollChat"> Auto-scroll to newest message</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="showUnreadPreview"> Show a message preview in the unread badge tooltip</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="muteChatWhileOpen"> Don't notify for messages in the chat I'm currently viewing</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="enterToSendMessages"> <span data-en="Enter to send messages" data-ar="استخدام Enter لإرسال الرسائل">Enter to send messages</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="ctrlEnterToSend"> <span data-en="Ctrl+Enter to send" data-ar="استخدام Ctrl+Enter للإرسال">Ctrl+Enter to send</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoScrollChat"> <span data-en="Auto-scroll to newest message" data-ar="التمرير التلقائي إلى أحدث رسالة">Auto-scroll to newest message</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="showUnreadPreview"> <span data-en="Show a message preview in the unread badge tooltip" data-ar="عرض معاينة الرسالة في تلميح شارة غير المقروء">Show a message preview in the unread badge tooltip</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="muteChatWhileOpen"> <span data-en="Don't notify for messages in the chat I'm currently viewing" data-ar="عدم الإشعار عن الرسائل في المحادثة التي أشاهدها حاليًا">Don't notify for messages in the chat I'm currently viewing</span></label>
                 </section>
 
                 <section id="settings-load" class="settingsSection hidden">
-                    <h2>Load Management</h2>
+                    <h2 data-en="Load Management" data-ar="إدارة الشحنات">Load Management</h2>
 
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="confirmBeforeDeletingLoads"> Confirm before deleting loads</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="highlightRecentlyEditedLoads"> Highlight recently edited loads</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="highlightNewlyBookedLoads"> Highlight newly booked loads</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoCollapseCompletedLoads"> Auto-collapse completed loads (loads left over from a previous shift)</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="confirmBeforeDeletingLoads"> <span data-en="Confirm before deleting loads" data-ar="التأكيد قبل حذف الشحنات">Confirm before deleting loads</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="highlightRecentlyEditedLoads"> <span data-en="Highlight recently edited loads" data-ar="تمييز الشحنات المعدَّلة مؤخرًا">Highlight recently edited loads</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="highlightNewlyBookedLoads"> <span data-en="Highlight newly booked loads" data-ar="تمييز الشحنات المحجوزة حديثًا">Highlight newly booked loads</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoCollapseCompletedLoads"> <span data-en="Auto-collapse completed loads (loads left over from a previous shift)" data-ar="طيّ الشحنات المكتملة تلقائيًا (الشحنات المتبقية من وردية سابقة)">Auto-collapse completed loads (loads left over from a previous shift)</span></label>
 
-                    <label class="settingsLabel" for="defaultLoadSortingSelect">Default load sorting</label>
+                    <label class="settingsLabel" for="defaultLoadSortingSelect" data-en="Default load sorting" data-ar="ترتيب الشحنات الافتراضي">Default load sorting</label>
                     <select id="defaultLoadSortingSelect" class="settingsInput settingsSelect" data-setting="defaultLoadSorting">
-                        <option value="Newest">Newest</option>
+                        <option value="Newest" data-en="Newest" data-ar="الأحدث">Newest</option>
                         <option value="VRID">VRID</option>
-                        <option value="Price">Price</option>
+                        <option value="Price" data-en="Price" data-ar="السعر">Price</option>
                     </select>
 
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLastLoadSort"> Remember last-used sort order</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLastLoadFilters"> Remember last-used filters</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLastLoadSort"> <span data-en="Remember last-used sort order" data-ar="تذكر آخر ترتيب مستخدم">Remember last-used sort order</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLastLoadFilters"> <span data-en="Remember last-used filters" data-ar="تذكر آخر عوامل تصفية مستخدمة">Remember last-used filters</span></label>
                 </section>
 
                 <section id="settings-shift" class="settingsSection hidden">
-                    <h2>Shift</h2>
+                    <h2 data-en="Shift" data-ar="الوردية">Shift</h2>
 
-                    <label class="settingsLabel" for="shiftReminderTimingSelect">Shift reminder timing</label>
+                    <label class="settingsLabel" for="shiftReminderTimingSelect" data-en="Shift reminder timing" data-ar="توقيت تذكير الوردية">Shift reminder timing</label>
                     <select id="shiftReminderTimingSelect" class="settingsInput settingsSelect" data-setting="shiftReminderTiming" data-type="number">
-                        <option value="0">Disabled</option>
-                        <option value="15">15 min</option>
-                        <option value="30">30 min</option>
+                        <option value="0" data-en="Disabled" data-ar="معطّل">Disabled</option>
+                        <option value="15" data-en="15 min" data-ar="15 دقيقة">15 min</option>
+                        <option value="30" data-en="30 min" data-ar="30 دقيقة">30 min</option>
                     </select>
 
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="extendedAwayReminder"> Extended Away reminder</label>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="breakReminder"> Break reminder</label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="extendedAwayReminder"> <span data-en="Extended Away reminder" data-ar="تذكير الغياب الممتد">Extended Away reminder</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="breakReminder"> <span data-en="Break reminder" data-ar="تذكير الاستراحة">Break reminder</span></label>
+
+                    <h3 data-en="Employee Activity Detection" data-ar="كشف نشاط الموظف">Employee Activity Detection</h3>
+
+                    <label class="settingsLabel"><input type="checkbox" id="enableIdleDetectionCheckbox" class="settingsInput" data-setting="enableIdleDetection"> <span data-en="Enable automatic idle detection" data-ar="تفعيل كشف الخمول التلقائي">Enable automatic idle detection</span></label>
+                    <div id="idleDetectionManagedNote" class="settingsHint hidden" data-en="This is a mandatory setting controlled by your administrator." data-ar="هذا إعداد إلزامي يتحكم فيه المشرف.">This is a mandatory setting controlled by your administrator.</div>
+
+                    <label class="settingsLabel" for="idleWarningMinutesSelect" data-en="Idle warning time" data-ar="وقت تحذير الخمول">Idle warning time</label>
+                    <select id="idleWarningMinutesSelect" class="settingsInput settingsSelect" data-setting="idleWarningMinutes" data-type="number">
+                        <option value="5" data-en="5 minutes" data-ar="5 دقائق">5 minutes</option>
+                        <option value="10" data-en="10 minutes" data-ar="10 دقائق">10 minutes</option>
+                    </select>
+
+                    <label class="settingsLabel" data-en="Idle before automatic Break" data-ar="الخمول قبل الاستراحة التلقائية">Idle before automatic Break</label>
+                    <div id="idleBreakComputedDisplay" class="settingsHint">6 minutes (automatic — idle warning time + 1 minute)</div>
+
+                    <label class="settingsLabel" for="idleOffDutyMinutesSelect" data-en="Idle before automatic Off Duty" data-ar="الخمول قبل الخروج التلقائي من الدوام">Idle before automatic Off Duty</label>
+                    <select id="idleOffDutyMinutesSelect" class="settingsInput settingsSelect" data-setting="idleOffDutyMinutes" data-type="number">
+                        <option value="15" data-en="15 minutes" data-ar="15 دقيقة">15 minutes</option>
+                        <option value="20" data-en="20 minutes" data-ar="20 دقيقة">20 minutes</option>
+                    </select>
+                    <div class="settingsHint" data-en="Counted from when automatic Break begins, not from when idleness started." data-ar="تُحتسب من بدء الاستراحة التلقائية، وليس من بداية الخمول.">Counted from when automatic Break begins, not from when idleness started.</div>
+
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="requireOnDutyConfirmation"> <span data-en="Require confirmation before returning to On Duty" data-ar="طلب التأكيد قبل العودة إلى الدوام">Require confirmation before returning to On Duty</span></label>
                 </section>
 
                 <section id="settings-shortcuts" class="settingsSection hidden">
-                    <h2>Keyboard Shortcuts</h2>
+                    <h2 data-en="Keyboard Shortcuts" data-ar="اختصارات لوحة المفاتيح">Keyboard Shortcuts</h2>
                     <div class="shortcutList">
-                        <div><strong>Ctrl + N</strong> → New Load (press again to cancel)</div>
-                        <div><strong>Ctrl + H</strong> → Load History (press again to close)</div>
-                        <div><strong>Ctrl + K</strong> → Open the last chat you had open (press again to close it; starts a New Chat if none)</div>
-                        <div><strong>Ctrl + ,</strong> → Settings (press again to close)</div>
-                        <div><strong>Esc</strong> → Close current modal</div>
-                        <div><strong>Ctrl + Shift + M</strong> → Admin Panel (press again to return to Dashboard) (admins)</div>
-                        <div><strong>Ctrl + Shift + D</strong> → Developer Panel (press again to return to Dashboard) (developers only)</div>
+                        <div><strong>Ctrl + N</strong> → <span data-en="New Load (press again to cancel)" data-ar="شحنة جديدة (اضغط مرة أخرى للإلغاء)">New Load (press again to cancel)</span></div>
+                        <div><strong>Ctrl + H</strong> → <span data-en="Load History (press again to close)" data-ar="سجل الشحنات (اضغط مرة أخرى للإغلاق)">Load History (press again to close)</span></div>
+                        <div><strong>Ctrl + K</strong> → <span data-en="Open the last chat you had open (press again to close it; starts a New Chat if none)" data-ar="فتح آخر محادثة كانت مفتوحة (اضغط مرة أخرى لإغلاقها؛ يبدأ محادثة جديدة إذا لم توجد)">Open the last chat you had open (press again to close it; starts a New Chat if none)</span></div>
+                        <div><strong>Ctrl + ,</strong> → <span data-en="Settings (press again to close)" data-ar="الإعدادات (اضغط مرة أخرى للإغلاق)">Settings (press again to close)</span></div>
+                        <div><strong>Esc</strong> → <span data-en="Close current modal" data-ar="إغلاق النافذة الحالية">Close current modal</span></div>
+                        <div><strong>Ctrl + Shift + M</strong> → <span data-en="Admin Panel (press again to return to Dashboard) (admins)" data-ar="لوحة المشرف (اضغط مرة أخرى للعودة إلى لوحة التحكم) (للمشرفين)">Admin Panel (press again to return to Dashboard) (admins)</span></div>
+                        <div><strong>Ctrl + Shift + D</strong> → <span data-en="Developer Panel (press again to return to Dashboard) (developers only)" data-ar="لوحة المطورين (اضغط مرة أخرى للعودة إلى لوحة التحكم) (للمطورين فقط)">Developer Panel (press again to return to Dashboard) (developers only)</span></div>
                     </div>
                 </section>
 
                 <section id="settings-about" class="settingsSection hidden">
-                    <h2>About</h2>
-                    <p id="settingsAboutText">ESM (Employee Status Monitor)</p>
-                    <p>Version: <strong id="settingsVersion"></strong></p>
-                    <p>Build date: <strong id="settingsBuildDate"></strong></p>
+                    <h2 data-en="About" data-ar="حول">About</h2>
+                    <p id="settingsAboutText" data-en="ESM (Employee Status Monitor)" data-ar="ESM (نظام مراقبة حالة الموظف)">ESM (Employee Status Monitor)</p>
+                    <p><span data-en="Version:" data-ar="الإصدار:">Version:</span> <strong id="settingsVersion"></strong></p>
+                    <p><span data-en="Build date:" data-ar="تاريخ البناء:">Build date:</span> <strong id="settingsBuildDate"></strong></p>
 
                     <div class="settingsButtonRow">
-                        <button id="viewReleaseNotesBtn" class="settingsActionButton" type="button">📋 Release Notes</button>
+                        <button id="viewReleaseNotesBtn" class="settingsActionButton" type="button" data-en="📋 Release Notes" data-ar="📋 ملاحظات الإصدار">📋 Release Notes</button>
                     </div>
 
                     <hr>
 
-                    <h3>Credits</h3>
-                    <div id="settingsCreditsText"></div>
+                    <h3 data-en="📅 Planned for Upcoming Versions" data-ar="📅 مخطط له في الإصدارات القادمة">📅 Planned for Upcoming Versions</h3>
+                    <p class="settingsHint" data-en="Feature requests the team has scheduled for a future release, grouped by target version." data-ar="طلبات الميزات التي جدولها الفريق لإصدار قادم، مجمّعة حسب الإصدار المستهدف.">Feature requests the team has scheduled for a future release, grouped by target version.</p>
+                    <div id="settingsPlannedVersionsList" class="devPanelList"></div>
 
                     <hr>
 
-                    <h3>Updates</h3>
-                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoCheckForUpdates"> Automatically check for updates</label>
-                    <p>Current version: <strong id="settingsCurrentVersion"></strong></p>
-                    <div class="settingsButtonRow">
-                        <button id="checkForUpdatesBtn" class="settingsActionButton" type="button">Check Now</button>
+                    <h3 data-en="Updates" data-ar="التحديثات">Updates</h3>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoCheckForUpdates"> <span data-en="Automatically check for updates" data-ar="التحقق التلقائي من التحديثات">Automatically check for updates</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="autoDownloadUpdates"> <span data-en="Automatically download updates in the background" data-ar="تنزيل التحديثات تلقائيًا في الخلفية">Automatically download updates in the background</span></label>
+                    <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="updateDesktopNotifications"> <span data-en="Show desktop notifications for updates (update ready, etc.)" data-ar="عرض إشعارات سطح المكتب للتحديثات (التحديث جاهز، إلخ)">Show desktop notifications for updates (update ready, etc.)</span></label>
+
+                    <!-- Current version kept for backward compatibility (still read by settings.js) -->
+                    <p class="hidden"><span data-en="Current version:" data-ar="الإصدار الحالي:">Current version:</span> <strong id="settingsCurrentVersion"></strong></p>
+
+                    <div id="updateStatusCard" class="updateStatusCard">
+                        <div class="updateStatusRow">
+                            <span data-en="Installed version" data-ar="الإصدار المثبّت">Installed version</span>
+                            <strong id="updateInstalledVersion">—</strong>
+                        </div>
+                        <div id="updateAvailableVersionRow" class="updateStatusRow hidden">
+                            <span data-en="Available version" data-ar="الإصدار المتاح">Available version</span>
+                            <strong id="updateAvailableVersion">—</strong>
+                        </div>
+                        <div class="updateStatusRow">
+                            <span data-en="Status" data-ar="الحالة">Status</span>
+                            <span id="updateStateBadge" class="updateStateBadge updateState-idle" data-en="Up to date" data-ar="محدّث">Up to date</span>
+                        </div>
+
+                        <div id="updateProgressRow" class="updateProgressWrap hidden">
+                            <progress id="updateProgressBar" max="100" value="0"></progress>
+                            <div class="updateProgressDetail">
+                                <span id="updateProgressPercent">0%</span>
+                                <span id="updateProgressSize"></span>
+                                <span id="updateProgressSpeed"></span>
+                            </div>
+                        </div>
+
+                        <p id="updateCheckResult" class="settingsHint"></p>
                     </div>
-                    <p id="updateCheckResult" class="settingsHint"></p>
+
+                    <div class="settingsButtonRow">
+                        <button id="checkForUpdatesBtn" class="settingsActionButton" type="button" data-en="Check Now" data-ar="تحقق الآن">Check Now</button>
+                        <button id="downloadUpdateBtn" class="settingsActionButton hidden" type="button" data-en="Download Update" data-ar="تنزيل التحديث">Download Update</button>
+                        <button id="installUpdateBtn" class="settingsActionButton hidden" type="button" data-en="Restart &amp; Install" data-ar="إعادة التشغيل والتثبيت">Restart &amp; Install</button>
+                        <button id="retryUpdateBtn" class="settingsActionButton hidden" type="button" data-en="Retry" data-ar="إعادة المحاولة">Retry</button>
+                        <button id="viewUpdateWhatsNewBtn" class="settingsActionButton hidden" type="button" data-en="📋 What's New" data-ar="📋 الجديد">📋 What's New</button>
+                    </div>
+
+                    <hr>
+
+                    <h3 data-en="Update History" data-ar="سجل التحديثات">Update History</h3>
+                    <p class="settingsHint" data-en="Versions of ESM that have run on this computer, most recent first." data-ar="إصدارات ESM التي تم تشغيلها على هذا الجهاز، الأحدث أولاً.">Versions of ESM that have run on this computer, most recent first.</p>
+                    <div id="updateHistoryList" class="devPanelList"></div>
                 </section>
 
             </div>
@@ -963,11 +1054,11 @@
         <div class="guideHeader">
 
             <div class="guideHeaderTop">
-                <h1 class="guideTitle">📘 Admin Guide</h1>
-                <button id="adminGuideBackBtn" class="smallButton guideBackBtn" type="button">← Back to Admin</button>
+                <h1 class="guideTitle" data-en="📘 Admin Guide" data-ar="📘 دليل المشرف">📘 Admin Guide</h1>
+                <button id="adminGuideBackBtn" class="smallButton guideBackBtn" type="button" data-en="← Back to Admin" data-ar="← الرجوع إلى المشرف">← Back to Admin</button>
             </div>
 
-            <p class="subtitle guideSubtitle">
+            <p class="subtitle guideSubtitle" data-en="Complete quick-reference guide for daily admin actions" data-ar="دليل مرجعي سريع وشامل للمهام الإدارية اليومية">
                 Complete quick-reference guide for daily admin actions
             </p>
 
@@ -976,7 +1067,10 @@
                     id="adminGuideSearchInput"
                     type="text"
                     class="guideSearchInput"
+                    data-en-placeholder="🔎 Search the admin guide..."
+                    data-ar-placeholder="🔎 ابحث في دليل المشرف..."
                     placeholder="🔎 Search the admin guide...">
+
             </div>
 
             <nav id="adminGuideToc" class="guideToc"></nav>
@@ -985,7 +1079,7 @@
 
         <div id="adminGuideBody" class="guideBody"></div>
 
-        <p id="adminGuideNoResults" class="guideNoResults hidden">
+        <p id="adminGuideNoResults" class="guideNoResults hidden" data-en="No sections match your search." data-ar="لا توجد أقسام مطابقة لبحثك.">
             No sections match your search.
         </p>
 
@@ -1022,8 +1116,8 @@
                 <div class="adminStatsCard" id="adminStatsCard">
 
                     <div class="adminStatsHeader">
-                        <h2>📊 Statistics</h2>
-                        <button id="statsRefreshBtn" class="smallButton">🔄 Refresh</button>
+                        <h2 data-en="📊 Statistics" data-ar="📊 الإحصائيات">📊 Statistics</h2>
+                        <button id="statsRefreshBtn" class="smallButton" data-en="🔄 Refresh" data-ar="🔄 تحديث">🔄 Refresh</button>
                     </div>
 
                     <hr>
@@ -1038,11 +1132,11 @@
 
                     <hr>
 
-                    <button onclick="exportAdminStats()">
+                    <button onclick="exportAdminStats()" data-en="📤 Export Stats" data-ar="📤 تصدير الإحصائيات">
                         📤 Export Stats
                     </button>
 
-                    <button id="statsClearBtn" class="dangerButton" onclick="clearStatistics()">
+                    <button id="statsClearBtn" class="dangerButton" onclick="clearStatistics()" data-en="🧹 Clear Stats" data-ar="🧹 مسح الإحصائيات">
                         🧹 Clear Stats
                     </button>
 
@@ -1055,7 +1149,7 @@
             <!-- ========================= -->
 
             <aside class="card alertsCard">
-                <h2>🚨 Alerts</h2>
+                <h2 data-en="🚨 Alerts" data-ar="🚨 التنبيهات">🚨 Alerts</h2>
                 <hr>
                 <div id="lateAlerts"></div>
                 <hr>
@@ -1116,7 +1210,7 @@
 
                 <h1>ESM Admin</h1>
 
-                <p class="subtitle">
+                <p class="subtitle" data-en="Live Control Center" data-ar="مركز التحكم المباشر">
                     Live Control Center
                 </p>
 
@@ -1128,17 +1222,17 @@
 
                 <div class="adminStatusButtons">
 
-                    <button id="adminOnlineBtn" type="button">
+                    <button id="adminOnlineBtn" type="button" data-en="🟢 Online" data-ar="🟢 متصل">
                         🟢 Online
                     </button>
 
-                    <button id="adminOfflineBtn" type="button">
+                    <button id="adminOfflineBtn" type="button" data-en="🔴 Offline" data-ar="🔴 غير متصل">
                         🔴 Offline
                     </button>
 
                 </div>
 
-                <button id="openAdminGuideBtn" class="smallButton adminGuideOpenBtn" type="button">
+                <button id="openAdminGuideBtn" class="smallButton adminGuideOpenBtn" type="button" data-en="📘 Admin Guide" data-ar="📘 دليل المشرف">
                     📘 Admin Guide
                 </button>
 
@@ -1149,8 +1243,8 @@
                 <!-- ================================= -->
 
                 <div class="auditHeaderBar">
-                    <h3>📜 Load History</h3>
-                    <button id="adminLoadHistoryBtn" class="smallButton" type="button">
+                    <h3 data-en="📜 Load History" data-ar="📜 سجل الشحنات">📜 Load History</h3>
+                    <button id="adminLoadHistoryBtn" class="smallButton" type="button" data-en="🔍 Search Loads" data-ar="🔍 البحث عن الشحنات">
                         🔍 Search Loads
                     </button>
                 </div>
@@ -1163,15 +1257,15 @@
 
                 <div class="auditHeaderBar">
 
-                    <h3>📜 Audit Log</h3>
+                    <h3 data-en="📜 Audit Log" data-ar="📜 سجل التدقيق">📜 Audit Log</h3>
 
                     <div class="auditButtons">
 
-                        <button id="auditRefreshBtn">
+                        <button id="auditRefreshBtn" data-en="🔄 Refresh" data-ar="🔄 تحديث">
                             🔄 Refresh
                         </button>
 
-                        <button id="clearAuditBtn">
+                        <button id="clearAuditBtn" data-en="🗑 Clear Log" data-ar="🗑 مسح السجل">
                             🗑 Clear Log
                         </button>
 
@@ -1180,18 +1274,18 @@
                     <div class="auditFilters">
 
                         <select id="auditFilterUser">
-                            <option value="">All Users</option>
+                            <option value="" data-en="All Users" data-ar="جميع المستخدمين">All Users</option>
                         </select>
 
                         <select id="auditFilterAction">
-                            <option value="">All Actions</option>
+                            <option value="" data-en="All Actions" data-ar="جميع الإجراءات">All Actions</option>
                         </select>
 
                         <input id="auditFilterFrom" type="date">
                         <input id="auditFilterTo" type="date">
 
-                        <button id="auditFilterApplyBtn" class="smallButton">Filter</button>
-                        <button id="auditFilterClearBtn" class="smallButton">Clear</button>
+                        <button id="auditFilterApplyBtn" class="smallButton" data-en="Filter" data-ar="تصفية">Filter</button>
+                        <button id="auditFilterClearBtn" class="smallButton" data-en="Clear" data-ar="مسح">Clear</button>
 
                     </div>
 
@@ -1207,27 +1301,53 @@
 
                 <section class="adminSection">
 
-                    <h3>📅 Shift History</h3>
+                    <h3 data-en="📅 Shift History" data-ar="📅 سجل الورديات">📅 Shift History</h3>
 
                     <div id="shiftHistoryList"></div>
 
                     <br>
 
-                    <button id="clearShiftHistoryBtn">
+                    <button id="clearShiftHistoryBtn" data-en="🗑 Clear Shift History" data-ar="🗑 مسح سجل الورديات">
                         🗑 Clear Shift History
                     </button>
 
                     <br><br>
 
-                    <button id="rebuildShiftHistoryBtn">
+                    <button id="rebuildShiftHistoryBtn" data-en="🔁 Refresh Shifts" data-ar="🔁 تحديث الورديات">
                         🔁 Refresh Shifts
                     </button>
 
                     <br><br>
 
-                    <button id="exportShiftHistoryBtn">
+                    <button id="exportShiftHistoryBtn" data-en="📤 Export History" data-ar="📤 تصدير السجل">
                         📤 Export History
                     </button>
+
+                </section>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- SHIFT MANAGEMENT (configurable, -->
+                <!-- Firestore-backed shifts)          -->
+                <!-- ================================= -->
+
+                <section class="adminSection" id="shiftManagementSection">
+
+                    <div class="auditHeaderBar">
+                        <h3 data-en="🕐 Shift Management" data-ar="🕐 إدارة الورديات">🕐 Shift Management</h3>
+                        <button id="shiftMgmtAddBtn" class="smallButton" type="button" data-en="+ New Shift" data-ar="+ وردية جديدة">
+                            + New Shift
+                        </button>
+                    </div>
+
+                    <p class="reportHint" data-en="Create as many shifts as you need — each with its own name, hours, time zone, and assigned employees. An employee can only be assigned to one shift at a time." data-ar="أنشئ أي عدد تريده من الورديات — لكل واحدة اسمها وساعاتها وتوقيتها وموظفوها الخاصون. يمكن تعيين الموظف في وردية واحدة فقط في كل مرة.">
+                        Create as many shifts as you need — each with its own name,
+                        hours, time zone, and assigned employees. An employee can only
+                        be assigned to one shift at a time.
+                    </p>
+
+                    <div id="shiftMgmtList"></div>
 
                 </section>
 
@@ -1239,23 +1359,23 @@
 
                 <section class="adminSection" id="reportGeneratorSection">
 
-                    <h3>📊 Report Generator</h3>
+                    <h3 data-en="📊 Report Generator" data-ar="📊 مولد التقارير">📊 Report Generator</h3>
 
                     <div class="reportControls">
 
                         <select id="reportPeriodSelect">
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
+                            <option value="daily" data-en="Daily" data-ar="يومي">Daily</option>
+                            <option value="weekly" data-en="Weekly" data-ar="أسبوعي">Weekly</option>
+                            <option value="monthly" data-en="Monthly" data-ar="شهري">Monthly</option>
                         </select>
 
                         <input id="reportDateInput" type="date">
 
-                        <button id="reportGenerateBtn">📊 Generate Report</button>
+                        <button id="reportGenerateBtn" data-en="📊 Generate Report" data-ar="📊 إنشاء التقرير">📊 Generate Report</button>
 
                     </div>
 
-                    <p class="reportHint">
+                    <p class="reportHint" data-en="Covers employees, loads, attendance, late %, away %, audit summary and top performers for the period you pick — then export as PDF or CSV." data-ar="يغطي الموظفين والشحنات والحضور ونسبة التأخير ونسبة الغياب وملخص التدقيق وأفضل الموظفين أداءً للفترة التي تختارها — ثم التصدير كملف PDF أو CSV.">
                         Covers employees, loads, attendance, late %, away %, audit summary
                         and top performers for the period you pick — then export as PDF or CSV.
                     </p>
@@ -1271,9 +1391,9 @@
 
                 <section class="adminSection" id="monthlyArchiveSection">
 
-                    <h3>🗂 Monthly Archive</h3>
+                    <h3 data-en="🗂 Monthly Archive" data-ar="🗂 الأرشيف الشهري">🗂 Monthly Archive</h3>
 
-                    <p class="reportHint">
+                    <p class="reportHint" data-en="Every completed month from the company-wide Monthly Statistics panel, kept permanently. The current month stays live until it ends and is archived automatically." data-ar="كل شهر مكتمل من لوحة الإحصائيات الشهرية على مستوى الشركة، يُحفظ بشكل دائم. يبقى الشهر الحالي مباشرًا حتى ينتهي ويُؤرشف تلقائيًا.">
                         Every completed month from the company-wide Monthly
                         Statistics panel, kept permanently. The current month
                         stays live until it ends and is archived automatically.
@@ -1283,7 +1403,7 @@
                         <option value="">Loading...</option>
                     </select>
 
-                    <button id="monthlyArchiveRefreshBtn" class="smallButton" type="button">
+                    <button id="monthlyArchiveRefreshBtn" class="smallButton" type="button" data-en="🔄 Refresh" data-ar="🔄 تحديث">
                         🔄 Refresh
                     </button>
 
@@ -1291,11 +1411,11 @@
 
                     <br>
 
-                    <button id="monthlyArchiveCsvBtn" type="button">
+                    <button id="monthlyArchiveCsvBtn" type="button" data-en="📤 Download CSV" data-ar="📤 تنزيل CSV">
                         📤 Download CSV
                     </button>
 
-                    <button id="monthlyArchiveJsonBtn" type="button">
+                    <button id="monthlyArchiveJsonBtn" type="button" data-en="📤 Download JSON" data-ar="📤 تنزيل JSON">
                         📤 Download JSON
                     </button>
 
@@ -1305,9 +1425,9 @@
 
                         <hr>
 
-                        <h4>☁️ GitHub Auto-Backup (Developer Only)</h4>
+                        <h4 data-en="☁️ GitHub Auto-Backup (Developer Only)" data-ar="☁️ النسخ الاحتياطي التلقائي لـ GitHub (للمطورين فقط)">☁️ GitHub Auto-Backup (Developer Only)</h4>
 
-                        <p class="reportHint">
+                        <p class="reportHint" data-en="Optional. When enabled, every newly-archived month is also pushed to a GitHub repo as a JSON file. ⚠️ The token below is stored in Firestore — use a fine-grained, repo-scoped token only, and lock down firestore.rules before relying on this." data-ar="اختياري. عند التفعيل، يتم أيضًا رفع كل شهر تمت أرشفته حديثًا إلى مستودع GitHub كملف JSON. ⚠️ يتم تخزين الرمز أدناه في Firestore — استخدم رمزًا دقيق النطاق ومحصورًا بالمستودع فقط، وقم بتأمين firestore.rules قبل الاعتماد على هذا.">
                             Optional. When enabled, every newly-archived month is
                             also pushed to a GitHub repo as a JSON file. ⚠️ The
                             token below is stored in Firestore — use a
@@ -1317,24 +1437,119 @@
 
                         <label>
                             <input type="checkbox" id="githubBackupEnabled">
-                            Enable auto-backup
+                            <span data-en="Enable auto-backup" data-ar="تفعيل النسخ الاحتياطي التلقائي">Enable auto-backup</span>
                         </label>
 
                         <br><br>
 
-                        <input type="text" id="githubBackupRepo" placeholder="owner/repo (e.g. sam/relaydesk-reports)">
+                        <input type="text" id="githubBackupRepo" placeholder="owner/repo (e.g. sam/relaydesk-reports)" data-en-placeholder="owner/repo (e.g. sam/relaydesk-reports)" data-ar-placeholder="المالك/المستودع (مثال sam/relaydesk-reports)">
 
                         <br><br>
 
-                        <input type="text" id="githubBackupPath" placeholder="Folder path (default: monthly-reports)">
+                        <input type="text" id="githubBackupPath" placeholder="Folder path (default: monthly-reports)" data-en-placeholder="Folder path (default: monthly-reports)" data-ar-placeholder="مسار المجلد (الافتراضي: monthly-reports)">
 
                         <br><br>
 
-                        <input type="password" id="githubBackupToken" placeholder="GitHub token (write-only, never re-displayed)">
+                        <input type="password" id="githubBackupToken" placeholder="GitHub token (write-only, never re-displayed)" data-en-placeholder="GitHub token (write-only, never re-displayed)" data-ar-placeholder="رمز GitHub (للكتابة فقط، لا يُعرض مجددًا)">
 
                         <br><br>
 
-                        <button id="githubBackupSaveBtn" class="smallButton" type="button">
+                        <button id="githubBackupSaveBtn" class="smallButton" type="button" data-en="💾 Save GitHub Backup Settings" data-ar="💾 حفظ إعدادات النسخ الاحتياطي لـ GitHub">
+                            💾 Save GitHub Backup Settings
+                        </button>
+
+                    </div>
+
+                </section>
+
+                <hr>
+
+                <!-- ================================= -->
+                <!-- VIOLATIONS LOG (permanent record of every -->
+                <!-- Approve/Deny decision on a Late/Away/Break alert) -->
+                <!-- ================================= -->
+
+                <section class="adminSection" id="violationsSection">
+
+                    <h3 data-en="⚠️ Violations Log" data-ar="⚠️ سجل المخالفات">⚠️ Violations Log</h3>
+
+                    <p class="reportHint" data-en="Every Approve (excused, no penalty) or Deny decision made on a Late Clock-in, Extended Away, or Extended Break alert. Dismissing an alert never creates an entry here." data-ar="كل قرار موافقة (معفى، بدون عقوبة) أو رفض تم اتخاذه بشأن تنبيه تأخر في الحضور أو غياب ممتد أو استراحة ممتدة. تجاهل التنبيه لا ينشئ سجلاً هنا أبداً.">
+                        Every Approve (excused, no penalty) or Deny decision made
+                        on a Late Clock-in, Extended Away, or Extended Break alert.
+                        Dismissing an alert never creates an entry here.
+                    </p>
+
+                    <div id="violationsLog"></div>
+
+                    <hr>
+
+                    <h4 data-en="🗂 Monthly Archive" data-ar="🗂 الأرشيف الشهري">🗂 Monthly Archive</h4>
+
+                    <p class="reportHint" data-en="Every completed month, kept permanently. Resets each month: the current month closes out automatically once it ends. A PDF + Excel export is also attempted automatically during the last 24 hours of every month, from whichever admin session happens to be open." data-ar="كل شهر مكتمل يُحفظ بشكل دائم. يُعاد الضبط كل شهر: يُغلق الشهر الحالي تلقائيًا عند انتهائه. تتم أيضًا محاولة تصدير PDF وExcel تلقائيًا خلال آخر 24 ساعة من كل شهر، من أي جلسة إدارية مفتوحة.">
+                        Every completed month, kept permanently. Resets each month
+                        — the current month closes out automatically once it ends.
+                        A PDF + Excel export is also attempted automatically during
+                        the last 24 hours of every month, from whichever admin
+                        session happens to be open.
+                    </p>
+
+                    <select id="violationsArchiveSelect">
+                        <option value="">Loading...</option>
+                    </select>
+
+                    <button id="violationsArchiveRefreshBtn" class="smallButton" type="button" data-en="🔄 Refresh" data-ar="🔄 تحديث">
+                        🔄 Refresh
+                    </button>
+
+                    <div id="violationsArchiveView" class="monthlyArchiveView"></div>
+
+                    <br>
+
+                    <button id="violationsArchivePdfBtn" type="button" data-en="📤 Download PDF" data-ar="📤 تنزيل PDF">
+                        📤 Download PDF
+                    </button>
+
+                    <button id="violationsArchiveXlsxBtn" type="button" data-en="📤 Download Excel" data-ar="📤 تنزيل Excel">
+                        📤 Download Excel
+                    </button>
+
+                    <!-- Developer-only (window.DEVELOPER_ACCOUNTS) — hidden for -->
+                    <!-- everyone else. Fallback only; see violations.js -->
+                    <div id="violationsArchiveGithubBox" class="monthlyArchiveGithubBox hidden">
+
+                        <hr>
+
+                        <h4 data-en="☁️ GitHub Fallback Backup (Developer Only)" data-ar="☁️ نسخ احتياطي احتياطي لـ GitHub (للمطورين فقط)">☁️ GitHub Fallback Backup (Developer Only)</h4>
+
+                        <p class="reportHint" data-en="Optional. Only used as a fallback — if no admin session was open to auto-download the night before month-end, the finalized month is pushed here instead as a JSON file. ⚠️ The token below is stored in Firestore — use a fine-grained, repo-scoped token only, and lock down firestore.rules before relying on this." data-ar="اختياري. يُستخدم فقط كخطة احتياطية — إذا لم تكن هناك جلسة إدارية مفتوحة للتنزيل التلقائي ليلة نهاية الشهر، يتم رفع الشهر النهائي هنا بدلاً من ذلك كملف JSON. ⚠️ يتم تخزين الرمز أدناه في Firestore — استخدم رمزًا دقيق النطاق ومحصورًا بالمستودع فقط، وقم بتأمين firestore.rules قبل الاعتماد على هذا.">
+                            Optional. Only used as a fallback — if no admin session
+                            was open to auto-download the night before month-end,
+                            the finalized month is pushed here instead as a JSON
+                            file. ⚠️ The token below is stored in Firestore — use a
+                            fine-grained, repo-scoped token only, and lock down
+                            firestore.rules before relying on this.
+                        </p>
+
+                        <label>
+                            <input type="checkbox" id="violationsGithubBackupEnabled">
+                            <span data-en="Enable fallback backup" data-ar="تفعيل النسخ الاحتياطي البديل">Enable fallback backup</span>
+                        </label>
+
+                        <br><br>
+
+                        <input type="text" id="violationsGithubBackupRepo" placeholder="owner/repo (e.g. sam/relaydesk-violations)" data-en-placeholder="owner/repo (e.g. sam/relaydesk-violations)" data-ar-placeholder="المالك/المستودع (مثال sam/relaydesk-violations)">
+
+                        <br><br>
+
+                        <input type="text" id="violationsGithubBackupPath" placeholder="Folder path (default: violation-reports)" data-en-placeholder="Folder path (default: violation-reports)" data-ar-placeholder="مسار المجلد (الافتراضي: violation-reports)">
+
+                        <br><br>
+
+                        <input type="password" id="violationsGithubBackupToken" placeholder="GitHub token (write-only, never re-displayed)" data-en-placeholder="GitHub token (write-only, never re-displayed)" data-ar-placeholder="رمز GitHub (للكتابة فقط، لا يُعرض مجددًا)">
+
+                        <br><br>
+
+                        <button id="violationsGithubBackupSaveBtn" class="smallButton" type="button" data-en="💾 Save GitHub Backup Settings" data-ar="💾 حفظ إعدادات النسخ الاحتياطي لـ GitHub">
                             💾 Save GitHub Backup Settings
                         </button>
 
@@ -1350,46 +1565,37 @@
 
                 <section class="adminSection">
 
-                    <h3>➕ Add Employee</h3>
+                    <h3 data-en="➕ Add Employee" data-ar="➕ إضافة موظف">➕ Add Employee</h3>
 
                     <br>
 
-                    <input id="newEmpCode" type="text" placeholder="Employee Code e.g. A001">
+                    <input id="newEmpCode" type="text" placeholder="Employee Code e.g. A001" data-en-placeholder="Employee Code e.g. A001" data-ar-placeholder="رمز الموظف مثال A001">
 
                     <br><br>
 
                     <select id="newEmpRole">
-                        <option value="Dispatch">Dispatch</option>
-                        <option value="Safety Employee">Safety Employee</option>
-                        <option value="Dispatch + Safety">Dispatch + Safety</option>
+                        <option value="Dispatch" data-en="Dispatch" data-ar="التوزيع">Dispatch</option>
+                        <option value="Safety Employee" data-en="Safety Employee" data-ar="موظف السلامة">Safety Employee</option>
+                        <option value="Dispatch + Safety" data-en="Dispatch + Safety" data-ar="التوزيع + السلامة">Dispatch + Safety</option>
                     </select>
 
                     <br><br>
 
-                    <select id="newEmpShift">
-                        <option value="">No Shift Assigned</option>
-                        <option value="shift1">Shift 1 (12AM-9AM)</option>
-                        <option value="shift2">Shift 2 (8AM-5PM)</option>
-                        <option value="shift3">Shift 3 (4PM-12AM)</option>
-                    </select>
-
-                    <br><br>
-
-                    <label>Weekly Off Days:</label>
+                    <label data-en="Weekly Off Days:" data-ar="أيام الإجازة الأسبوعية:">Weekly Off Days:</label>
                     <div id="newEmpOffDaysGrid" class="offDaysGrid"></div>
 
                     <br><br>
 
-                    <input id="newEmpPin" type="text" maxlength="4" placeholder="PIN (optional, 4 digits)">
+                    <input id="newEmpPin" type="text" placeholder="PIN or Password (optional)" data-en-placeholder="PIN or Password (optional)" data-ar-placeholder="رمز سري أو كلمة مرور (اختياري)">
 
                     <br><br>
 
-                    <label for="newEmpPermissionLevel">Permission Level:</label>
+                    <label for="newEmpPermissionLevel" data-en="Permission Level:" data-ar="مستوى الصلاحية:">Permission Level:</label>
                     <select id="newEmpPermissionLevel">
-                        <option value="Employee" selected>Employee</option>
-                        <option value="Trainer">Trainer</option>
-                        <option value="Supervisor">Supervisor</option>
-                        <option value="Admin">Admin</option>
+                        <option value="Employee" selected data-en="Employee" data-ar="موظف">Employee</option>
+                        <option value="Trainer" data-en="Trainer" data-ar="مدرّب">Trainer</option>
+                        <option value="Supervisor" data-en="Supervisor" data-ar="مشرف">Supervisor</option>
+                        <option value="Admin" data-en="Admin" data-ar="مسؤول">Admin</option>
                     </select>
 
                     <br><br>
@@ -1398,45 +1604,7 @@
 
                     <br>
 
-                    <button id="addEmployeeBtn">Create Employee</button>
-
-                </section>
-
-                <hr>
-
-                <section class="adminSection">
-
-                    <h3>🕹️ Admin Action Center</h3>
-
-                    <br>
-
-                    <button id="resetAllUsersBtn">
-                        🔄 Reset All Users
-                    </button>
-
-                    <br><br>
-
-                    <button id="freezeUserBtn">
-                        🧊 Freeze User
-                    </button>
-
-                    <br><br>
-
-                    <button id="unfreezeUserBtn">
-                        ❄️ Unfreeze User
-                    </button>
-
-                    <br><br>
-
-                    <button id="forceEndShiftBtn">
-                        ⛔ Force End Shift
-                    </button>
-
-                    <br><br>
-
-                    <button id="broadcastMsgBtn">
-                        📢 Broadcast Message
-                    </button>
+                    <button id="addEmployeeBtn" data-en="Create Employee" data-ar="إنشاء موظف">Create Employee</button>
 
                 </section>
 
@@ -1448,36 +1616,36 @@
 
                 <section class="adminSection">
 
-                    <h3>📢 Announcements</h3>
+                    <h3 data-en="📢 Announcements" data-ar="📢 الإعلانات">📢 Announcements</h3>
 
                     <br>
 
                     <div id="announcementComposer" class="hidden">
 
-                        <label for="announcementCategorySelect">Type:</label>
+                        <label for="announcementCategorySelect" data-en="Type:" data-ar="النوع:">Type:</label>
 
                         <select id="announcementCategorySelect">
-                            <option value="sop">📄 New SOP</option>
-                            <option value="maintenance">🛠 System Maintenance</option>
-                            <option value="meeting">📅 Meeting</option>
-                            <option value="policy">📜 Policy Change</option>
-                            <option value="general">📢 General</option>
+                            <option value="sop" data-en="📄 New SOP" data-ar="📄 إجراء تشغيلي جديد">📄 New SOP</option>
+                            <option value="maintenance" data-en="🛠 System Maintenance" data-ar="🛠 صيانة النظام">🛠 System Maintenance</option>
+                            <option value="meeting" data-en="📅 Meeting" data-ar="📅 اجتماع">📅 Meeting</option>
+                            <option value="policy" data-en="📜 Policy Change" data-ar="📜 تغيير السياسة">📜 Policy Change</option>
+                            <option value="general" data-en="📢 General" data-ar="📢 عام">📢 General</option>
                         </select>
 
                         <br><br>
 
-                        <input id="announcementTitleInput" type="text" placeholder="Announcement title">
+                        <input id="announcementTitleInput" type="text" placeholder="Announcement title" data-en-placeholder="Announcement title" data-ar-placeholder="عنوان الإعلان">
 
                         <br><br>
 
                         <textarea
                             id="announcementBodyInput"
                             class="workspaceNotes"
-                            placeholder="Announcement details..."></textarea>
+                            placeholder="Announcement details..." data-en-placeholder="Announcement details..." data-ar-placeholder="تفاصيل الإعلان..."></textarea>
 
                         <br>
 
-                        <button id="announcementPostBtn">📢 Post Announcement</button>
+                        <button id="announcementPostBtn" data-en="📢 Post Announcement" data-ar="📢 نشر الإعلان">📢 Post Announcement</button>
 
                     </div>
 
@@ -1497,13 +1665,13 @@
 
                 <hr>
 
-                <button id="backToDashboardBtn" class="hidden" type="button">
+                <button id="backToDashboardBtn" class="hidden" type="button" data-en="⬅ Back to Dashboard" data-ar="⬅ العودة إلى لوحة التحكم">
                     ⬅ Back to Dashboard
                 </button>
 
                 <br><br>
 
-                <button id="adminLogoutBtn" type="button">
+                <button id="adminLogoutBtn" type="button" data-en="Logout" data-ar="تسجيل الخروج">
                     Logout
                 </button>
 
@@ -1538,10 +1706,90 @@
 
             <hr>
 
+            <h3>🧩 Feedback &amp; Feature Requests</h3>
+
+            <div class="devFeedbackSearchRow">
+                <input type="text" id="devFeedbackSearchInput" placeholder="🔍 Search title, description, employee code, category, label, version...">
+                <button type="button" id="devFeedbackArchiveToggleBtn" class="smallButton" data-mode="active">📦 View Archive</button>
+            </div>
+
+            <div class="devFeedbackFilterRow">
+                <select id="devFeedbackFilterStatus">
+                    <option value="all">All Statuses</option>
+                    <option value="new">🆕 New</option>
+                    <option value="pending">⏳ Pending</option>
+                    <option value="in_progress">🚧 In Progress</option>
+                    <option value="completed">✅ Completed</option>
+                    <option value="rejected">🚫 Rejected</option>
+                </select>
+                <select id="devFeedbackFilterSort">
+                    <option value="votes">Sort: Most Votes</option>
+                    <option value="newest">Sort: Newest</option>
+                </select>
+            </div>
+
+            <p id="devFeedbackListHeading" class="settingsHint"></p>
+
+            <div id="devFeedbackList" class="devPanelList"></div>
+
+            <hr>
+
+            <h3>🏆 Contributor Stats</h3>
+            <p class="settingsHint">Always reflects every request (active + archived) regardless of the search box or Archive toggle above.</p>
+
+            <div id="devContributorStatsSummary" class="devFeedbackMeta"></div>
+
+            <div class="devStatsColumns">
+                <div class="devStatsColumn">
+                    <h4>Top Submitters</h4>
+                    <div id="devTopSubmittersList" class="devPanelList"></div>
+                </div>
+                <div class="devStatsColumn">
+                    <h4>Most Votes Received</h4>
+                    <div id="devTopVotedList" class="devPanelList"></div>
+                </div>
+                <div class="devStatsColumn">
+                    <h4>Most Active Voters</h4>
+                    <div id="devTopVotersList" class="devPanelList"></div>
+                </div>
+            </div>
+
+            <hr>
+
+            <h3>🚀 Release Management</h3>
+            <p class="settingsHint">Generates release notes &amp; changelog Markdown from Completed feedback items, then finalizes them into the permanent Release Notes history below.</p>
+
+            <div id="releaseMgmtSummary" class="devFeedbackMeta">
+                <span class="permBadge">Current Version: <strong id="releaseMgmtCurrentVersion">—</strong></span>
+                <span class="permBadge">Previous Version: <strong id="releaseMgmtPreviousVersion">—</strong></span>
+                <span class="permBadge">✅ <strong id="releaseMgmtUnreleasedCount">0</strong> Completed, Not Yet Released</span>
+            </div>
+
+            <div class="settingsButtonRow">
+                <button type="button" id="releaseMgmtGenerateNotesBtn" class="settingsActionButton">📝 Generate Release Notes</button>
+                <button type="button" id="releaseMgmtGenerateMarkdownBtn" class="settingsActionButton">🔧 Generate Markdown</button>
+                <button type="button" id="releaseMgmtFinalizeBtn" class="dangerButton">🚀 Finalize Release</button>
+            </div>
+
+            <div id="releaseMgmtStatsSummary" class="devFeedbackMeta hidden"></div>
+
+            <label class="settingsLabel" for="releaseMgmtNotesTextarea">Release Notes (editable preview)</label>
+            <textarea id="releaseMgmtNotesTextarea" class="devPanelTextarea" rows="10" placeholder="Press &quot;Generate Release Notes&quot; to build this from Completed feedback items..."></textarea>
+
+            <label class="settingsLabel" for="releaseMgmtMarkdownTextarea">GitHub-Ready Markdown</label>
+            <textarea id="releaseMgmtMarkdownTextarea" class="devPanelTextarea" rows="10" placeholder="Press &quot;Generate Markdown&quot; after generating release notes..." readonly></textarea>
+            <div class="settingsButtonRow">
+                <button type="button" id="releaseMgmtCopyMarkdownBtn" class="smallButton">📋 Copy Markdown</button>
+            </div>
+
+            <p id="releaseMgmtResult" class="settingsHint"></p>
+
+            <hr>
+
             <h3>Version &amp; About</h3>
 
             <label class="settingsLabel" for="devVersionInput">Version (shown in About &amp; Settings)</label>
-            <input type="text" id="devVersionInput" placeholder="e.g. 1.2.0">
+            <input type="text" id="devVersionInput" placeholder="Leave blank to show the real app version automatically">
 
             <label class="settingsLabel" for="devAboutTextInput">About page tagline</label>
             <textarea id="devAboutTextInput" class="devPanelTextarea" rows="2" placeholder="ESM (Employee Status Monitor)"></textarea>
@@ -1551,7 +1799,15 @@
 
             <hr>
 
-            <h3>Release Notes</h3>
+            <h3>📜 Release Notes History</h3>
+
+            <div class="devFeedbackSearchRow">
+                <input type="text" id="devReleaseNotesSearchInput" placeholder="🔍 Search version...">
+                <select id="devReleaseNotesSortSelect">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                </select>
+            </div>
 
             <div id="devReleaseNotesList" class="devPanelList"></div>
 
@@ -1595,19 +1851,19 @@
 <div id="chatPickerModal" class="modalOverlay hidden">
     <div class="modalBox">
 
-        <h3>💬 Start a Chat</h3>
+        <h3 data-en="💬 Start a Chat" data-ar="💬 بدء محادثة">💬 Start a Chat</h3>
         <hr>
 
         <div id="chatPickerList" class="chatPickerListBox"></div>
 
         <div id="chatGroupNameWrap" class="hidden">
-            <label for="chatGroupNameInput">Group Name</label>
-            <input id="chatGroupNameInput" type="text" placeholder="Group name (optional)">
+            <label for="chatGroupNameInput" data-en="Group Name" data-ar="اسم المجموعة">Group Name</label>
+            <input id="chatGroupNameInput" type="text" placeholder="Group name (optional)" data-en-placeholder="Group name (optional)" data-ar-placeholder="اسم المجموعة (اختياري)">
         </div>
 
         <div class="modalButtons">
-            <button id="chatPickerStart">Start Chat</button>
-            <button id="chatPickerCancel">Cancel</button>
+            <button id="chatPickerStart" data-en="Start Chat" data-ar="بدء المحادثة">Start Chat</button>
+            <button id="chatPickerCancel" data-en="Cancel" data-ar="إلغاء">Cancel</button>
         </div>
 
     </div>
@@ -1694,6 +1950,102 @@
             <button id="delayReportCancelBtn">Cancel</button>
         </div>
 
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- FEEDBACK / FEATURE REQUEST MODAL (Batch 1+2) -->
+<!-- ================================= -->
+
+<div id="feedbackModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+
+        <h3>🧩 Feedback / Feature Request</h3>
+        <hr>
+
+        <label for="feedbackTitleInput">Title</label>
+        <input type="text" id="feedbackTitleInput" placeholder="Short summary, e.g. Arabic Localization for Loads screen">
+
+        <div id="feedbackDuplicateBox" class="feedbackDuplicateBox hidden"></div>
+
+        <label for="feedbackDescriptionInput">Description</label>
+        <textarea id="feedbackDescriptionInput" class="workspaceNotes" placeholder="What happened, or what would you like to see?"></textarea>
+
+        <div class="feedbackFieldRow">
+            <div class="feedbackFieldCol">
+                <label for="feedbackTypeSelect">Request Type</label>
+                <select id="feedbackTypeSelect"></select>
+            </div>
+            <div class="feedbackFieldCol">
+                <label for="feedbackPrioritySelect">Priority</label>
+                <select id="feedbackPrioritySelect"></select>
+            </div>
+        </div>
+
+        <div class="feedbackFieldRow">
+            <div class="feedbackFieldCol">
+                <label for="feedbackCategorySelect">Category</label>
+                <select id="feedbackCategorySelect"></select>
+            </div>
+            <div class="feedbackFieldCol" id="feedbackReproRow">
+                <label for="feedbackReproSelect">Reproducibility</label>
+                <select id="feedbackReproSelect"></select>
+            </div>
+        </div>
+
+        <p class="settingsHint">Your employee code, permission level, shift, app version, and current screen are attached automatically.</p>
+
+        <div class="modalButtons">
+            <button id="feedbackSubmitBtn">Submit</button>
+            <button id="feedbackCancelBtn">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- FEEDBACK VIEW MODAL (read-only detail, used by Duplicate Detection + My Requests) -->
+<!-- ================================= -->
+
+<div id="feedbackViewModal" class="modalOverlay hidden">
+    <div class="modalBox">
+        <button id="feedbackViewCloseXBtn" class="modalCloseX" type="button" title="Close">✖</button>
+        <div id="feedbackViewBody"></div>
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- MY SUBMITTED REQUESTS MODAL -->
+<!-- ================================= -->
+
+<div id="feedbackMyRequestsModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+        <h3>📋 My Submitted Requests</h3>
+        <hr>
+        <div id="feedbackMyRequestsList" class="feedbackMyRequestsList"></div>
+        <div class="modalButtons">
+            <button id="feedbackMyRequestsCloseBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- BROWSE & VOTE MODAL (Batch 3) -->
+<!-- ================================= -->
+
+<div id="feedbackBrowseModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+        <h3>🗳️ Browse &amp; Vote on Ideas</h3>
+        <p class="subtitle">Found something you'd like too? Vote instead of filing a duplicate.</p>
+        <hr>
+        <select id="feedbackBrowseSort" class="feedbackBrowseSort">
+            <option value="votes">Sort: Most Votes</option>
+            <option value="newest">Sort: Newest</option>
+        </select>
+        <div id="feedbackBrowseList" class="feedbackMyRequestsList"></div>
+        <div class="modalButtons">
+            <button id="feedbackBrowseCloseBtn">Close</button>
+        </div>
     </div>
 </div>
 
@@ -1787,6 +2139,60 @@
 </div>
 
 <!-- ================================= -->
+<!-- CREATE / EDIT SHIFT MODAL -->
+<!-- (Shift Management — Owner/Admin Panel) -->
+<!-- ================================= -->
+
+<div id="shiftMgmtModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+
+        <h3 id="shiftMgmtModalTitle" data-en="🕐 New Shift" data-ar="🕐 وردية جديدة">🕐 New Shift</h3>
+        <hr>
+
+        <label for="shiftMgmtNameInput" data-en="Shift Name" data-ar="اسم الوردية">Shift Name</label>
+        <input type="text" id="shiftMgmtNameInput" placeholder="e.g. Morning Crew">
+        <div id="shiftMgmtNameError" class="fieldErrorMsg"></div>
+
+        <div class="shiftMgmtTimeRow">
+            <div>
+                <label for="shiftMgmtStartInput" data-en="Start Time" data-ar="وقت البدء">Start Time</label>
+                <input type="time" id="shiftMgmtStartInput">
+            </div>
+            <div>
+                <label for="shiftMgmtEndInput" data-en="End Time" data-ar="وقت الانتهاء">End Time</label>
+                <input type="time" id="shiftMgmtEndInput">
+            </div>
+        </div>
+
+        <p class="reportHint" data-en="End time may be earlier than start time for an overnight shift (e.g. 10:00 PM - 7:00 AM)." data-ar="يمكن أن يكون وقت الانتهاء قبل وقت البدء للورديات الليلية (مثال: 10:00 م - 7:00 ص).">
+            End time may be earlier than start time for an overnight shift
+            (e.g. 10:00 PM - 7:00 AM).
+        </p>
+
+        <label data-en="Assigned Employees" data-ar="الموظفون المعينون">Assigned Employees</label>
+        <input type="text" id="shiftMgmtEmployeeSearch" placeholder="🔍 Search employees...">
+        <div id="shiftMgmtEmployeeGrid" class="permissionGrid shiftMgmtEmployeeGrid"></div>
+
+        <label data-en="Time Zone" data-ar="المنطقة الزمنية">Time Zone</label>
+        <select id="shiftMgmtTimezoneSelect">
+            <option value="US" data-en="USA Time" data-ar="التوقيت الأمريكي">USA Time</option>
+            <option value="SY" data-en="Syria Time" data-ar="التوقيت السوري">Syria Time</option>
+        </select>
+
+        <label class="loadModalCheckboxRow" for="shiftMgmtEnabledToggle">
+            <input type="checkbox" id="shiftMgmtEnabledToggle" checked>
+            <span data-en="Shift Enabled" data-ar="الوردية مفعّلة">Shift Enabled</span>
+        </label>
+
+        <div class="modalButtons">
+            <button id="shiftMgmtSaveBtn" data-en="Save" data-ar="حفظ">Save</button>
+            <button id="shiftMgmtCancelBtn" data-en="Cancel" data-ar="إلغاء">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================= -->
 <!-- REPORT GENERATOR MODAL -->
 <!-- ================================= -->
 
@@ -1830,17 +2236,13 @@
         <h3 id="loadModalTitle">📦 Add Load</h3>
         <hr>
 
-        <label for="loadModalDate">📅 Load Date</label>
+        <label for="loadModalDate" data-en="📅 Load Date" data-ar="📅 تاريخ الشحنة">📅 Load Date</label>
         <input type="date" id="loadModalDate">
         <div class="fieldErrorMsg" id="loadModalDateError"></div>
 
-        <label for="loadModalPrice">💰 Price</label>
-        <input type="number" id="loadModalPrice" min="0" step="0.01" placeholder="0.00">
-        <div class="fieldErrorMsg" id="loadModalPriceError"></div>
-
-        <label for="loadModalDepartment">🏢 Department</label>
+        <label for="loadModalDepartment" data-en="🏢 Department" data-ar="🏢 القسم">🏢 Department</label>
         <select id="loadModalDepartment">
-            <option value="">Select department...</option>
+            <option value="" data-en="Select department..." data-ar="اختر القسم...">Select department...</option>
             <option value="STS">STS</option>
             <option value="iTour">iTour</option>
             <option value="Alquaiti">Alquaiti</option>
@@ -1848,27 +2250,65 @@
         </select>
         <div class="fieldErrorMsg" id="loadModalDepartmentError"></div>
 
-        <label for="loadModalDriver">🚚 Driver</label>
-        <input type="text" id="loadModalDriver" placeholder='Type For (driver name), e.g. "For Mahdi Harb"'>
-
-        <label for="loadModalVridType">🔖 VRID Type</label>
-        <select id="loadModalVridType">
-            <option value="">Select VRID type...</option>
-            <option value="Trip">Trip</option>
-            <option value="Load">Load</option>
-            <option value="Block/Contract">Block/Contract</option>
-        </select>
-
-        <label for="loadModalVridNumber">🔢 VRID Number (Load ID)</label>
-        <input type="text" id="loadModalVridNumber" placeholder="Enter VRID... (required, must be unique)">
+        <label for="loadModalVridNumber" data-en="🔢 VRID Number (Load ID)" data-ar="🔢 رقم VRID (رقم الشحنة)">🔢 VRID Number (Load ID)</label>
+        <input type="text" id="loadModalVridNumber" placeholder="Enter VRID... (required, must be unique)" data-en-placeholder="Enter VRID... (required, must be unique)" data-ar-placeholder="أدخل VRID... (مطلوب، ويجب أن يكون فريدًا)">
         <div class="fieldErrorMsg" id="loadModalVridNumberError"></div>
 
-        <label for="loadModalNote">📝 Notes</label>
-        <textarea id="loadModalNote" class="workspaceNotes" placeholder="Optional notes..."></textarea>
+        <div id="loadModalFromToContainer">
+            <label for="loadModalFrom" data-en="📍 From" data-ar="📍 من">📍 From</label>
+            <input type="text" id="loadModalFrom" placeholder="Origin location..." data-en-placeholder="Origin location..." data-ar-placeholder="نقطة الانطلاق...">
+
+            <label for="loadModalTo" data-en="📍 To" data-ar="📍 إلى">📍 To</label>
+            <input type="text" id="loadModalTo" placeholder="Destination location..." data-en-placeholder="Destination location..." data-ar-placeholder="الوجهة...">
+        </div>
+
+        <label for="loadModalVridType" data-en="🔖 VRID Type" data-ar="🔖 نوع VRID">🔖 VRID Type</label>
+        <select id="loadModalVridType">
+            <option value="" data-en="Select VRID type..." data-ar="اختر نوع VRID...">Select VRID type...</option>
+            <option value="Trip" data-en="Trip" data-ar="رحلة">Trip</option>
+            <option value="Load" data-en="Load" data-ar="شحنة">Load</option>
+            <option value="Block/Contract" data-en="Block/Contract" data-ar="عقد/كتلة">Block/Contract</option>
+        </select>
+
+        <div id="loadModalStopsContainer" class="hidden">
+            <label data-en="🛑 Additional Stops" data-ar="🛑 محطات إضافية">🛑 Additional Stops</label>
+            <div id="loadModalStopsList"></div>
+            <button type="button" id="loadModalAddStopBtn" class="smallButton" data-en="+ Add Stop" data-ar="+ إضافة محطة">+ Add Stop</button>
+            <label class="loadModalCheckboxRow" for="loadModalIncludeStopsToggle">
+                <input type="checkbox" id="loadModalIncludeStopsToggle">
+                <span data-en="Show these stops in the End-of-Shift Report" data-ar="إظهار هذه المحطات في تقرير نهاية الوردية">Show these stops in the End-of-Shift Report</span>
+            </label>
+        </div>
+
+        <label for="loadModalPrice" data-en="💰 Price" data-ar="💰 السعر">💰 Price</label>
+        <input type="number" id="loadModalPrice" min="0" step="0.01" placeholder="0.00">
+        <div class="fieldErrorMsg" id="loadModalPriceError"></div>
+
+        <label for="loadModalPricePerMile" data-en="🛣️ Price per Mile" data-ar="🛣️ السعر لكل ميل">🛣️ Price per Mile</label>
+        <input type="number" id="loadModalPricePerMile" min="0" step="0.01" placeholder="0.00 /mi">
+
+
+        <label for="loadModalDriverSearch" data-en="🚚 Driver" data-ar="🚚 السائق">🚚 Driver</label>
+        <div class="driverCombobox" id="loadModalDriverCombobox">
+            <input type="text" id="loadModalDriverSearch" class="driverComboboxInput" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-autocomplete="list"
+                   aria-controls="loadModalDriverListbox" disabled
+                   placeholder="Select department first..." data-en-placeholder="Select department first..."
+                   data-ar-placeholder="اختر القسم أولاً...">
+            <!-- Canonical, validated value — only ever set once the typed/clicked
+                 driver is confirmed to exist in the selected department's list.
+                 This (not the visible text box above) is what actually gets saved. -->
+            <input type="hidden" id="loadModalDriver">
+            <ul class="driverComboboxList hidden" id="loadModalDriverListbox" role="listbox" aria-label="Drivers"></ul>
+        </div>
+        <div class="fieldErrorMsg" id="loadModalDriverError"></div>
+
+        <label for="loadModalNote" data-en="📝 Notes" data-ar="📝 ملاحظات">📝 Notes</label>
+        <textarea id="loadModalNote" class="workspaceNotes" placeholder="Optional notes..." data-en-placeholder="Optional notes..." data-ar-placeholder="ملاحظات اختيارية..."></textarea>
 
         <div class="modalButtons">
-            <button id="loadModalSaveBtn">Save Load</button>
-            <button id="loadModalCancelBtn">Cancel</button>
+            <button id="loadModalSaveBtn" data-en="Save Load" data-ar="حفظ الشحنة">Save Load</button>
+            <button id="loadModalCancelBtn" data-en="Cancel" data-ar="إلغاء">Cancel</button>
         </div>
 
     </div>
@@ -1879,17 +2319,28 @@
 <!-- ================================= -->
 
 <div id="loadHistoryModal" class="modalOverlay hidden">
-    <div class="modalBox">
+    <div class="modalBox loadHistoryModalBox">
 
         <h3>📜 Load History</h3>
         <hr>
 
-        <label for="loadHistorySearchInput">🔍 Search by Load ID (VRID)</label>
-        <input type="text" id="loadHistorySearchInput" placeholder="Enter Load ID...">
+        <label for="loadHistorySearchInput" data-en="🔍 Search by Load ID (VRID)" data-ar="🔍 البحث برقم الشحنة (VRID)">🔍 Search by Load ID (VRID)</label>
+        <input type="text" id="loadHistorySearchInput" placeholder="Enter Load ID..." data-en-placeholder="Enter Load ID..." data-ar-placeholder="أدخل رقم الشحنة...">
+
+        <div id="loadHistoryToolbar" class="loadToolbar">
+            <select id="loadHistorySortSelect" class="loadToolbarSelect" title="Sort loads" data-en-title="Sort loads" data-ar-title="ترتيب الشحنات">
+                <option value="Newest" data-en="Sort: Newest" data-ar="الترتيب: الأحدث">Sort: Newest</option>
+                <option value="VRID" data-en="Sort: VRID" data-ar="الترتيب: VRID">Sort: VRID</option>
+                <option value="Price" data-en="Sort: Price" data-ar="الترتيب: السعر">Sort: Price</option>
+            </select>
+            <select id="loadHistoryFilterDept" class="loadToolbarSelect" title="Filter by department" data-en-title="Filter by department" data-ar-title="تصفية حسب القسم"></select>
+            <select id="loadHistoryFilterDriver" class="loadToolbarSelect" title="Filter by driver" data-en-title="Filter by driver" data-ar-title="تصفية حسب السائق"></select>
+            <select id="loadHistoryFilterVrid" class="loadToolbarSelect" title="Filter by VRID type" data-en-title="Filter by VRID type" data-ar-title="تصفية حسب نوع VRID"></select>
+        </div>
 
         <div class="modalButtons">
-            <button id="loadHistorySearchBtn">Search</button>
-            <button id="loadHistoryCloseBtn">Close</button>
+            <button id="loadHistorySearchBtn" data-en="Search" data-ar="بحث">Search</button>
+            <button id="loadHistoryCloseBtn" data-en="Close" data-ar="إغلاق">Close</button>
         </div>
 
         <hr>
@@ -1906,30 +2357,30 @@
 <div id="loadHistoryEditModal" class="modalOverlay hidden">
     <div class="modalBox">
 
-        <h3>✏️ Edit Historical Load</h3>
+        <h3 data-en="✏️ Edit Historical Load" data-ar="✏️ تعديل شحنة سابقة">✏️ Edit Historical Load</h3>
         <div id="lhEditVrid" class="loadHistoryVridDisplay"></div>
         <div id="lhEditMeta" class="loadHistoryMeta"></div>
         <hr>
 
-        <label for="lhEditStatus">🏷 Status</label>
+        <label for="lhEditStatus" data-en="🏷 Status" data-ar="🏷 الحالة">🏷 Status</label>
         <select id="lhEditStatus"></select>
 
-        <label for="lhEditPrice">💰 Price</label>
+        <label for="lhEditPrice" data-en="💰 Price" data-ar="💰 السعر">💰 Price</label>
         <input type="number" id="lhEditPrice" min="0" step="0.01">
 
-        <label for="lhEditNote">📝 Notes</label>
+        <label for="lhEditNote" data-en="📝 Notes" data-ar="📝 ملاحظات">📝 Notes</label>
         <textarea id="lhEditNote" class="workspaceNotes"></textarea>
 
         <label for="lhEditReason">
-            💬 Reason
-            <span id="lhReasonRequiredHint" class="loadHistoryReasonHint hidden">(required)</span>
+            <span data-en="💬 Reason" data-ar="💬 السبب">💬 Reason</span>
+            <span id="lhReasonRequiredHint" class="loadHistoryReasonHint hidden" data-en="(required)" data-ar="(مطلوب)">(required)</span>
         </label>
-        <textarea id="lhEditReason" class="workspaceNotes" placeholder="Optional reason for this change..."></textarea>
+        <textarea id="lhEditReason" class="workspaceNotes" placeholder="Optional reason for this change..." data-en-placeholder="Optional reason for this change..." data-ar-placeholder="سبب اختياري لهذا التغيير..."></textarea>
         <div class="fieldErrorMsg" id="lhEditReasonError"></div>
 
         <div class="modalButtons">
-            <button id="lhEditSaveBtn">Save Changes</button>
-            <button id="lhEditCancelBtn">Cancel</button>
+            <button id="lhEditSaveBtn" data-en="Save Changes" data-ar="حفظ التغييرات">Save Changes</button>
+            <button id="lhEditCancelBtn" data-en="Cancel" data-ar="إلغاء">Cancel</button>
         </div>
 
     </div>
@@ -1941,14 +2392,14 @@
 
 <div id="aboutEsmModal" class="modalOverlay hidden" data-modal-close-handler="closeAboutEsmModal" aria-hidden="true">
     <div class="modalBox aboutEsmModalBox" role="dialog" aria-modal="true" aria-labelledby="aboutEsmTitle">
-        <h3 id="aboutEsmTitle">About ESM - <span id="aboutEsmVersionLabel">Release Version 1.1.5</span></h3>
+        <h3 id="aboutEsmTitle"><span data-en="About ESM -" data-ar="حول ESM -">About ESM -</span> <span id="aboutEsmVersionLabel">Release Version 1.1.5</span></h3>
         <div class="aboutEsmModalBody" id="aboutEsmCreditsBody">
-            <p>Made by A009 through countless sleepless nights, in collaboration with ChatGPT and Claude.</p>
-            <p>Created to simplify daily operations, support dispatchers and Safety personnel, and continuously improve alongside the STS Team.</p>
-            <p>Built for the team. Improved by the team.</p>
-            <p>Special thanks go to A004 and A003 for spotting multiple bugs before the app version released and giving great feedback on the project to shape it as it is now ❤️🫡</p>
+            <p data-en="Made by A009 through countless sleepless nights, in collaboration with ChatGPT and Claude." data-ar="من إعداد A009 خلال ليالٍ لا تُحصى من السهر، بالتعاون مع ChatGPT و Claude.">Made by A009 through countless sleepless nights, in collaboration with ChatGPT and Claude.</p>
+            <p data-en="Created to simplify daily operations, support dispatchers and Safety personnel, and continuously improve alongside the STS Team." data-ar="صُمم لتبسيط العمليات اليومية، ودعم موظفي الإرسال والسلامة، والتحسّن المستمر جنبًا إلى جنب مع فريق STS.">Created to simplify daily operations, support dispatchers and Safety personnel, and continuously improve alongside the STS Team.</p>
+            <p data-en="Built for the team. Improved by the team." data-ar="بُني من أجل الفريق. وتم تطويره بواسطة الفريق.">Built for the team. Improved by the team.</p>
+            <p data-en="Special thanks go to A004 and A003 for spotting multiple bugs before the app version released and giving great feedback on the project to shape it as it is now ❤️🫡" data-ar="شكر خاص لـ A004 و A003 لاكتشافهما العديد من الأخطاء قبل إصدار التطبيق ولملاحظاتهما الرائعة التي ساهمت في تشكيل المشروع كما هو عليه الآن ❤️🫡">Special thanks go to A004 and A003 for spotting multiple bugs before the app version released and giving great feedback on the project to shape it as it is now ❤️🫡</p>
         </div>
-        <button type="button" id="aboutEsmReleaseNotesBtn" class="smallButton">📋 Release Notes</button>
+        <button type="button" id="aboutEsmReleaseNotesBtn" class="smallButton" data-en="📋 Release Notes" data-ar="📋 ملاحظات الإصدار">📋 Release Notes</button>
         <p id="aboutEsmVersionFooter">Release Version 1.1.5</p>
     </div>
 </div>
@@ -1961,9 +2412,40 @@
 
 <div id="releaseNotesModal" class="modalOverlay hidden" data-modal-close-handler="closeReleaseNotesModal" aria-hidden="true">
     <div class="modalBox wideModal" role="dialog" aria-modal="true" aria-labelledby="releaseNotesTitle">
-        <h3 id="releaseNotesTitle">📋 Release Notes</h3>
+        <h3 id="releaseNotesTitle" data-en="📋 Release Notes" data-ar="📋 ملاحظات الإصدار">📋 Release Notes</h3>
         <div id="releaseNotesList" class="releaseNotesList"></div>
-        <button type="button" onclick="closeReleaseNotesModal()">Close</button>
+        <button type="button" onclick="closeReleaseNotesModal()" data-en="Close" data-ar="إغلاق">Close</button>
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- UPDATE AVAILABLE / "WHAT'S NEW" MODAL (updater, Phase 2) -->
+<!-- Content comes from electron-updater's GitHub Release metadata -->
+<!-- (window.RelayDesk.updateMeta), NOT the Firestore-driven modal -->
+<!-- above — this is the GitHub release body for the update ESM -->
+<!-- itself just found/downloaded. -->
+<!-- ================================= -->
+
+<div id="updateAvailableNotesModal" class="modalOverlay hidden" data-modal-close-handler="closeUpdateAvailableNotesModal" aria-hidden="true">
+    <div class="modalBox wideModal" role="dialog" aria-modal="true" aria-labelledby="updateAvailableNotesTitle">
+        <h3 id="updateAvailableNotesTitle">📋 What's New</h3>
+        <div id="updateAvailableNotesBody" class="releaseNotesList"></div>
+        <button type="button" onclick="closeUpdateAvailableNotesModal()" data-en="Close" data-ar="إغلاق">Close</button>
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- POST-UPDATE WELCOME MODAL (updater, Phase 2) -->
+<!-- Shown once, the first time ESM launches on a version that was -->
+<!-- just installed via the auto-updater. Dismissed versions are -->
+<!-- stored locally so it never shows twice for the same version. -->
+<!-- ================================= -->
+
+<div id="updateWelcomeModal" class="modalOverlay hidden" data-modal-close-handler="closeUpdateWelcomeModal" aria-hidden="true">
+    <div class="modalBox wideModal updateWelcomeModalBox" role="dialog" aria-modal="true" aria-labelledby="updateWelcomeTitle">
+        <h3 id="updateWelcomeTitle">🎉 Welcome to ESM</h3>
+        <div id="updateWelcomeBody" class="releaseNotesList"></div>
+        <button type="button" onclick="closeUpdateWelcomeModal()" data-en="Got it" data-ar="حسنًا">Got it</button>
     </div>
 </div>
 

@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     notify: (options = {}) => ipcRenderer.invoke("notify", options),
     focusApp: () => ipcRenderer.send("focus-app"),
 
+    // Employee Activity Detection: OS-wide idle seconds (powerMonitor),
+    // so idle detection isn't limited to in-app DOM events only.
+    getSystemIdleTime: () => ipcRenderer.invoke("get-system-idle-time"),
+
     // Settings feature: General > "Minimize To Tray" / "Confirm Before
     // Closing While On Duty"
     setCloseBehavior: (behavior = {}) => ipcRenderer.invoke("set-close-behavior", behavior),
@@ -28,5 +32,32 @@ contextBridge.exposeInMainWorld("electronAPI", {
     clearCache: () => ipcRenderer.invoke("clear-cache"),
 
     // Settings feature: About panel
-    getAppInfo: () => ipcRenderer.invoke("get-app-info")
+    getAppInfo: () => ipcRenderer.invoke("get-app-info"),
+
+    // Settings feature: About panel > Updates (electron-updater, GitHub Releases)
+    checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+    downloadUpdate: () => ipcRenderer.invoke("download-update"),
+    quitAndInstall: () => ipcRenderer.invoke("quit-and-install"),
+    setAutoDownloadUpdates: (enabled) => ipcRenderer.invoke("set-auto-download-updates", enabled),
+    setUpdateDesktopNotifications: (enabled) => ipcRenderer.invoke("set-update-desktop-notifications", enabled),
+
+    // Phase 3: retries whichever update step (check/download) last
+    // failed, and read-only access to the local update-event log.
+    retryUpdate: () => ipcRenderer.invoke("retry-update"),
+    getUpdateLog: () => ipcRenderer.invoke("get-update-log"),
+
+    onUpdateStatus: (callback) => {
+        const handler = (_event, payload) => callback(payload);
+        ipcRenderer.on("update-status", handler);
+        return () => ipcRenderer.removeListener("update-status", handler);
+    },
+
+    // Phase 2: fired when the user clicks the native "ESM Update Ready"
+    // OS notification, so the renderer can bring the in-app restart
+    // toast back to the front.
+    onUpdateNotificationClicked: (callback) => {
+        const handler = (_event, payload) => callback(payload);
+        ipcRenderer.on("update-notification-clicked", handler);
+        return () => ipcRenderer.removeListener("update-notification-clicked", handler);
+    }
 });

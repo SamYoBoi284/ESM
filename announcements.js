@@ -18,6 +18,54 @@
 
     if (!window.RelayDesk) window.RelayDesk = {};
 
+    // Phase 11, batch 4: toast/alert/confirm strings via shared I18N.
+    if (window.I18N) {
+        window.I18N.register("announcements", {
+            en: {
+                acknowledgeFailed: "Couldn't acknowledge — try again.",
+                acknowledgedBtn: "✓ Acknowledged",
+                noPermissionPost: "You don't have permission to post announcements.",
+                titleAndMessageRequired: "Please enter both a title and a message.",
+                posted: "Announcement posted ✔",
+                postFailed: "Couldn't post announcement — try again.",
+                noPermissionDelete: "You don't have permission to delete announcements.",
+                confirmDelete: "Delete announcement \"{title}\"?",
+                deleteFailed: "Couldn't delete — try again.",
+                noAnnouncementsEmployee: "No announcements yet.",
+                noAnnouncementsAdmin: "No announcements posted yet.",
+                newTag: "NEW",
+                readTag: "✓ Read",
+                postedBy: "Posted by {name} • {when}",
+                noOneOnShift: "No employees currently on shift.",
+                acknowledgedCount: "{read}/{total} acknowledged (on-shift)",
+                hideReceipts: "▲ Hide read receipts",
+                showReceipts: "▼ Show read receipts",
+                deleteBtn: "🗑 Delete"
+            },
+            ar: {
+                acknowledgeFailed: "تعذّر تأكيد الاطلاع — يرجى المحاولة مرة أخرى.",
+                acknowledgedBtn: "✓ تم الاطلاع",
+                noPermissionPost: "ليس لديك صلاحية لنشر الإعلانات.",
+                titleAndMessageRequired: "يرجى إدخال العنوان والرسالة كليهما.",
+                posted: "تم نشر الإعلان ✔",
+                postFailed: "تعذّر نشر الإعلان — يرجى المحاولة مرة أخرى.",
+                noPermissionDelete: "ليس لديك صلاحية لحذف الإعلانات.",
+                confirmDelete: "حذف الإعلان \"{title}\"؟",
+                deleteFailed: "تعذّر الحذف — يرجى المحاولة مرة أخرى.",
+                noAnnouncementsEmployee: "لا توجد إعلانات بعد.",
+                noAnnouncementsAdmin: "لم يتم نشر أي إعلانات بعد.",
+                newTag: "جديد",
+                readTag: "✓ تمت القراءة",
+                postedBy: "نُشر بواسطة {name} • {when}",
+                noOneOnShift: "لا يوجد موظفون في المناوبة حاليًا.",
+                acknowledgedCount: "{read}/{total} تم الاطلاع (في المناوبة)",
+                hideReceipts: "▲ إخفاء إيصالات القراءة",
+                showReceipts: "▼ عرض إيصالات القراءة",
+                deleteBtn: "🗑 حذف"
+            }
+        });
+    }
+
     const ACTIVE_STATUSES = ["On Duty", "Break", "Away"];
 
     const CATEGORY_META = {
@@ -166,12 +214,15 @@
         const me = RelayDesk.currentUser;
 
         if (!items.length) {
-            empUI.list.innerHTML = `<div class="workspaceEmpty">No announcements yet.</div>`;
+            const emptyMsg = window.I18N ? window.I18N.t("announcements.noAnnouncementsEmployee") : "No announcements yet.";
+            empUI.list.innerHTML = `<div class="workspaceEmpty">${emptyMsg}</div>`;
             if (empUI.badge) empUI.badge.classList.add("hidden");
             return;
         }
 
         let unreadCount = 0;
+        const newTag = window.I18N ? window.I18N.t("announcements.newTag") : "NEW";
+        const readTag = window.I18N ? window.I18N.t("announcements.readTag") : "✓ Read";
 
         empUI.list.innerHTML = items.map(a => {
 
@@ -184,8 +235,8 @@
                     <div class="announcementItemTop">
                         <span class="announcementCategoryTag">${categoryTag(a.category)}</span>
                         ${unread
-                            ? `<span class="announcementNewTag">NEW</span>`
-                            : `<span class="announcementReadTag">✓ Read</span>`}
+                            ? `<span class="announcementNewTag">${newTag}</span>`
+                            : `<span class="announcementReadTag">${readTag}</span>`}
                     </div>
                     <div class="announcementItemTitle">${escapeHtml(a.title)}</div>
                     <div class="announcementItemMeta">${formatWhen(a.postedAt)}</div>
@@ -196,6 +247,8 @@
         empUI.list.querySelectorAll(".announcementItem").forEach(el => {
             el.onclick = () => openAnnouncementModal(el.dataset.id);
         });
+
+        window.I18N?.apply(empUI.list);
 
         if (empUI.badge) {
             const badgeEnabled = window.ESMSettings?.get("notifAnnouncementsBadge") !== false;
@@ -218,7 +271,9 @@
         empUI.modalTitle.textContent = a.title;
         empUI.modalCategory.textContent = categoryTag(a.category);
         empUI.modalBody.textContent = a.body || "";
-        empUI.modalMeta.textContent = `Posted by ${a.postedBy} • ${formatWhen(a.postedAt)}`;
+        empUI.modalMeta.textContent = window.I18N
+            ? window.I18N.t("announcements.postedBy", { name: a.postedBy, when: formatWhen(a.postedAt) })
+            : `Posted by ${a.postedBy} • ${formatWhen(a.postedAt)}`;
 
         renderModalAckState(a);
 
@@ -257,12 +312,12 @@
             await arrayUnionSafe(ref, "readBy", RelayDesk.currentUser);
 
             if (empUI.ackBtn) {
-                empUI.ackBtn.textContent = "✓ Acknowledged";
+                empUI.ackBtn.textContent = window.I18N ? window.I18N.t("announcements.acknowledgedBtn") : "✓ Acknowledged";
                 empUI.ackBtn.disabled = true;
             }
         } catch (err) {
             console.error("Acknowledge failed:", err);
-            alert("Couldn't acknowledge — try again.");
+            alert(window.I18N ? window.I18N.t("announcements.acknowledgeFailed") : "Couldn't acknowledge — try again.");
         }
     }
 
@@ -330,7 +385,7 @@
     async function postAnnouncement() {
 
         if (!window.hasPermission?.("canAccessAdminPanel")) {
-            alert("You don't have permission to post announcements.");
+            alert(window.I18N ? window.I18N.t("announcements.noPermissionPost") : "You don't have permission to post announcements.");
             return;
         }
 
@@ -339,7 +394,7 @@
         const category = adminUI.categorySelect?.value || "general";
 
         if (!title || !body) {
-            alert("Please enter both a title and a message.");
+            alert(window.I18N ? window.I18N.t("announcements.titleAndMessageRequired") : "Please enter both a title and a message.");
             return;
         }
 
@@ -360,10 +415,10 @@
             if (adminUI.titleInput) adminUI.titleInput.value = "";
             if (adminUI.bodyInput) adminUI.bodyInput.value = "";
 
-            alert("Announcement posted ✔");
+            alert(window.I18N ? window.I18N.t("announcements.posted") : "Announcement posted ✔");
         } catch (err) {
             console.error("Post announcement failed:", err);
-            alert("Couldn't post announcement — try again.");
+            alert(window.I18N ? window.I18N.t("announcements.postFailed") : "Couldn't post announcement — try again.");
         }
     }
 
@@ -417,11 +472,16 @@
         const roster = Announcements.cachedActiveUsers || [];
 
         if (!items.length) {
-            adminUI.list.innerHTML = `<div class="workspaceEmpty">No announcements posted yet.</div>`;
+            const emptyMsg = window.I18N ? window.I18N.t("announcements.noAnnouncementsAdmin") : "No announcements posted yet.";
+            adminUI.list.innerHTML = `<div class="workspaceEmpty">${emptyMsg}</div>`;
             return;
         }
 
         const canDelete = window.hasPermission?.("canManageEmployees");
+        const noOneOnShift = window.I18N ? window.I18N.t("announcements.noOneOnShift") : "No employees currently on shift.";
+        const hideReceipts = window.I18N ? window.I18N.t("announcements.hideReceipts") : "▲ Hide read receipts";
+        const showReceipts = window.I18N ? window.I18N.t("announcements.showReceipts") : "▼ Show read receipts";
+        const deleteBtnLabel = window.I18N ? window.I18N.t("announcements.deleteBtn") : "🗑 Delete";
 
         adminUI.list.innerHTML = items.map(a => {
 
@@ -435,20 +495,28 @@
                     ${readRoster.map(id => `<span class="ackChip ackRead">✔ ${escapeHtml(id)}</span>`).join("")}
                     ${unreadRoster.map(id => `<span class="ackChip ackUnread">❌ ${escapeHtml(id)}</span>`).join("")}
                   `
-                : `<span class="announcementItemMeta">No employees currently on shift.</span>`;
+                : `<span class="announcementItemMeta">${noOneOnShift}</span>`;
+
+            const ackCountLabel = window.I18N
+                ? window.I18N.t("announcements.acknowledgedCount", { read: readRoster.length, total: roster.length })
+                : `${readRoster.length}/${roster.length} acknowledged (on-shift)`;
+
+            const postedByLabel = window.I18N
+                ? window.I18N.t("announcements.postedBy", { name: escapeHtml(a.postedBy), when: formatWhen(a.postedAt) })
+                : `Posted by ${escapeHtml(a.postedBy)} • ${formatWhen(a.postedAt)}`;
 
             return `
                 <div class="announcementAdminItem">
                     <div class="announcementItemTop">
                         <span class="announcementCategoryTag">${categoryTag(a.category)}</span>
-                        <span class="announcementItemMeta">${readRoster.length}/${roster.length} acknowledged (on-shift)</span>
+                        <span class="announcementItemMeta">${ackCountLabel}</span>
                     </div>
                     <div class="announcementItemTitle">${escapeHtml(a.title)}</div>
-                    <div class="announcementItemMeta">Posted by ${escapeHtml(a.postedBy)} • ${formatWhen(a.postedAt)}</div>
+                    <div class="announcementItemMeta">${postedByLabel}</div>
                     <div class="announcementAdminBody">${escapeHtml(a.body)}</div>
 
                     <button class="smallButton announcementExpandBtn" data-id="${a.id}">
-                        ${expanded ? "▲ Hide read receipts" : "▼ Show read receipts"}
+                        ${expanded ? hideReceipts : showReceipts}
                     </button>
 
                     <div class="ackList ${expanded ? "" : "hidden"}">
@@ -458,7 +526,7 @@
                     ${canDelete ? `
                         <br>
                         <button class="smallButton dangerButton announcementDeleteBtn" data-id="${a.id}" data-title="${escapeHtml(a.title)}">
-                            🗑 Delete
+                            ${deleteBtnLabel}
                         </button>
                     ` : ""}
                 </div>
@@ -476,16 +544,18 @@
         adminUI.list.querySelectorAll(".announcementDeleteBtn").forEach(btn => {
             btn.onclick = () => deleteAnnouncement(btn.dataset.id, btn.dataset.title);
         });
+
+        window.I18N?.apply(adminUI.list);
     }
 
     async function deleteAnnouncement(id, title) {
 
         if (!window.hasPermission?.("canManageEmployees")) {
-            alert("You don't have permission to delete announcements.");
+            alert(window.I18N ? window.I18N.t("announcements.noPermissionDelete") : "You don't have permission to delete announcements.");
             return;
         }
 
-        if (!confirm(`Delete announcement "${title}"?`)) return;
+        if (!confirm(window.I18N ? window.I18N.t("announcements.confirmDelete", { title: title }) : `Delete announcement "${title}"?`)) return;
 
         try {
             await db.collection("announcements").doc(id).delete();
@@ -495,7 +565,7 @@
             }
         } catch (err) {
             console.error("Delete announcement failed:", err);
-            alert("Couldn't delete — try again.");
+            alert(window.I18N ? window.I18N.t("announcements.deleteFailed") : "Couldn't delete — try again.");
         }
     }
 

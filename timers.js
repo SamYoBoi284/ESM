@@ -15,6 +15,34 @@ function updateTimersDisplay(timers) {
 
 window.updateTimersDisplay = updateTimersDisplay;
 
+// Phase 11, batch 4: toast + performance-text strings via shared I18N.
+if (window.I18N) {
+    window.I18N.register("timers", {
+        en: {
+            breakOverLimit: "☕ You've been on break over {minutes} minutes",
+            awayOverLimit: "🚶 You've been Away over {minutes} minutes",
+            gradeOutstanding: "🟢 Outstanding",
+            gradeExcellent: "🟢 Excellent",
+            gradeGood: "🟡 Good",
+            gradeFair: "🟠 Fair",
+            gradeNeedsImprovement: "🔴 Needs Improvement",
+            loadsSafetyRole: "📦 Loads This Month: N/A (Safety Role)",
+            loadsBookedThisMonth: "📦 Loads Booked This Month: {loads}"
+        },
+        ar: {
+            breakOverLimit: "☕ لقد تجاوزت وقت الاستراحة {minutes} دقيقة",
+            awayOverLimit: "🚶 لقد تجاوزت وقت الغياب {minutes} دقيقة",
+            gradeOutstanding: "🟢 ممتاز جدًا",
+            gradeExcellent: "🟢 ممتاز",
+            gradeGood: "🟡 جيد",
+            gradeFair: "🟠 مقبول",
+            gradeNeedsImprovement: "🔴 يحتاج إلى تحسين",
+            loadsSafetyRole: "📦 الشحنات هذا الشهر: غير متاح (دور السلامة)",
+            loadsBookedThisMonth: "📦 الشحنات المحجوزة هذا الشهر: {loads}"
+        }
+    });
+}
+
 setInterval(() => {
 
     if (!RelayDesk.currentUser) return;
@@ -100,13 +128,13 @@ setInterval(() => {
 
             if (typeof window.NotificationManager === "object") {
                 window.NotificationManager.notify(
-                    `☕ You've been on break over ${window.BREAK_ALERT_MINUTES || 30} minutes`,
+                    window.I18N ? window.I18N.t("timers.breakOverLimit", { minutes: (window.BREAK_ALERT_MINUTES || 30) }) : `☕ You've been on break over ${window.BREAK_ALERT_MINUTES || 30} minutes`,
                     "warning",
                     { category: "alerts" }
                 );
             } else if (typeof window.showToast === "function") {
                 window.showToast(
-                    `☕ You've been on break over ${window.BREAK_ALERT_MINUTES || 30} minutes`,
+                    window.I18N ? window.I18N.t("timers.breakOverLimit", { minutes: (window.BREAK_ALERT_MINUTES || 30) }) : `☕ You've been on break over ${window.BREAK_ALERT_MINUTES || 30} minutes`,
                     "warn"
                 );
             }
@@ -132,13 +160,13 @@ setInterval(() => {
 
             if (typeof window.NotificationManager === "object") {
                 window.NotificationManager.notify(
-                    `🚶 You've been Away over ${window.AWAY_ALERT_MINUTES || 45} minutes`,
+                    window.I18N ? window.I18N.t("timers.awayOverLimit", { minutes: (window.AWAY_ALERT_MINUTES || 45) }) : `🚶 You've been Away over ${window.AWAY_ALERT_MINUTES || 45} minutes`,
                     "warning",
                     { category: "alerts" }
                 );
             } else if (typeof window.showToast === "function") {
                 window.showToast(
-                    `🚶 You've been Away over ${window.AWAY_ALERT_MINUTES || 45} minutes`,
+                    window.I18N ? window.I18N.t("timers.awayOverLimit", { minutes: (window.AWAY_ALERT_MINUTES || 45) }) : `🚶 You've been Away over ${window.AWAY_ALERT_MINUTES || 45} minutes`,
                     "warn"
                 );
             }
@@ -178,11 +206,11 @@ function updatePerformanceCard(work, breakT, away) {
 
     const grade = document.getElementById("performanceGrade");
 
-    if (score >= 95) grade.innerText = "🟢 Outstanding";
-    else if (score >= 85) grade.innerText = "🟢 Excellent";
-    else if (score >= 75) grade.innerText = "🟡 Good";
-    else if (score >= 60) grade.innerText = "🟠 Fair";
-    else grade.innerText = "🔴 Needs Improvement";
+    if (score >= 95) grade.innerText = window.I18N ? window.I18N.t("timers.gradeOutstanding") : "🟢 Outstanding";
+    else if (score >= 85) grade.innerText = window.I18N ? window.I18N.t("timers.gradeExcellent") : "🟢 Excellent";
+    else if (score >= 75) grade.innerText = window.I18N ? window.I18N.t("timers.gradeGood") : "🟡 Good";
+    else if (score >= 60) grade.innerText = window.I18N ? window.I18N.t("timers.gradeFair") : "🟠 Fair";
+    else grade.innerText = window.I18N ? window.I18N.t("timers.gradeNeedsImprovement") : "🔴 Needs Improvement";
 
     // =========================
     // LOAD LOGIC (ROLE SAFE + LIVE FIXED)
@@ -196,7 +224,7 @@ function updatePerformanceCard(work, breakT, away) {
     // SAFETY EMPLOYEE (blocked)
     if (role === "Safety Employee") {
 
-        loadsEl.innerText = "📦 Loads This Month: N/A (Safety Role)";
+        loadsEl.innerText = window.I18N ? window.I18N.t("timers.loadsSafetyRole") : "📦 Loads This Month: N/A (Safety Role)";
         return;
     }
 
@@ -205,7 +233,7 @@ function updatePerformanceCard(work, breakT, away) {
         ? RelayDesk.bookedLoads.length
         : 0;
 
-    loadsEl.innerText = `📦 Loads Booked This Month: ${loads}`;
+    loadsEl.innerText = window.I18N ? window.I18N.t("timers.loadsBookedThisMonth", { loads: loads }) : `📦 Loads Booked This Month: ${loads}`;
 }
 
 

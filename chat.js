@@ -23,6 +23,20 @@
 
     if (!window.RelayDesk) window.RelayDesk = {};
 
+    // Phase 11, batch 3: confirm() dialog strings via shared I18N.
+    if (window.I18N) {
+        window.I18N.register("chat", {
+            en: {
+                confirmDeleteChat: "Permanently delete this chat for ALL members? This can't be undone.",
+                confirmDeleteMessage: "Delete this message? This can't be undone."
+            },
+            ar: {
+                confirmDeleteChat: "حذف هذه المحادثة نهائيًا لجميع الأعضاء؟ لا يمكن التراجع عن هذا الإجراء.",
+                confirmDeleteMessage: "حذف هذه الرسالة؟ لا يمكن التراجع عن هذا الإجراء."
+            }
+        });
+    }
+
     const REACTION_EMOJIS = ["👍", "😂", "❤️", "👀", "😭", "💀", "😏", "👋", "🫂", "🔥"];
     const TYPING_WRITE_THROTTLE_MS = 1200;
     const TYPING_CLEAR_AFTER_MS = 2500;
@@ -459,7 +473,7 @@
         if (Chat.UI.deleteForEveryoneBtn) Chat.UI.deleteForEveryoneBtn.onclick = () => {
             const chatId = Chat.openChatId;
             closeDeleteChatModal();
-            if (confirm("Permanently delete this chat for ALL members? This can't be undone.")) {
+            if (confirm(window.I18N ? window.I18N.t("chat.confirmDeleteChat") : "Permanently delete this chat for ALL members? This can't be undone.")) {
                 deleteChatForEveryone(chatId);
             }
         };
@@ -1443,7 +1457,7 @@
 
     function deleteMessage(chatId, messageId) {
 
-        if (!confirm("Delete this message? This can't be undone.")) return;
+        if (!confirm(window.I18N ? window.I18N.t("chat.confirmDeleteMessage") : "Delete this message? This can't be undone.")) return;
 
         // optimistic: pull the bubble immediately instead of waiting on
         // the queue write + the next snapshot round-trip

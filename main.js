@@ -8,7 +8,11 @@
 // Electron only provides the desktop shell, tray support, and window behavior.
 
 const path = require("path");
-const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, shell, session, dialog } = require("electron");
+const fs = require("fs");
+const os = require("os");
+const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, shell, dialog, powerMonitor } = require("electron");
+const { autoUpdater } = require("electron-updater");
+const updateLogger = require("./updateLogger");
 
 let mainWindow;
 let tray = null;
@@ -18,22 +22,76 @@ const iconPath = path.join(__dirname, "..", "assets", "esm-icon.ico");
 const pngIconPath = path.join(__dirname, "..", "favicon2.png");
 
 // ===========================================
-// SETTINGS-DRIVEN STATE (Settings feature)
+// SINGLE INSTANCE LOCK
 // ===========================================
-// The renderer (settings.js) pushes these over IPC whenever the person
-// changes a General setting, so the main process always knows how to
-// behave on close without needing to ask the renderer synchronously.
+// General setting: "Only ONE instance of ESM should ever exist". If a
+// second launch happens (e.g. double-clicking the shortcut again while
+// ESM is already minimized to tray), Windows hands control back here via
+// "second-instance" instead of letting a new process start — we just
+// bring the existing window into focus and never create a new one.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+    app.quit();
+} else {
+    app.on("second-instance", () => {
+        if (!mainWindow) return;
+
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        if (!mainWindow.isVisible()) mainWindow.show();
+        mainWindow.focus();
+    });
+}
+
+// ===========================================
+// SETTINGS-DRIVEN STATE
+// ===========================================
+// Mirrors of renderer-side Settings so main.js can make close/minimize/
+// tray decisions without reaching into localStorage itself. Kept in sync
+// via the "set-close-behavior" / "set-on-duty-status" IPC calls that
+// settings.js already makes on startup and on every relevant change.
+
 let closeBehavior = {
     minimizeToTray: true,
     confirmBeforeCloseWhileOnDuty: false
 };
+
 let isOnDuty = false;
 
-let packageInfo = {};
-try {
-    packageInfo = require(path.join(__dirname, "..", "package.json"));
-} catch (err) {
-    packageInfo = { version: app.getVersion() };
+// True from the moment an update starts downloading through to install —
+// while true, the "Confirm Before Closing While On Duty" prompt is
+// skipped so an update download/restart is never blocked by it.
+let isUpdating = false;
+
+// Phase 3 polish — guards against overlapping/duplicate updater calls
+// (e.g. a user double-clicking "Check Now" or "Download Update", or a
+// stray click landing while a previous request is still in flight).
+let isCheckInProgress = false;
+let isDownloadInProgress = false;
+
+// Tracks which action (check / download / install) most recently failed,
+// so a single "Retry" button in the renderer can redo the right thing
+// instead of always just re-checking from scratch.
+let lastUpdateAction = "check";
+
+// Version reported by the most recent "update-available"/"update-downloaded"
+// event, kept so later status events (downloading, error) can still tell
+// the renderer which version is involved even though electron-updater's
+// own "download-progress" event doesn't include it.
+let pendingUpdateVersion = null;
+
+// True once the "download-started" log entry has been written for the
+// current download, so it's only logged once (download-progress fires
+// many times per download).
+let hasLoggedDownloadStart = false;
+
+function getBuildDate() {
+    try {
+        const pkgPath = path.join(app.getAppPath(), "package.json");
+        return fs.statSync(pkgPath).mtime.toISOString().split("T")[0];
+    } catch (err) {
+        return "Unknown";
+    }
 }
 
 function createWindow() {
@@ -83,47 +141,56 @@ function createWindow() {
     });
 
     // Minimize to tray instead of closing the app so it stays available.
+    // Settings feature: General > "Minimize To Tray". When the setting is
+    // off, minimizing behaves like a normal window minimize instead.
     mainWindow.on("minimize", (event) => {
-        if (tray && !app.isQuitting) {
+        if (closeBehavior.minimizeToTray && tray && !app.isQuitting) {
             event.preventDefault();
             mainWindow.hide();
         }
     });
 
+    // Settings feature: General > "Minimize To Tray" and "Confirm Before
+    // Closing While On Duty".
+    //
+    // - A "real" close/quit attempt is either an explicit app.isQuitting
+    //   (Quit from the tray menu, Cmd+Q, etc.) or any close while
+    //   minimizeToTray is off (there's no tray to fall back to, so the X
+    //   button really does mean exit).
+    // - Only a real close/quit attempt while the employee is On Duty ever
+    //   shows the confirmation dialog — hiding to the tray isn't actually
+    //   closing the app, so there's nothing to confirm in that case.
     mainWindow.on("close", (event) => {
-        if (app.isQuitting) {
-            return;
-        }
 
-        // "Minimize to system tray instead of closing" (General settings).
-        // This is the historical default behavior and stays the default
-        // unless the person turns it off.
-        if (closeBehavior.minimizeToTray) {
-            event.preventDefault();
-            mainWindow.hide();
-            return;
-        }
+        const isRealQuit = app.isQuitting || !closeBehavior.minimizeToTray;
 
-        // Minimize-to-tray is off, so the window should actually close/quit.
-        // If "Confirm before closing while On Duty" is on and the renderer
-        // has reported the person is currently On Duty, ask first.
-        if (closeBehavior.confirmBeforeCloseWhileOnDuty && isOnDuty) {
+        if (isRealQuit && closeBehavior.confirmBeforeCloseWhileOnDuty && isOnDuty && !isUpdating) {
             event.preventDefault();
 
             const choice = dialog.showMessageBoxSync(mainWindow, {
                 type: "warning",
-                buttons: ["Cancel", "Close Anyway"],
+                buttons: ["Cancel", "Close ESM"],
                 defaultId: 0,
                 cancelId: 0,
-                title: "Close ESM?",
-                message: "You're still On Duty. Are you sure you want to close ESM?"
+                title: "Confirm Close",
+                message: "You're currently On Duty.",
+                detail: "Are you sure you want to close ESM while On Duty?"
             });
 
             if (choice === 1) {
                 app.isQuitting = true;
-                app.quit();
+                app.exit(0);
+            } else {
+                app.isQuitting = false;
             }
+            return;
         }
+
+        if (!isRealQuit) {
+            event.preventDefault();
+            mainWindow.hide();
+        }
+        // else: a real close/quit with nothing to confirm — let it proceed.
     });
 
     mainWindow.on("show", () => {
@@ -133,7 +200,21 @@ function createWindow() {
     });
 }
 
+// Settings feature: General > "Minimize To Tray". Creates or destroys the
+// tray icon to match the current setting; called once at startup with the
+// default, and again whenever the renderer pushes a changed setting.
+function syncTrayState() {
+    if (closeBehavior.minimizeToTray && !tray) {
+        createTray();
+    } else if (!closeBehavior.minimizeToTray && tray) {
+        tray.destroy();
+        tray = null;
+    }
+}
+
 function createTray() {
+    if (tray) return;
+
     // Provide a Windows-friendly tray icon for quick restore and exit actions.
     tray = new Tray(iconPath || pngIconPath);
     tray.setToolTip("ESM");
@@ -177,13 +258,323 @@ function createTray() {
     });
 }
 
+// ===========================================
+// AUTO UPDATE (electron-updater, publish: GitHub Releases)
+// ===========================================
+// Reads update feed config from electron-builder.yml's "publish" block
+// (provider: github, owner: SamYoBoi284, repo: ESM) and the app's own
+// package.json version. electron-updater compares that against the
+// latest.yml asset attached to the newest GitHub Release and, if newer,
+// downloads the matching installer from that release.
+//
+// Update checks are still user/settings-driven (Settings > About >
+// "Check Now", or a check at startup if "Automatically check for
+// updates" is on), but once an update is found it now downloads
+// automatically in the background so the user can keep working — no
+// click required.
+//
+// UX NOTE (update UX rework): the "update ready, restart?" prompt used
+// to be a native OS dialog (dialog.showMessageBox) fired straight from
+// here. That's been moved to the renderer (settings.js), which shows an
+// in-app "Restart Now / Remind Me Later" toast driven entirely by the
+// update-status IPC event below. main.js's job stops at "tell the
+// renderer what happened" — it no longer owns any prompt/timer logic
+// itself. quitAndInstall() is still only ever triggered by the renderer
+// via the existing "quit-and-install" IPC handler further down, so the
+// actual install trigger is unchanged.
+
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = false;
+
+function sendUpdateStatus(status, extra = {}) {
+    mainWindow?.webContents.send("update-status", {
+        status,
+        // Always included so the renderer never has to make a second
+        // round trip just to know what's currently installed.
+        currentVersion: app.getVersion(),
+        ...extra
+    });
+}
+
+// Pulls the handful of release-metadata fields electron-updater already
+// gives us (from GitHub's release body) off an autoUpdater "info" object.
+// Not rendered anywhere yet — this just makes sure the data is flowing
+// through the bridge so a future "What's New" view can use it without
+// touching main.js again (release-notes bridge prep only).
+function releaseMeta(info) {
+    if (!info) return {};
+    return {
+        releaseNotes: typeof info.releaseNotes === "string" ? info.releaseNotes : null,
+        releaseName: info.releaseName || null,
+        releaseDate: info.releaseDate || null
+    };
+}
+
+// Fetches the actual release body straight from the GitHub REST API by
+// tag, rather than trusting whatever electron-updater's own parsing
+// handed back in `info.releaseNotes`. This is the real source of truth
+// for the "What's New" screen's changelog text (see RELEASE_NOTES.md /
+// scripts/release.js for how that body gets populated at release time).
+const GITHUB_OWNER = "SamYoBoi284";
+const GITHUB_REPO = "ESM";
+
+async function fetchGithubReleaseNotes(version) {
+    if (!version) return null;
+    try {
+        const res = await fetch(
+            `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/tags/v${version}`,
+            { headers: { Accept: "application/vnd.github+json", "User-Agent": "ESM-app" } }
+        );
+        if (!res.ok) return null;
+        const data = await res.json();
+        return typeof data.body === "string" && data.body.trim() ? data.body : null;
+    } catch (err) {
+        console.warn("Could not fetch GitHub release notes:", err);
+        return null;
+    }
+}
+
+autoUpdater.on("checking-for-update", () => {
+    updateLogger.logEvent("check");
+    sendUpdateStatus("checking");
+});
+
+autoUpdater.on("update-available", async (info) => {
+    isCheckInProgress = false;
+    pendingUpdateVersion = info?.version || null;
+    updateLogger.logEvent("update-found", { version: pendingUpdateVersion });
+    const meta = releaseMeta(info);
+    const fetchedNotes = await fetchGithubReleaseNotes(info?.version);
+    sendUpdateStatus("available", { version: info?.version, ...meta, releaseNotes: fetchedNotes || meta.releaseNotes });
+});
+
+autoUpdater.on("update-not-available", (info) => {
+    isUpdating = false;
+    isCheckInProgress = false;
+    pendingUpdateVersion = null;
+    hasLoggedDownloadStart = false;
+    sendUpdateStatus("not-available", { version: info?.version });
+});
+
+// Cleanup safety: whatever stage the update was in when it failed
+// (checking, downloading, or installing), this always resets ESM back
+// to a normal, non-stuck state — the app keeps running fine either way,
+// and the "Check Now"/"Retry" path is always available afterward.
+autoUpdater.on("error", (err) => {
+    console.warn("autoUpdater error:", err);
+    const message = err?.message || String(err);
+
+    isUpdating = false;
+    isCheckInProgress = false;
+    isDownloadInProgress = false;
+    hasLoggedDownloadStart = false;
+
+    updateLogger.logEvent("error", { message, phase: lastUpdateAction, version: pendingUpdateVersion });
+    sendUpdateStatus("error", { message, phase: lastUpdateAction, version: pendingUpdateVersion });
+});
+
+autoUpdater.on("download-progress", (progress) => {
+    isUpdating = true;
+
+    // electron-updater doesn't emit a distinct "download started" event —
+    // the first progress tick is the earliest reliable signal, so that's
+    // what gets logged (once per download).
+    if (!hasLoggedDownloadStart) {
+        hasLoggedDownloadStart = true;
+        updateLogger.logEvent("download-started", { version: pendingUpdateVersion });
+    }
+
+    sendUpdateStatus("downloading", {
+        version: pendingUpdateVersion,
+        percent: progress?.percent || 0,
+        bytesPerSecond: progress?.bytesPerSecond || 0,
+        transferred: progress?.transferred || 0,
+        total: progress?.total || 0
+    });
+});
+
+autoUpdater.on("update-downloaded", async (info) => {
+    isUpdating = true;
+    isDownloadInProgress = false;
+    hasLoggedDownloadStart = false;
+    pendingUpdateVersion = info?.version || pendingUpdateVersion;
+    updateLogger.logEvent("download-completed", { version: pendingUpdateVersion });
+    const meta = releaseMeta(info);
+    const fetchedNotes = await fetchGithubReleaseNotes(info?.version);
+    sendUpdateStatus("downloaded", { version: info?.version, ...meta, releaseNotes: fetchedNotes || meta.releaseNotes });
+    // No native dialog here anymore — settings.js's update-status
+    // listener shows the in-app "Restart Now / Remind Me Later" toast.
+
+    // Phase 2: a quiet native OS notification, Discord/VS Code style —
+    // shown only when the user isn't already looking at ESM, since the
+    // in-app toast above already covers that case. Owned entirely by
+    // main.js (rather than settings.js reaching for the generic
+    // "notify" bridge) so there's exactly one place deciding whether to
+    // interrupt the user.
+    if (!mainWindow || !mainWindow.isFocused()) {
+        showUpdateReadyNotification(info?.version);
+    }
+});
+
+// Phase 2: native "ESM Update Ready" notification. Windows' basic
+// Notification API doesn't reliably support action buttons across
+// Windows versions without extra native modules (electron-windows-
+// notifications, a custom toastXml + protocol handler, etc.) — adding
+// one of those would mean a new dependency and a chunk of platform-
+// specific plumbing just for this. Instead, clicking the notification
+// itself brings ESM to the foreground and tells the renderer to bring
+// the existing "Restart Now / Remind Me Later" toast (Phase 1) back to
+// the front — so the actual Restart/Later choice still happens, just
+// one click away instead of live inside the OS toast.
+function showUpdateReadyNotification(version) {
+    if (!Notification.isSupported()) return null;
+
+    const notification = new Notification({
+        title: "ESM Update Ready",
+        body: version ? `Version ${version} is ready to install` : "An update is ready to install",
+        icon: iconPath
+    });
+
+    notification.on("click", () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send("update-notification-clicked", { version });
+        }
+    });
+
+    notification.show();
+    return notification;
+}
+
+// Settings feature: About > Updates > "Check Now" (and startup auto-check).
+async function doCheckForUpdates() {
+    // Packaged installs only — running unpackaged (`npm start`) has no
+    // installer/latest.yml to compare against and electron-updater would
+    // just error out.
+    if (!app.isPackaged) {
+        sendUpdateStatus("error", { message: "Updates are only available in installed builds.", phase: "check" });
+        return { ok: false, reason: "not-packaged" };
+    }
+
+    // Race-condition guard: ignore a second "Check Now" (or overlapping
+    // startup auto-check) while one is already in flight instead of
+    // stacking duplicate electron-updater requests.
+    if (isCheckInProgress) {
+        return { ok: false, reason: "already-checking" };
+    }
+
+    isCheckInProgress = true;
+    lastUpdateAction = "check";
+
+    try {
+        await autoUpdater.checkForUpdates();
+        return { ok: true };
+    } catch (err) {
+        console.warn("checkForUpdates failed:", err);
+        isCheckInProgress = false;
+        const message = err?.message || String(err);
+        updateLogger.logEvent("error", { message, phase: "check" });
+        sendUpdateStatus("error", { message, phase: "check" });
+        return { ok: false, reason: message };
+    }
+    // Note: isCheckInProgress is also cleared by the "update-available"/
+    // "update-not-available"/"error" listeners above, since a successful
+    // checkForUpdates() call resolves before those events actually land.
+}
+
+ipcMain.handle("check-for-updates", () => doCheckForUpdates());
+
+// Settings feature: About > Updates — triggered once the renderer has
+// shown the user an "Update available" state and they've chosen to
+// download it (also reachable via auto-download, which calls
+// electron-updater's own internal download path rather than this IPC
+// handler — this one only covers the manual/renderer-triggered case).
+async function doDownloadUpdate() {
+    if (isDownloadInProgress) {
+        return { ok: false, reason: "already-downloading" };
+    }
+
+    isDownloadInProgress = true;
+    lastUpdateAction = "download";
+
+    try {
+        await autoUpdater.downloadUpdate();
+        return { ok: true };
+    } catch (err) {
+        console.warn("downloadUpdate failed:", err);
+        isDownloadInProgress = false;
+        isUpdating = false;
+        hasLoggedDownloadStart = false;
+        const message = err?.message || String(err);
+        updateLogger.logEvent("error", { message, phase: "download", version: pendingUpdateVersion });
+        sendUpdateStatus("error", { message, phase: "download", version: pendingUpdateVersion });
+        return { ok: false, reason: message };
+    }
+}
+
+ipcMain.handle("download-update", () => doDownloadUpdate());
+
+// Settings feature: About > Updates > "Retry" — shown only after a
+// failed check/download/install. Redoes whichever action actually
+// failed rather than always starting over from a plain check.
+ipcMain.handle("retry-update", () => {
+    if (lastUpdateAction === "download" && pendingUpdateVersion) {
+        return doDownloadUpdate();
+    }
+    return doCheckForUpdates();
+});
+
+// Settings feature: About > Updates — "Restart & Install" once a download
+// finishes (update-downloaded). Wrapped in try/catch so a failure here
+// (e.g. installer file went missing/locked) surfaces as a normal
+// "Update failed" state instead of an unhandled exception, and never
+// leaves app.isQuitting stuck true if the install doesn't actually happen.
+ipcMain.handle("quit-and-install", () => {
+    try {
+        lastUpdateAction = "install";
+        updateLogger.logEvent("install-started", { version: pendingUpdateVersion });
+        app.isQuitting = true;
+        autoUpdater.quitAndInstall();
+    } catch (err) {
+        console.warn("quitAndInstall failed:", err);
+        app.isQuitting = false;
+        isUpdating = false;
+        const message = err?.message || String(err);
+        updateLogger.logEvent("error", { message, phase: "install", version: pendingUpdateVersion });
+        sendUpdateStatus("error", { message, phase: "install", version: pendingUpdateVersion });
+    }
+});
+
+// Settings feature: About > Updates > "Automatically download updates in
+// the background". Off means an available update just sits there
+// (status stays "available") until the user clicks "Download Update"
+// themselves via the download-update handler above.
+ipcMain.handle("set-auto-download-updates", (_event, enabled) => {
+    autoUpdater.autoDownload = !!enabled;
+    return autoUpdater.autoDownload;
+});
+
+// Phase 3: read-only access to the local update-event log
+// (electron/updateLogger.js) for diagnostics.
+ipcMain.handle("get-update-log", () => {
+    return updateLogger.getHistory();
+});
+
 app.whenReady().then(() => {
     if (isWindows) {
         app.setAppUserModelId("com.sts.esm");
     }
 
     createWindow();
-    createTray();
+    syncTrayState();
+
+    // Phase 3: electron-updater has no "install finished" event of its
+    // own — the app just relaunches into the new version — so this
+    // compares the version we're running now against the last
+    // "install-started" log entry to confirm it actually succeeded.
+    updateLogger.checkInstallCompleted(app.getVersion());
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -237,63 +628,81 @@ ipcMain.on("focus-app", () => {
     }
 });
 
-// ===========================================
-// SETTINGS FEATURE — IPC
-// ===========================================
-
-// ABOUT: version + build date, read from package.json so it never needs
-// to be hardcoded anywhere else. Add a "buildDate" field to package.json
-// (electron-builder ignores unknown fields) if you want a fixed date
-// baked into installers; otherwise this falls back to "today" so About
-// always shows something sensible in dev.
-ipcMain.handle("get-app-info", () => {
-    return {
-        version: packageInfo.version || app.getVersion(),
-        buildDate: packageInfo.buildDate || new Date().toISOString().split("T")[0]
-    };
+// Employee Activity Detection: OS-wide idle time (seconds since the last
+// mouse/keyboard input anywhere on the system, not just inside ESM).
+// Backs activitydetection.js so idle detection keeps working even while
+// the ESM window is minimized/unfocused and the employee is idle at
+// their desk in some other application.
+ipcMain.handle("get-system-idle-time", () => {
+    try {
+        return powerMonitor.getSystemIdleTime();
+    } catch (e) {
+        return 0;
+    }
 });
 
-// GENERAL: "Launch ESM when Windows starts"
-ipcMain.handle("get-login-item-settings", () => {
-    return app.getLoginItemSettings();
-});
-
-ipcMain.handle("set-login-item-settings", (_event, enabled) => {
-    app.setLoginItemSettings({ openAtLogin: !!enabled });
-    return app.getLoginItemSettings();
-});
-
-// GENERAL: keeps the close handler above in sync with the person's
-// current "Minimize to tray" / "Confirm before closing while On Duty"
-// settings, and their live On Duty status.
-ipcMain.on("set-close-behavior", (_event, behavior = {}) => {
+// Settings feature: General > "Minimize To Tray" / "Confirm Before Closing
+// While On Duty". settings.js pushes both values together as a single
+// object every time either one changes, and once on startup.
+ipcMain.handle("set-close-behavior", (_event, behavior = {}) => {
     closeBehavior = {
-        minimizeToTray: behavior.minimizeToTray !== false,
+        minimizeToTray: !!behavior.minimizeToTray,
         confirmBeforeCloseWhileOnDuty: !!behavior.confirmBeforeCloseWhileOnDuty
     };
+    syncTrayState();
+    return closeBehavior;
 });
 
-ipcMain.on("set-on-duty-status", (_event, onDuty) => {
+// Settings feature: General > "Confirm Before Closing While On Duty".
+// settings.js polls RelayDesk.currentStatus and pushes this whenever it
+// changes, so the close handler above always knows the live status.
+ipcMain.handle("set-on-duty-status", (_event, onDuty) => {
     isOnDuty = !!onDuty;
+    return isOnDuty;
 });
 
-// GENERAL: "Clear local cache" — clears Electron's HTTP/session cache.
-// (localStorage itself is cleared from the renderer, since that's where
-// it lives.)
+// Settings feature: General > "Launch On Windows Startup".
+ipcMain.handle("set-login-item-settings", (_event, enabled) => {
+    app.setLoginItemSettings({
+        openAtLogin: !!enabled,
+        path: process.execPath
+    });
+    return app.getLoginItemSettings();
+});
+
+// Settings feature: Appearance > "UI Scale" (and the Ctrl+Wheel / Ctrl+Plus-
+// Minus-0 shortcuts, which all funnel through the same setter in settings.js).
+ipcMain.handle("set-zoom-factor", (_event, factor) => {
+    const f = Number(factor) || 1;
+    mainWindow?.webContents.setZoomFactor(f);
+    return f;
+});
+
+// Settings feature: General > "Clear Local Cache". Only clears the HTTP
+// cache — never session storage data — so the remembered login, saved
+// settings, and Firestore's own offline persistence are all left intact.
 ipcMain.handle("clear-cache", async () => {
     try {
-        await session.defaultSession.clearCache();
+        await mainWindow?.webContents.session.clearCache();
         return true;
     } catch (err) {
-        console.warn("Clear cache failed:", err);
+        console.warn("clear-cache failed:", err);
         return false;
     }
 });
 
-// APPEARANCE: UI Scale + Ctrl/wheel zoom. Applied on the actual
-// webContents so it works immediately with no restart required.
-ipcMain.on("set-zoom-factor", (_event, factor) => {
-    if (mainWindow && typeof factor === "number" && factor > 0) {
-        mainWindow.webContents.setZoomFactor(factor);
-    }
+// Settings feature: About panel.
+ipcMain.handle("get-app-info", () => {
+    return {
+        version: app.getVersion(),
+        electronVersion: process.versions.electron,
+        chromeVersion: process.versions.chrome,
+        nodeVersion: process.versions.node,
+        buildDate: getBuildDate(),
+        platform: process.platform,
+        arch: process.arch,
+        osRelease: os.release(),
+        appPath: app.getAppPath(),
+        userDataPath: app.getPath("userData")
+    };
 });

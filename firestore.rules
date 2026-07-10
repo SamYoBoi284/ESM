@@ -1,6 +1,5 @@
+rules_version = '2';
 
-<<<<<<< HEAD
-=======
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -30,6 +29,37 @@ service cloud.firestore {
     match /featureRequests/{requestId} {
       allow read, write: if true;
     }
+
+    // ===========================================
+    // VIOLATIONS LOG (violations.js) + shared "system" config docs
+    // (also used by monthlystats.js's GitHub backup config). Same
+    // reasoning as featureRequests above — scoped identically to the
+    // catch-all (open) for now so nothing changes in practice today,
+    // but these keep working past the catch-all's July 30, 2026
+    // expiry. Tighten alongside a real auth solution if/when one
+    // gets added.
+    // ===========================================
+    match /violationLogs/{logId} {
+      allow read, write: if true;
+    }
+    match /violationsArchive/{month} {
+      allow read, write: if true;
+    }
+    match /system/{docId} {
+      allow read, write: if true;
+    }
+
+    // ===========================================
+    // SHIFT MANAGEMENT (shiftmanagement.js) — the new configurable,
+    // Firestore-backed shift system. Same reasoning as the other
+    // collections above: no Firebase Auth in this app (custom
+    // employee-code + PIN login checked against "users"), so this is
+    // scoped identically to the catch-all (open) for now, but keeps
+    // working past the catch-all's July 30, 2026 expiry. Tighten
+    // alongside a real auth solution if/when one gets added.
+    // ===========================================
+    match /shifts/{shiftId} {
+      allow read, write: if true;
+    }
   }
 }
->>>>>>> 3088044 (wip: firestore rules)

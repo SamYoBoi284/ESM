@@ -245,6 +245,21 @@ h1{
 
 }
 
+/* Logged-in employee code ("Welcome Back, ####") — scoped to #userLabel
+   only so the shared .subtitle class used elsewhere (wizard steps, live
+   control center, etc.) is left untouched. Slightly larger + bolder +
+   brighter than a regular subtitle so it's easy to notice at a glance
+   without looking oversized. */
+#userLabel{
+
+    font-size:19px;
+
+    font-weight:600;
+
+    color: var(--text-secondary);
+
+}
+
 .sectionTitle{
 
     text-align:center;
@@ -253,6 +268,56 @@ h1{
 
     color:#d5dde8;
 
+}
+
+
+/* ========= COLLAPSIBLE PANEL HEADERS ========= */
+/* Shared accordion pattern for the Workspace section, STS Team list,
+   and the End-of-Shift Report Formatter: header stays visible with a
+   small toggle button next to the label, body collapses away. */
+
+.panelCollapseHeader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.panelCollapseHeader h2,
+.panelCollapseHeader h3 {
+    margin-bottom: 0;
+}
+
+.panelCollapseHeader .sectionTitle {
+    margin-bottom: 0;
+}
+
+.panelCollapseToggleBtn {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: var(--input-bg, #1b1f27);
+    color: var(--text-secondary, #8f9cad);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.panelCollapseToggleBtn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.panelCollapseToggleBtn.collapsed {
+    transform: rotate(-90deg);
+}
+
+.panelCollapseBody-collapsed {
+    display: none !important;
 }
 
 
@@ -805,8 +870,9 @@ select option{
 
 #dashboardScreen.screen {
     display: flex;
+    flex-direction: column;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
 }
 
 /* 🔥 FIX: #dashboardScreen.screen (ID + class) has higher specificity
@@ -892,7 +958,13 @@ select option{
     letter-spacing: 2px;
 }
 
-#dashboardScreen .workspaceNotes {
+/* Was scoped to "#dashboardScreen .workspaceNotes", so any textarea
+   using this class OUTSIDE the dashboard (Add/Edit Load modal, Load
+   History edit modal, announcement/delay/off-day modals, etc.) fell
+   through to the unstyled browser default and looked out of place
+   next to the app's styled inputs/selects. Made global so every
+   .workspaceNotes textarea matches, everywhere. */
+.workspaceNotes {
     width: 100%;
     min-height: 220px;
     resize: none;
@@ -904,9 +976,11 @@ select option{
     font-size: 14px;
     outline: none;
     line-height: 1.4;
+    margin-bottom: 20px;
+    transition: .2s;
 }
 
-#dashboardScreen .workspaceNotes:focus {
+.workspaceNotes:focus {
     box-shadow: 0 0 0 2px var(--accent);
 }
 
@@ -1001,6 +1075,12 @@ select option{
     align-self: flex-start;
 }
 
+.loadHistoryCardButtons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .loadHistoryVridDisplay {
     font-size: 16px;
     font-weight: bold;
@@ -1070,12 +1150,12 @@ select option{
 }
 
 #dashboardScreen .bookedLoads::-webkit-scrollbar,
-#dashboardScreen .workspaceNotes::-webkit-scrollbar {
+.workspaceNotes::-webkit-scrollbar {
     width: 8px;
 }
 
 #dashboardScreen .bookedLoads::-webkit-scrollbar-thumb,
-#dashboardScreen .workspaceNotes::-webkit-scrollbar-thumb {
+.workspaceNotes::-webkit-scrollbar-thumb {
     background: var(--button-bg-hover);
     border-radius: 20px;
 }
@@ -1246,6 +1326,16 @@ body {
     width: 100%;
 }
 
+/* column 1, row 2: alerts card stacks below the main card (must be
+   pinned explicitly — statsWrapper is display:contents, so without
+   this it gets auto-placed by the grid into column 2, underneath the
+   sticky statsCard, instead of underneath the main card) */
+#adminScreen .adminLayout .alertsCard {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+}
+
 /* column 2: the stats card */
 #adminScreen .adminLayout .statsCard {
     grid-column: 2;
@@ -1361,8 +1451,10 @@ body {
 
     #adminScreen .adminLayout .adminMainCard,
     #adminScreen .adminLayout .statsCard,
-    #adminScreen .adminLayout .drillPanel {
+    #adminScreen .adminLayout .drillPanel,
+    #adminScreen .adminLayout .alertsCard {
         grid-column: 1 !important;
+        grid-row: auto !important;
         width: 100%;
         max-width: 650px;
         margin: 0 auto;
@@ -1372,11 +1464,15 @@ body {
     #adminScreen .adminLayout .drillPanel {
         position: relative;
         top: 0;
-        order: 2;
+        order: 3;
     }
 
     #adminScreen .adminLayout .adminMainCard {
         order: 1;
+    }
+
+    #adminScreen .adminLayout .alertsCard {
+        order: 2;
     }
 }
 
@@ -1408,6 +1504,45 @@ body {
 
     position: relative;
     z-index: 2;
+}
+
+/* Phase 6: standalone horizontal bar holding the buttons cut out of
+   .performanceCard (Last Update, My Past Shifts, Help, Feedback cluster,
+   Admin/Dev Panel, Logout, credit). Its own container under the main
+   dashboardLayout row instead of stacked at the bottom of Personal
+   Performance. */
+#dashboardScreen .quickActionsBar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 80%;
+    max-width: 1550px;
+    margin: 24px auto 0;
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border-radius: 15px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.04);
+}
+
+#dashboardScreen .quickActionsBar .quickActionsBarItem {
+    margin: 0;
+}
+
+#dashboardScreen .quickActionsBar .footerBar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--input-bg);
+    white-space: nowrap;
+}
+
+#dashboardScreen .quickActionsBar hr {
+    display: none;
 }
 
 .performanceScore{
@@ -1736,6 +1871,14 @@ body {
     width: 560px;
 }
 
+/* Load History now also hosts the sort/department/driver/VRID-type
+   toolbar (relocated from Booked Loads), so it gets ~35% more width
+   and vertical room than the base .modalBox. */
+.modalBox.loadHistoryModalBox {
+    width: 486px;
+    max-height: 90vh;
+}
+
 .modalButtons {
     display: flex;
     gap: 10px;
@@ -1816,6 +1959,77 @@ body {
     font-size: 12px;
     margin: -14px 0 14px 2px;
     min-height: 14px;
+}
+
+/* ===========================================
+   DRIVER COMBOBOX (searchable Driver dropdown, V52)
+=========================================== */
+
+.driverCombobox {
+    position: relative;
+    margin-bottom: 6px;
+}
+
+/* The visible text input reuses the app's generic `input{}` look, we
+   just need to kill its default 20px bottom margin since the wrapper
+   (.driverCombobox) already owns the spacing before the next label. */
+.driverComboboxInput {
+    margin-bottom: 0 !important;
+}
+
+.driverComboboxInput:disabled {
+    cursor: not-allowed;
+    opacity: .6;
+}
+
+.driverComboboxInput[aria-expanded="true"] {
+    box-shadow: 0 0 0 2px var(--accent);
+    border-radius: 10px 10px 0 0;
+}
+
+.driverComboboxList {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .35);
+}
+
+.driverComboboxList.hidden {
+    display: none;
+}
+
+.driverComboboxOption {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.driverComboboxOption:hover,
+.driverComboboxOption.isHighlighted {
+    background: var(--accent);
+    color: var(--accent-text);
+}
+
+.driverComboboxEmpty {
+    padding: 10px 12px;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
 }
 
 .loadDepartmentBadge {
@@ -2129,6 +2343,58 @@ body {
     margin: 4px 0 4px 6px;
 }
 
+/* Masks each employee's PIN/password with dots instead of hiding the
+   element outright, so the layout doesn't shift when toggled. Masked
+   by default; add .revealed (per employee, via the 👁️ button next to
+   it) to show the real value. */
+.adminPinValue {
+    color: transparent;
+    position: relative;
+}
+
+.adminPinValue::after {
+    content: "••••••";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--text-secondary, #8f9cad);
+}
+
+.adminPinValue.revealed {
+    color: inherit;
+}
+
+.adminPinValue.revealed::after {
+    content: "";
+}
+
+.adminPinToggleBtn {
+    width: auto;
+    padding: 0 6px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.adminPinToggleBtn:hover {
+    background: var(--input-bg, #1b1f27);
+}
+
+.autoIdleBadge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: #3a2f14;
+    border: 1px solid #a8791f;
+    color: #f0c368;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
 .forgotPinBtn {
     background: none;
     border: none;
@@ -2353,13 +2619,14 @@ body {
     font-size: 12px;
 }
 
-.shiftAssignRow select {
+.shiftResolvedDisplay {
     flex: 1;
-    background: var(--panel-bg);
     color: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 3px 4px;
+}
+
+.shiftResolvedDisplay.shiftUnassigned {
+    color: var(--text-muted, #999);
+    font-style: italic;
 }
 
 .loadCardButtons {
@@ -2456,6 +2723,39 @@ body {
     justify-content: space-between;
     gap: 8px;
     margin-top: 10px;
+}
+
+.reportDeptNotesGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.reportDeptNoteField label {
+    margin: 0 0 4px;
+    font-weight: 600;
+    font-size: 0.85em;
+    opacity: 0.9;
+}
+
+.reportDeptNoteField textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 0.85em;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: var(--panel-bg);
+    color: var(--text-color);
+    resize: vertical;
+}
+
+@media (max-width: 480px) {
+    .reportDeptNotesGrid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .reportPreview {
@@ -3199,6 +3499,142 @@ body {
     text-align: right;
 }
 
+/* ===========================================
+   RTL LAYOUT QA PASS (Phase 11, batch 5)
+   Flips positioned/directional elements that would otherwise stay
+   pinned to their LTR side (or keep LTR text alignment) once
+   html[dir="rtl"] is set by i18n.js. Scoped to the specific
+   selectors below rather than a blanket mirror, since most of the
+   app's box layout (flex rows, centered modals, etc.) is already
+   direction-agnostic and doesn't need touching.
+   =========================================== */
+
+/* Chat: floating panel + in-bubble controls */
+[dir="rtl"] .chatWindowBox {
+    right: auto;
+    left: 24px;
+}
+
+[dir="rtl"] .chatBubbleActions {
+    right: auto;
+    left: 6px;
+}
+
+[dir="rtl"] .chatBubbleSelectWrap {
+    left: auto;
+    right: 6px;
+}
+
+[dir="rtl"] .chatMoreMenu {
+    right: auto;
+    left: 0;
+}
+
+[dir="rtl"] .chatMoreMenu button {
+    text-align: right;
+}
+
+/* Toasts: anchor to the opposite corner in RTL */
+[dir="rtl"] #toastContainer {
+    right: auto;
+    left: 20px;
+}
+
+/* Settings: sidebar rail + section headings */
+[dir="rtl"] .settingsSidebar {
+    border-right: none;
+    border-left: 1px solid #2d3440;
+}
+
+[dir="rtl"] .settingsTab,
+[dir="rtl"] .settingsSection h2 {
+    text-align: right;
+}
+
+/* Admin stats header + report table */
+[dir="rtl"] #adminScreen .adminStatsHeader h2,
+[dir="rtl"] .reportTable th,
+[dir="rtl"] .reportTable td,
+[dir="rtl"] .releaseNotesList,
+[dir="rtl"] .notifCategoryGridHeader span:first-child,
+[dir="rtl"] .guideBackBtn,
+[dir="rtl"] #wizardStep_pin label,
+[dir="rtl"] #wizardStep_pin input {
+    text-align: right;
+}
+
+/* Dev panel: buttons pushed to the row's trailing edge */
+[dir="rtl"] .devPanelListItemHeader .dangerButton,
+[dir="rtl"] .devPanelListItem .dangerButton {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* Decorative accent bars: flip to the trailing (right) edge in RTL */
+[dir="rtl"] .loadGroupDriver {
+    border-left: none;
+    border-right: 2px solid #2d3a4f;
+}
+
+[dir="rtl"] .loadGroupVrid {
+    border-left: none;
+    border-right: 2px dashed #33302d;
+}
+
+[dir="rtl"] .toast {
+    border-left: none;
+    border-right: 4px solid #46c96f;
+}
+
+[dir="rtl"] .toast-warn {
+    border-right-color: #ffcc00;
+}
+
+[dir="rtl"] .toast-info {
+    border-right-color: #46c96f;
+}
+
+[dir="rtl"] .alertRow {
+    border-left: none;
+    border-right: 3px solid #ff6464;
+}
+
+[dir="rtl"] #breakAlerts .alertRow {
+    border-right-color: #ffcc00;
+}
+
+[dir="rtl"] #overtimeAlerts .alertRow {
+    border-right-color: #6d2ba5;
+}
+
+[dir="rtl"] .disputeNote {
+    border-left: none;
+    border-right: 3px solid #4aa8ff;
+}
+
+[dir="rtl"] .chatQuote,
+[dir="rtl"] .chatReplyPreview {
+    border-left: none;
+    border-right: 3px solid #4caf50;
+}
+
+/* Inline badges/labels sitting next to text: flip their spacing side */
+[dir="rtl"] .announcementBadge,
+[dir="rtl"] .permBadge {
+    margin-left: 0;
+    margin-right: 6px;
+}
+
+[dir="rtl"] .notifBadge {
+    margin-left: 0;
+    margin-right: 4px;
+}
+
+[dir="rtl"] .shortcutList strong {
+    margin-right: 0;
+    margin-left: 8px;
+}
+
 @media (max-width: 700px) {
 
     .guideCard {
@@ -3563,6 +3999,194 @@ label.settingsLabel[for] {
     min-height: 16px;
 }
 
+/* ===========================================
+   UPDATE STATUS CARD (Settings > About > Updates)
+=========================================== */
+
+.updateStatusCard {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.updateStatusRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.updateStatusRow strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.updateStateBadge {
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    background: rgba(150, 150, 150, 0.18);
+    color: var(--text-secondary);
+}
+
+.updateState-checking,
+.updateState-downloading {
+    background: rgba(79, 140, 255, 0.18);
+    color: var(--accent-soft, #8fb9ff);
+}
+
+.updateState-available {
+    background: rgba(255, 154, 61, 0.18);
+    color: #ff9a3d;
+}
+
+.updateState-downloaded,
+.updateState-idle {
+    background: rgba(70, 201, 111, 0.18);
+    color: #46c96f;
+}
+
+.updateState-error {
+    background: rgba(255, 92, 92, 0.18);
+    color: #ff5c5c;
+}
+
+.updateProgressWrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.updateProgressWrap progress {
+    width: 100%;
+    height: 8px;
+    accent-color: var(--accent);
+}
+
+.updateProgressDetail {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ===========================================
+   UPDATE-READY TOAST (in-app "Restart Now / Remind Me Later")
+   Reuses the existing #toastContainer / .toast pattern (see
+   shiftGraceToast) so it matches the rest of ESM's notification style.
+=========================================== */
+
+.updateReadyToast {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 320px;
+}
+
+.updateReadyToastTitle {
+    font-weight: 600;
+}
+
+.updateReadyToastButtons {
+    display: flex;
+    gap: 8px;
+}
+
+.updateReadyBtnPrimary,
+.updateReadyBtnSecondary {
+    flex: 1;
+    border: none;
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.updateReadyBtnPrimary {
+    background: var(--accent);
+    color: var(--accent-text);
+}
+
+.updateReadyBtnPrimary:hover {
+    background: var(--accent-hover);
+}
+
+.updateReadyBtnSecondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.updateReadyBtnSecondary:hover {
+    background: rgba(150, 150, 150, 0.12);
+}
+
+/* ===========================================
+   UPDATE-AVAILABLE TOAST (Phase 2 — "ESM vX.X.X Available")
+   Same #toastContainer/.toast pattern as the update-ready toast above.
+=========================================== */
+
+.updateAvailableToast {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 320px;
+}
+
+.updateAvailableToastTitle {
+    font-weight: 600;
+}
+
+.updateAvailableToastExcerpt {
+    font-size: 13px;
+    color: var(--text-secondary, rgba(255, 255, 255, 0.75));
+    line-height: 1.4;
+    max-height: 4.2em;
+    overflow: hidden;
+}
+
+.updateAvailableToastButtons {
+    display: flex;
+    gap: 8px;
+}
+
+/* ===========================================
+   POST-UPDATE WELCOME MODAL (Phase 2)
+=========================================== */
+
+.updateWelcomeModalBox {
+    text-align: center;
+}
+
+.updateWelcomeModalBox .releaseNotesList {
+    text-align: left;
+}
+
+/* ===========================================
+   UPDATE HISTORY (Settings > About) — reuses .devPanelList /
+   .devPanelListItem, just adds the "current version" tag.
+=========================================== */
+
+.updateHistoryCurrentBadge {
+    background: rgba(70, 201, 111, 0.18);
+    color: #46c96f;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-left: auto;
+}
+
 .shortcutList {
     display: flex;
     flex-direction: column;
@@ -3611,7 +4235,7 @@ label.settingsLabel[for] {
     100% { box-shadow: 0 0 0 0 rgba(79, 208, 122, 0); }
 }
 
-/* Load Management: live sort/filter toolbar above Booked Loads (Phase 5) */
+/* Load Management: live sort/filter toolbar in the Load History modal */
 .loadToolbar {
     display: flex;
     flex-wrap: wrap;
@@ -3880,6 +4504,142 @@ label.settingsLabel[for] {
     padding: 8px 12px;
 }
 
+/* Add Load modal — multi-stop rows (Trip VRID type). Same visual
+   pattern as .devCustomFieldRow above, kept separate since this lives
+   in a different modal and shouldn't be coupled to Dev Panel markup. */
+/* ===========================================
+   SHIFT MANAGEMENT (configurable, Firestore-backed shifts)
+=========================================== */
+
+.shiftMgmtTimeRow {
+    display: flex;
+    gap: 12px;
+}
+
+.shiftMgmtTimeRow > div {
+    flex: 1;
+}
+
+.shiftMgmtEmployeeGrid {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.shiftMgmtCard {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 10px 0;
+}
+
+.shiftMgmtCard.disabled {
+    opacity: .6;
+}
+
+.shiftMgmtCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.shiftMgmtCardHeader h4 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.shiftMgmtBadge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+}
+
+.shiftMgmtBadge.enabled {
+    background: #1f7a3f;
+    color: #fff;
+}
+
+.shiftMgmtBadge.disabled {
+    background: #7a1f1f;
+    color: #fff;
+}
+
+.shiftMgmtCardMeta {
+    font-size: 0.85rem;
+    opacity: .85;
+    margin: 6px 0;
+}
+
+.shiftMgmtCardButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.shiftMgmtCardButtons button {
+    margin: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    width: auto;
+}
+
+.shiftMgmtEmployeeList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.shiftMgmtEmployeeChip {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 0.78rem;
+}
+
+.loadModalStopRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.loadModalStopRow input {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.loadModalStopRow .dangerButton {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 8px 12px;
+}
+
+#loadModalStopsContainer {
+    margin-bottom: 10px;
+}
+
+.loadModalCheckboxRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.loadModalCheckboxRow input[type="checkbox"] {
+    margin: 0;
+    width: auto;
+}
+
+
 /* Release Notes — shared between the read-only public modal and
    whatever renders inside the Developer Panel's editor */
 
@@ -3924,4 +4684,466 @@ label.settingsLabel[for] {
 #aboutEsmReleaseNotesBtn {
     width: auto;
     margin: 4px auto 0 auto;
+}
+
+/* ===========================================
+   NEW FEATURES — FEEDBACK / FEATURE REQUEST SYSTEM (Batch 1+2)
+=========================================== */
+
+.feedbackFieldRow {
+    display: flex;
+    gap: 12px;
+    margin: 10px 0;
+}
+
+.feedbackFieldCol {
+    flex: 1;
+    min-width: 0;
+}
+
+.feedbackFieldCol label {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.feedbackFieldCol select {
+    width: 100%;
+}
+
+.feedbackDuplicateBox {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 8px 0 14px 0;
+}
+
+.feedbackDuplicateHeader {
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--accent-soft);
+    margin-bottom: 8px;
+}
+
+.feedbackDuplicateCard {
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+
+.feedbackDuplicateCard:last-child {
+    margin-bottom: 0;
+}
+
+.feedbackDuplicateTitle {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.feedbackDuplicateMeta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 4px 0 8px 0;
+}
+
+.feedbackDuplicateActions {
+    display: flex;
+    gap: 8px;
+}
+
+.feedbackDuplicateActions .smallButton {
+    flex: 1;
+}
+
+.feedbackMyRequestsList {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.feedbackMyRequestRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.feedbackMyRequestRow:hover {
+    background: var(--button-bg-hover);
+}
+
+.feedbackMyRequestTitle {
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.feedbackMyRequestMeta {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.feedbackViewDescription {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 8px 0 12px 0;
+    white-space: pre-wrap;
+}
+
+.feedbackViewMetaRow {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.modalCloseX {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    width: auto;
+    padding: 2px 6px;
+}
+
+.modalCloseX:hover {
+    color: var(--text-color);
+}
+
+#feedbackViewModal .modalBox {
+    position: relative;
+}
+
+.feedbackBrowseSort {
+    width: auto;
+    margin-bottom: 10px;
+}
+
+/* ===========================================
+   FEEDBACK — TIMELINE & DEV STATUS CONTROL (Batch 4)
+=========================================== */
+
+.feedbackTimeline {
+    margin: 12px 0;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+}
+
+.feedbackTimelineHeading {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.feedbackTimelineRow {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.feedbackTimelineRow:last-child {
+    border-bottom: none;
+}
+
+.feedbackTimelineStage {
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+.feedbackTimelineWhen {
+    color: var(--text-muted);
+}
+
+.feedbackDevStatusRow {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+}
+
+.feedbackDevStatusRow label {
+    display: block;
+    font-size: 12px;
+    color: var(--accent-soft);
+    margin-bottom: 6px;
+}
+
+.feedbackDevStatusControls {
+    display: flex;
+    gap: 8px;
+}
+
+.feedbackDevStatusControls select {
+    flex: 1;
+}
+
+.feedbackDevStatusControls .smallButton {
+    width: auto;
+}
+
+/* ===========================================
+   FEEDBACK — DEV PANEL REQUEST MANAGEMENT (Batch 5)
+=========================================== */
+
+.devFeedbackFilterRow {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.devFeedbackFilterRow select {
+    flex: 1;
+}
+
+#devFeedbackList {
+    max-height: 65vh;
+    overflow-y: auto;
+    margin-bottom: 4px;
+}
+
+.devFeedbackRow {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+
+.devFeedbackRowHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.devFeedbackTitle {
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.devFeedbackTitle:hover {
+    text-decoration: underline;
+}
+
+.devFeedbackFavoriteBtn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    width: auto;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.devFeedbackMeta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 6px 0;
+}
+
+.devFeedbackControlsRow {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.devFeedbackControlsRow > div {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex: 1;
+    min-width: 180px;
+}
+
+.devFeedbackControlsRow select,
+.devFeedbackControlsRow input {
+    flex: 1;
+}
+
+.devFeedbackControlsRow .smallButton {
+    width: auto;
+    flex-shrink: 0;
+}
+
+.devFeedbackLabels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.devFeedbackLabelChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--accent-soft);
+    color: var(--panel-bg);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+.devFeedbackLabelChip button {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    width: auto;
+    padding: 0;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.devFeedbackAddLabelRow {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.devFeedbackAddLabelRow input {
+    flex: 1;
+}
+
+.devFeedbackAddLabelRow .smallButton {
+    width: auto;
+    flex-shrink: 0;
+}
+
+/* ===========================================
+   FEEDBACK — DEV PANEL SEARCH & ARCHIVE (Batch 6)
+=========================================== */
+
+.devFeedbackSearchRow {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.devFeedbackSearchRow input {
+    flex: 1;
+}
+
+.devFeedbackSearchRow .smallButton {
+    width: auto;
+    flex-shrink: 0;
+}
+
+#devFeedbackArchiveToggleBtn[data-mode="archive"] {
+    background: var(--accent-soft);
+    color: var(--panel-bg);
+}
+
+#devFeedbackListHeading {
+    margin-bottom: 8px;
+}
+
+/* ===========================================
+   FEEDBACK — DEV PANEL CONTRIBUTOR STATS (Batch 7)
+=========================================== */
+
+.devStatsColumns {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.devStatsColumn {
+    flex: 1;
+    min-width: 220px;
+}
+
+.devStatsColumn h4 {
+    margin: 0 0 6px 0;
+    font-size: 13px;
+}
+
+.devStatsColumn .devPanelList {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.devStatsRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.devStatsRank {
+    font-weight: bold;
+    color: var(--accent-soft);
+    flex-shrink: 0;
+    width: 26px;
+}
+
+.devStatsName {
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.devStatsValue {
+    color: var(--text-muted);
+    text-align: right;
+    margin-left: auto;
+}
+
+/* ===========================================
+   FEEDBACK — PLANNED FOR UPCOMING VERSIONS (Batch 8)
+   Settings > About. Mirrors .releaseNoteEntry's card look
+   (same section, forward-looking counterpart) rather than
+   introducing a new visual language.
+=========================================== */
+
+.plannedVersionGroup {
+    background: var(--panel-bg);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.plannedVersionHeader {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.plannedVersionItem {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border-color);
+    font-size: 13px;
+}
+
+.plannedVersionItem:first-of-type {
+    border-top: none;
+}
+
+.plannedVersionMeta {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    white-space: nowrap;
 }

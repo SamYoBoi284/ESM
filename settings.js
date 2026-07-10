@@ -34,6 +34,10 @@
         supportCtrlPlusMinusZero: true,
         saveZoomLevel: true,
 
+        // APPEARANCE — 24-Hour Time (per top-bar clock, per-user/local)
+        use24HourDamascus: false,
+        use24HourUSA: false,
+
         // NOTIFICATIONS — master switches
         enableDesktopNotifications: true,
         enableNotificationSounds: true,
@@ -88,8 +92,29 @@
         extendedAwayReminder: true,
         breakReminder: true,
 
-        // UPDATES (placeholder — not yet connected to a real update provider)
-        autoCheckForUpdates: true
+        // EMPLOYEE ACTIVITY DETECTION (automatic idle status management)
+        // enableIdleDetection is now a company-wide, admin-controlled
+        // setting synced from Firestore (system/idleDetectionConfig) —
+        // see watchIdleDetectionConfig() below. This default is only
+        // used until the first snapshot arrives.
+        enableIdleDetection: true,
+        idleWarningMinutes: 5,
+        // idleBreakMinutes is derived automatically (idleWarningMinutes + 1)
+        // and no longer independently user-configurable — kept in storage
+        // only for backward compatibility with anything reading it directly.
+        idleBreakMinutes: 6,
+        idleOffDutyMinutes: 15,
+        requireOnDutyConfirmation: true,
+
+        // UPDATES
+        autoCheckForUpdates: true,
+        autoDownloadUpdates: true,
+        // Native OS "ESM Update Ready" notification (shown when ESM is
+        // unfocused and an update finishes downloading). Off = that
+        // desktop popup is suppressed; the in-app "Restart Now / Remind
+        // Me Later" toast still shows once the window is focused either
+        // way.
+        updateDesktopNotifications: true
     };
 
     let currentSettings = { ...DEFAULT_SETTINGS };
@@ -155,6 +180,13 @@
                 document.documentElement.dataset.accent = value;
                 break;
 
+            case "use24HourDamascus":
+            case "use24HourUSA":
+                // Takes effect within the same second — no need to wait for
+                // the next tick of the top-bar clock's own 1s interval.
+                window.refreshClockDisplay?.();
+                break;
+
             case "uiScale":
                 applyZoom(value);
                 break;
@@ -181,32 +213,156 @@
                 }
                 break;
 
-            // LOAD MANAGEMENT (Phase 5) — all of these affect how
-            // renderBookedLoads() draws the list, so re-render immediately
-            // rather than waiting for the next add/edit/delete.
+            // LOAD MANAGEMENT (Phase 5) — highlighting/auto-collapse still
+            // affect Booked Loads directly, so those re-render it right away.
             case "highlightRecentlyEditedLoads":
             case "highlightNewlyBookedLoads":
             case "autoCollapseCompletedLoads":
-            case "defaultLoadSorting":
                 window.renderBookedLoads?.();
+                break;
+
+            // Default sorting / remembered sort & filters now apply to the
+            // Load History toolbar (relocated there from Booked Loads), so
+            // these refresh Load History's results if the modal is open.
+            case "defaultLoadSorting":
+                window.refreshLoadHistoryToolbar?.();
                 break;
 
             case "rememberLastLoadSort":
                 // Turning this off should snap back to the Settings default
                 // immediately, not linger on whatever was last picked in the
-                // workspace toolbar.
-                if (!value) window.clearRememberedLoadSort?.();
-                window.renderBookedLoads?.();
+                // Load History toolbar.
+                if (!value) window.clearRememberedLoadHistorySort?.();
+                window.refreshLoadHistoryToolbar?.();
                 break;
 
             case "rememberLastLoadFilters":
-                if (!value) window.clearRememberedLoadFilters?.();
-                window.renderBookedLoads?.();
+                if (!value) window.clearRememberedLoadHistoryFilters?.();
+                window.refreshLoadHistoryToolbar?.();
+                break;
+
+            // EMPLOYEE ACTIVITY DETECTION — all take effect immediately,
+            // no restart needed (activitydetection.js reads settings live
+            // on each poll tick; only the on/off switch needs an explicit
+            // start/stop call).
+            case "enableIdleDetection":
+                // Company-wide + admin-only: if the person flipping this is
+                // an admin, push it to Firestore for every employee. Non-
+                // admins can't reach this path anyway (checkbox disabled).
+                if (window.hasAdminAccess && window.hasAdminAccess()) {
+                    pushIdleDetectionConfigToFirestore(value);
+                }
+                window.ActivityDetection?.onSettingsChanged(key, value);
+                break;
+
+            case "idleWarningMinutes": {
+                // "Idle before automatic Break" is derived (warning + 1
+                // minute), not independently configurable — recompute and
+                // refresh its read-only display any time warning changes.
+                const derivedBreak = Number(value) + 1;
+                if (currentSettings.idleBreakMinutes !== derivedBreak) {
+                    currentSettings.idleBreakMinutes = derivedBreak;
+                    saveSettings();
+                }
+                updateIdleBreakComputedDisplay(derivedBreak);
+                window.ActivityDetection?.onSettingsChanged(key, value);
+                break;
+            }
+
+            case "idleOffDutyMinutes":
+            case "requireOnDutyConfirmation":
+                window.ActivityDetection?.onSettingsChanged(key, value);
+                break;
+
+            case "autoDownloadUpdates":
+                pushAutoDownloadPref();
+                break;
+
+            case "updateDesktopNotifications":
+                pushUpdateDesktopNotificationsPref();
                 break;
 
             default:
                 break;
         }
+    }
+
+    // ===========================================
+    // EMPLOYEE ACTIVITY DETECTION — COMPANY-WIDE MASTER TOGGLE
+    // ===========================================
+    // "Enable automatic idle detection" is no longer a local per-computer
+    // preference for the master on/off switch — it's mandatory and
+    // controlled only by an admin, applying to every employee. Stored in
+    // Firestore at system/idleDetectionConfig, mirroring the existing
+    // open-access "system" collection pattern already used elsewhere
+    // (system/statsReset, monthlystats' GitHub backup config) — this app
+    // has no Firebase Auth layer, so admin-only enforcement here is
+    // client-side gating (hasAdminAccess), consistent with the rest of
+    // the app's existing security model.
+
+    function updateIdleBreakComputedDisplay(minutes) {
+        const el = document.getElementById("idleBreakComputedDisplay");
+        if (el) el.textContent = `${minutes} minutes (automatic — idle warning time + 1 minute)`;
+    }
+
+    async function pushIdleDetectionConfigToFirestore(enabled) {
+        if (typeof db === "undefined") return;
+        try {
+            await db.collection("system").doc("idleDetectionConfig").set({
+                enabled: !!enabled,
+                updatedBy: window.RelayDesk?.currentUser || null,
+                updatedAt: Date.now()
+            }, { merge: true });
+
+            if (typeof logAudit === "function") {
+                await logAudit(
+                    window.RelayDesk?.currentUser,
+                    "IDLE_DETECTION_CONFIG_CHANGED",
+                    enabled ? "Enabled for all employees" : "Disabled for all employees"
+                );
+            }
+        } catch (err) {
+            console.error("Failed to update company-wide idle detection config:", err);
+        }
+    }
+
+    let idleDetectionConfigUnsub = null;
+
+    function watchIdleDetectionConfig() {
+        if (typeof db === "undefined" || idleDetectionConfigUnsub) return;
+
+        idleDetectionConfigUnsub = db.collection("system").doc("idleDetectionConfig")
+            .onSnapshot(doc => {
+                const data = doc.data();
+                if (!data) return; // no admin config yet — local default stands
+
+                const enabled = data.enabled !== false;
+
+                if (currentSettings.enableIdleDetection !== enabled) {
+                    currentSettings.enableIdleDetection = enabled;
+                    saveSettings();
+
+                    const el = document.querySelector('[data-setting="enableIdleDetection"]');
+                    if (el) el.checked = enabled;
+
+                    window.ActivityDetection?.onSettingsChanged("enableIdleDetection", enabled);
+                }
+            }, err => console.warn("idleDetectionConfig listener error:", err));
+    }
+
+    // Employees: checkbox is locked, reflects whatever the admin set.
+    // Admins: checkbox stays live/editable (its normal bindInputs() change
+    // handler already routes through applySetting -> pushIdleDetectionConfigToFirestore
+    // above), applying company-wide instead of just locally.
+    function applyIdleDetectionGating() {
+        const checkbox = document.getElementById("enableIdleDetectionCheckbox");
+        const note = document.getElementById("idleDetectionManagedNote");
+        if (!checkbox) return;
+
+        const isAdmin = !!(window.hasAdminAccess && window.hasAdminAccess());
+
+        checkbox.disabled = !isAdmin;
+        note?.classList.toggle("hidden", isAdmin);
     }
 
     function pushCloseBehavior() {
@@ -215,6 +371,24 @@
             minimizeToTray: !!currentSettings.minimizeToTray,
             confirmBeforeCloseWhileOnDuty: !!currentSettings.confirmBeforeCloseWhileOnDuty
         });
+    }
+
+    // Settings feature: About > Updates > "Automatically download updates
+    // in the background". Toggles electron-updater's autoDownload flag
+    // live — off means an available update just sits there until the
+    // user hits "Download Update" themselves.
+    function pushAutoDownloadPref() {
+        if (!isElectron()) return;
+        window.electronAPI.setAutoDownloadUpdates?.(!!currentSettings.autoDownloadUpdates);
+    }
+
+    // Settings feature: About > Updates > "Show desktop notifications for
+    // updates". Toggles the native "ESM Update Ready" OS notification
+    // live — off just means an unfocused ESM stays quiet when a download
+    // finishes; the in-app toast is unaffected.
+    function pushUpdateDesktopNotificationsPref() {
+        if (!isElectron()) return;
+        window.electronAPI.setUpdateDesktopNotifications?.(!!currentSettings.updateDesktopNotifications);
     }
 
     // ===========================================
@@ -344,6 +518,11 @@
             if (overlay) {
                 overlay.classList.add("hidden");
                 overlay.style.display = "none";
+                return;
+            }
+            const devScreen = document.getElementById("devPanelScreen");
+            if (devScreen && !devScreen.classList.contains("hidden")) {
+                document.getElementById("devPanelBackBtn")?.click();
                 return;
             }
             if (!document.getElementById("settingsScreen")?.classList.contains("hidden")) {
@@ -524,6 +703,10 @@
 
                 const target = document.getElementById(`settings-${tab.dataset.section}`);
                 if (target) target.classList.remove("hidden");
+
+                if (tab.dataset.section === "shift") {
+                    applyIdleDetectionGating();
+                }
             });
         });
     }
@@ -572,6 +755,17 @@
     // GENERAL — clear cache / reset defaults
     // ===========================================
 
+    window.I18N?.register("settings", {
+        en: {
+            cacheCleared: "🧹 Local cache cleared",
+            settingsReset: "↩️ Settings reset to defaults"
+        },
+        ar: {
+            cacheCleared: "🧹 تم مسح ذاكرة التخزين المؤقت المحلية",
+            settingsReset: "↩️ تمت إعادة تعيين الإعدادات إلى الافتراضي"
+        }
+    });
+
     function bindGeneralActions() {
 
         document.getElementById("clearCacheBtn")?.addEventListener("click", async () => {
@@ -606,8 +800,9 @@
                 // cache and the remembered login are both left alone.
                 if (isElectron()) await window.electronAPI.clearCache();
 
-                window.NotificationManager?.notify("🧹 Local cache cleared", "success", { category: "system", desktop: false })
-                    ?? window.showToast?.("🧹 Local cache cleared", "info");
+                const cacheClearedMsg = window.I18N?.t("settings.cacheCleared") ?? "🧹 Local cache cleared";
+                window.NotificationManager?.notify(cacheClearedMsg, "success", { category: "system", desktop: false })
+                    ?? window.showToast?.(cacheClearedMsg, "info");
             } catch (err) {
                 console.warn("Clear cache failed:", err);
                 alert("Failed to clear cache.");
@@ -626,8 +821,9 @@
 
             Object.keys(DEFAULT_SETTINGS).forEach(key => applySetting(key, currentSettings[key]));
 
-            window.NotificationManager?.notify("↩️ Settings reset to defaults", "info", { category: "system", desktop: false })
-                ?? window.showToast?.("↩️ Settings reset to defaults", "info");
+            const settingsResetMsg = window.I18N?.t("settings.settingsReset") ?? "↩️ Settings reset to defaults";
+            window.NotificationManager?.notify(settingsResetMsg, "info", { category: "system", desktop: false })
+                ?? window.showToast?.(settingsResetMsg, "info");
         });
     }
 
@@ -683,23 +879,777 @@
     }
 
     // ===========================================
-    // UPDATES (placeholder — no real update provider wired up yet)
+    // UPDATES (electron-updater, publishing off GitHub Releases —
+    // see electron-builder.yml's "publish" block / latest.yml)
     // ===========================================
+    //
+    // Phase 1 update UX rework:
+    //   - Settings > About now shows installed/available version, a
+    //     friendly status badge, and download speed/size — not just a
+    //     single line of text.
+    //   - Every autoUpdater state (checking / available / downloading /
+    //     downloaded / not-available / error) gets its own friendly
+    //     message instead of a raw technical string.
+    //   - The old native "restart to update?" dialog (previously fired
+    //     from main.js) is replaced by an in-app, non-blocking toast with
+    //     "Restart Now" / "Remind Me Later" buttons, reusing the same
+    //     #toastContainer pattern as shiftautomation.js's grace toast.
+    //     "Remind Me Later" just hides the toast and re-shows it after a
+    //     delay — ESM keeps running normally the whole time.
+    //   - Release-notes metadata (releaseNotes / releaseName / releaseDate)
+    //     is now forwarded by main.js on "available"/"downloaded" events
+    //     and stashed on RelayDesk.updateMeta below. Nothing renders it
+    //     yet — that's a later phase — this just keeps the bridge ready.
+
+    const UPDATE_REMIND_LATER_MS = 30 * 60 * 1000; // 30 minutes, same cadence as before
+
+    // Phase 3 polish: every updater state gets one clear, friendly line.
+    // Errors always reassure the user that ESM itself is unaffected and
+    // still safe to keep using — the update just didn't go through.
+    const FRIENDLY_UPDATE_MESSAGES = {
+        idle: "You're running the latest version.",
+        checking: "Checking for updates…",
+        available: (v) => `ESM ${v ? `v${v} ` : ""}is available — downloading in the background.`,
+        availableManual: (v) => `ESM ${v ? `v${v} ` : ""}is available.`,
+        downloading: (v) => `Downloading update ${v ? `v${v}` : ""}…`,
+        downloaded: (v) => `ESM ${v ? `v${v} ` : ""}is ready to install.`,
+        notAvailable: "You're running the latest version.",
+        error: "Update failed — ESM is still safe to use. You can try again anytime."
+    };
+
+    // Not persisted — just the most recent metadata for whatever update
+    // is currently available/downloaded, kept for a future "What's New"
+    // screen (release-notes bridge prep).
+    window.RelayDesk.updateMeta = null;
+
+    // ===========================================
+    // PHASE 2 — release notes, native notification follow-through,
+    // post-update welcome screen, and update history.
+    // ===========================================
+    //
+    // Three small localStorage keys, same pattern (direct localStorage,
+    // try/catch, JSON.stringify) as everything else in this file:
+    //   - PENDING_UPDATE_KEY: the release metadata for whatever update
+    //     was last *downloaded*, written the moment it finishes so it
+    //     survives the restart into the new version. That's what powers
+    //     the post-update welcome screen on the very next launch.
+    //   - WELCOME_DISMISSED_KEY: version strings that have already had
+    //     their welcome screen shown, so it only ever appears once.
+    //   - UPDATE_HISTORY_KEY: every version this computer has launched,
+    //     for the Update History list in Settings > About.
+    // Normalizes version strings before comparing them (trims whitespace,
+    // strips an optional leading "v") so a stray "v4.1.0" vs "4.1.0"
+    // mismatch between the updater payload and app.getVersion() can never
+    // silently break the pending/dismissed version comparisons below.
+    function normalizeVersion(v) {
+        return String(v || "").trim().replace(/^v/i, "");
+    }
+
+    const PENDING_UPDATE_KEY = "esm_pending_update_release";
+    const WELCOME_DISMISSED_KEY = "esm_update_welcome_dismissed_versions";
+    const UPDATE_HISTORY_KEY = "esm_update_history";
+    const UPDATE_HISTORY_MAX_ENTRIES = 20;
+
+    function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str || "";
+        return div.innerHTML;
+    }
+
+    // Safe-subset Markdown → HTML for GitHub release-note bodies.
+    // Everything is escaped first, so any Markdown/HTML in the source
+    // can only ever produce the specific tags this function itself
+    // writes — never arbitrary injected markup. Covers the handful of
+    // constructs that actually show up in ESM's own release notes:
+    // #/##/### headers, -/* bullet lists, **bold**, *italic*/_italic_,
+    // blank-line paragraph breaks, and bare http(s) links.
+    function releaseNotesToHtml(raw) {
+        const safe = escapeHtml(raw || "").trim();
+        if (!safe) return "";
+
+        const lines = safe.split("\n");
+        const htmlParts = [];
+        let listBuffer = [];
+
+        const flushList = () => {
+            if (!listBuffer.length) return;
+            htmlParts.push(`<ul>${listBuffer.map(li => `<li>${li}</li>`).join("")}</ul>`);
+            listBuffer = [];
+        };
+
+        const inline = (text) => text
+            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+            .replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/g, "$1<em>$2</em>")
+            .replace(/_(.+?)_/g, "<em>$1</em>")
+            .replace(/(https?:\/\/[^\s<]+)/g, "<a href=\"$1\" target=\"_blank\" rel=\"noopener\">$1</a>");
+
+        lines.forEach((line) => {
+            const trimmed = line.trim();
+
+            if (!trimmed) {
+                flushList();
+                return;
+            }
+
+            const headerMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
+            if (headerMatch) {
+                flushList();
+                const level = Math.min(headerMatch[1].length + 3, 6); // ## -> h5-ish weight, never bigger than the modal title
+                htmlParts.push(`<h${level}>${inline(headerMatch[2])}</h${level}>`);
+                return;
+            }
+
+            const bulletMatch = trimmed.match(/^[-*]\s+(.*)$/);
+            if (bulletMatch) {
+                listBuffer.push(inline(bulletMatch[1]));
+                return;
+            }
+
+            flushList();
+            htmlParts.push(`<p>${inline(trimmed)}</p>`);
+        });
+
+        flushList();
+        return htmlParts.join("");
+    }
+
+    function releaseNotesFallbackHtml() {
+        return `<p class="settingsHint">No release notes were provided for this update.</p>`;
+    }
+
+    function formatBytes(bytes) {
+        if (!bytes) return "0 MB";
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function formatSpeed(bytesPerSecond) {
+        if (!bytesPerSecond) return "";
+        return `${formatBytes(bytesPerSecond)}/s`;
+    }
+
+    // ---- Pending update metadata (survives the restart into the new version) --
+
+    function savePendingUpdate(meta) {
+        try {
+            localStorage.setItem(PENDING_UPDATE_KEY, JSON.stringify(meta));
+        } catch (err) {
+            console.warn("Could not persist pending update metadata:", err);
+        }
+    }
+
+    function readPendingUpdate() {
+        try {
+            const raw = localStorage.getItem(PENDING_UPDATE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function clearPendingUpdate() {
+        try { localStorage.removeItem(PENDING_UPDATE_KEY); } catch (err) {}
+    }
+
+    // ---- Welcome-screen dismissal (per version, so it only shows once) --------
+
+    function getDismissedWelcomeVersions() {
+        try {
+            const raw = localStorage.getItem(WELCOME_DISMISSED_KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    function markWelcomeDismissed(version) {
+        if (!version) return;
+        const normalized = normalizeVersion(version);
+        const list = getDismissedWelcomeVersions();
+        if (!list.map(normalizeVersion).includes(normalized)) list.push(version);
+        // Keep this from growing forever across years of updates.
+        while (list.length > UPDATE_HISTORY_MAX_ENTRIES) list.shift();
+        try {
+            localStorage.setItem(WELCOME_DISMISSED_KEY, JSON.stringify(list));
+        } catch (err) {
+            console.warn("Could not persist welcome-dismissed versions:", err);
+        }
+    }
+
+    // ---- Update history (Settings > About) -------------------------------------
+
+    function getUpdateHistory() {
+        try {
+            const raw = localStorage.getItem(UPDATE_HISTORY_KEY);
+            const list = raw ? JSON.parse(raw) : [];
+            return Array.isArray(list) ? list : [];
+        } catch (err) {
+            return [];
+        }
+    }
+
+    function saveUpdateHistory(history) {
+        try {
+            localStorage.setItem(UPDATE_HISTORY_KEY, JSON.stringify(history));
+        } catch (err) {
+            console.warn("Could not persist update history:", err);
+        }
+    }
+
+    // Records the version this launch is running as a new history entry
+    // the first time we ever see it on this computer. Runs on every
+    // startup but only ever writes once per version — cheap no-op on
+    // every other launch of the same version.
+    function recordVersionHistory(currentVersion) {
+        if (!currentVersion) return;
+
+        const history = getUpdateHistory();
+        if (history.some(entry => entry.version === currentVersion)) return;
+
+        const pending = readPendingUpdate();
+        const releaseDate = (pending && pending.version === currentVersion) ? (pending.releaseDate || null) : null;
+
+        history.push({
+            version: currentVersion,
+            releaseDate,
+            firstSeenAt: Date.now()
+        });
+
+        while (history.length > UPDATE_HISTORY_MAX_ENTRIES) history.shift();
+        saveUpdateHistory(history);
+    }
+
+    function formatHistoryDate(entry) {
+        if (entry.releaseDate) {
+            const d = new Date(entry.releaseDate);
+            if (!isNaN(d.getTime())) return d.toLocaleDateString();
+        }
+        if (entry.firstSeenAt) {
+            return new Date(entry.firstSeenAt).toLocaleDateString();
+        }
+        return "—";
+    }
+
+    function renderUpdateHistory(currentVersion) {
+        const list = document.getElementById("updateHistoryList");
+        if (!list) return;
+
+        const history = [...getUpdateHistory()].reverse(); // most recent first
+
+        if (!history.length) {
+            list.innerHTML = `<div class="workspaceEmpty">No update history recorded yet.</div>`;
+            return;
+        }
+
+        list.innerHTML = history.map(entry => `
+            <div class="devPanelListItem">
+                <div class="devPanelListItemHeader">
+                    <strong>v${escapeHtml(entry.version || "")}</strong>
+                    ${entry.version === currentVersion ? `<span class="updateHistoryCurrentBadge">Current</span>` : ""}
+                </div>
+                <div class="devPanelListItemBody">${escapeHtml(formatHistoryDate(entry))}</div>
+            </div>
+        `).join("");
+    }
+
+    // ---- In-app "Restart Now / Remind Me Later" toast ----------------
+
+    let updateRemindTimer = null;
+
+    function removeUpdateReadyToast() {
+        document.getElementById("updateReadyToast")?.remove();
+    }
+
+    function showUpdateReadyToast(version) {
+        // Don't stack a second one if it's already showing (e.g. the
+        // event fires again for any reason).
+        removeUpdateReadyToast();
+
+        if (updateRemindTimer) {
+            clearTimeout(updateRemindTimer);
+            updateRemindTimer = null;
+        }
+
+        const container = document.getElementById("toastContainer");
+        if (!container) return;
+
+        const toast = document.createElement("div");
+        toast.id = "updateReadyToast";
+        toast.className = "toast toast-info updateReadyToast";
+
+        const title = document.createElement("div");
+        title.className = "updateReadyToastTitle";
+        title.textContent = version
+            ? `ESM v${version} is ready to install`
+            : "An update is ready to install";
+        toast.appendChild(title);
+
+        const subtitle = document.createElement("div");
+        subtitle.textContent = "Restart ESM to finish updating. Your work stays safe either way.";
+        toast.appendChild(subtitle);
+
+        const buttonRow = document.createElement("div");
+        buttonRow.className = "updateReadyToastButtons";
+
+        const restartBtn = document.createElement("button");
+        restartBtn.type = "button";
+        restartBtn.className = "updateReadyBtnPrimary";
+        restartBtn.textContent = "Restart Now";
+        restartBtn.onclick = () => {
+            window.electronAPI.quitAndInstall();
+        };
+
+        const laterBtn = document.createElement("button");
+        laterBtn.type = "button";
+        laterBtn.className = "updateReadyBtnSecondary";
+        laterBtn.textContent = "Remind Me Later";
+        laterBtn.onclick = () => {
+            removeUpdateReadyToast();
+            // ESM keeps running normally — just ask again after a while
+            // rather than losing the prompt entirely.
+            updateRemindTimer = setTimeout(() => showUpdateReadyToast(version), UPDATE_REMIND_LATER_MS);
+        };
+
+        buttonRow.appendChild(restartBtn);
+        buttonRow.appendChild(laterBtn);
+        toast.appendChild(buttonRow);
+
+        container.appendChild(toast);
+
+        void toast.offsetHeight;
+        toast.classList.add("toastShow");
+    }
+
+    // ---- "ESM vX.X.X Available" toast + What's New modal (Phase 2) ----
+
+    // Guards against re-showing the same announcement if "available"
+    // fires again for a version we've already told the user about
+    // (e.g. they click "Check Now" again while it's still available).
+    let lastAnnouncedAvailableVersion = null;
+
+    // Set once getAppInfo() resolves in initUpdatesSection() below;
+    // shared by the welcome-modal dismiss handler and history renderer
+    // so neither has to scrape it back out of the DOM.
+    let installedVersion = null;
+
+    function excerptText(html, maxLen = 160) {
+        const div = document.createElement("div");
+        div.innerHTML = html;
+        const text = (div.textContent || "").trim().replace(/\s+/g, " ");
+        if (text.length <= maxLen) return text;
+        return `${text.slice(0, maxLen).trim()}…`;
+    }
+
+    function removeUpdateAvailableToast() {
+        document.getElementById("updateAvailableToast")?.remove();
+    }
+
+    function showUpdateAvailableToast(meta) {
+        if (!meta || !meta.version) return;
+        if (lastAnnouncedAvailableVersion === meta.version) return;
+        lastAnnouncedAvailableVersion = meta.version;
+
+        removeUpdateAvailableToast();
+
+        const container = document.getElementById("toastContainer");
+        if (!container) return;
+
+        const notesHtml = meta.releaseNotes ? releaseNotesToHtml(meta.releaseNotes) : "";
+
+        const toast = document.createElement("div");
+        toast.id = "updateAvailableToast";
+        toast.className = "toast toast-info updateAvailableToast";
+
+        const title = document.createElement("div");
+        title.className = "updateAvailableToastTitle";
+        title.textContent = `ESM v${meta.version} Available`;
+        toast.appendChild(title);
+
+        const excerpt = document.createElement("div");
+        excerpt.className = "updateAvailableToastExcerpt";
+        excerpt.textContent = notesHtml
+            ? `What's new: ${excerptText(notesHtml)}`
+            : "What's new: no release notes were provided for this update.";
+        toast.appendChild(excerpt);
+
+        const buttonRow = document.createElement("div");
+        buttonRow.className = "updateAvailableToastButtons";
+
+        const viewBtn = document.createElement("button");
+        viewBtn.type = "button";
+        viewBtn.className = "updateReadyBtnPrimary";
+        viewBtn.textContent = "What's New";
+        viewBtn.onclick = () => {
+            removeUpdateAvailableToast();
+            window.openUpdateAvailableNotesModal();
+        };
+
+        const dismissBtn = document.createElement("button");
+        dismissBtn.type = "button";
+        dismissBtn.className = "updateReadyBtnSecondary";
+        dismissBtn.textContent = "Dismiss";
+        dismissBtn.onclick = removeUpdateAvailableToast;
+
+        buttonRow.appendChild(viewBtn);
+        buttonRow.appendChild(dismissBtn);
+        toast.appendChild(buttonRow);
+
+        container.appendChild(toast);
+
+        void toast.offsetHeight;
+        toast.classList.add("toastShow");
+    }
+
+    function renderUpdateAvailableNotesModal(meta) {
+        const titleEl = document.getElementById("updateAvailableNotesTitle");
+        const bodyEl = document.getElementById("updateAvailableNotesBody");
+        if (!bodyEl) return;
+
+        if (titleEl) {
+            titleEl.textContent = meta?.version
+                ? `📋 What's New in v${meta.version}`
+                : "📋 What's New";
+        }
+
+        bodyEl.innerHTML = meta?.releaseNotes
+            ? releaseNotesToHtml(meta.releaseNotes)
+            : releaseNotesFallbackHtml();
+    }
+
+    window.openUpdateAvailableNotesModal = function () {
+        const overlay = document.getElementById("updateAvailableNotesModal");
+        if (!overlay) return;
+        renderUpdateAvailableNotesModal(window.RelayDesk.updateMeta);
+        overlay.classList.remove("hidden");
+        overlay.style.display = "flex";
+        overlay.setAttribute("aria-hidden", "false");
+    };
+
+    window.closeUpdateAvailableNotesModal = function () {
+        const overlay = document.getElementById("updateAvailableNotesModal");
+        if (!overlay) return;
+        overlay.classList.add("hidden");
+        overlay.style.display = "none";
+        overlay.setAttribute("aria-hidden", "true");
+    };
+
+    // Toggles the "What's New" button in the Updates status card
+    // whenever we have release notes worth showing (either for an
+    // available or already-downloaded update).
+    function setWhatsNewButtonVisible(visible) {
+        document.getElementById("viewUpdateWhatsNewBtn")?.classList.toggle("hidden", !visible);
+    }
+
+    // ---- Post-update welcome screen (Phase 2) --------------------------
+
+    function renderUpdateWelcomeModal(pending) {
+        const bodyEl = document.getElementById("updateWelcomeBody");
+        if (!bodyEl) return;
+
+        const heading = pending?.version
+            ? `<h4>Welcome to ESM v${escapeHtml(pending.version)}</h4>`
+            : "<h4>Welcome to the latest version of ESM</h4>";
+
+        const notesHtml = pending?.releaseNotes
+            ? releaseNotesToHtml(pending.releaseNotes)
+            : `<p class="settingsHint">No release notes were recorded for this update.</p>`;
+
+        bodyEl.innerHTML = heading + notesHtml;
+    }
+
+    window.closeUpdateWelcomeModal = function () {
+        const overlay = document.getElementById("updateWelcomeModal");
+        if (!overlay) return;
+        overlay.classList.add("hidden");
+        overlay.style.display = "none";
+        overlay.setAttribute("aria-hidden", "true");
+
+        if (installedVersion) markWelcomeDismissed(installedVersion);
+        clearPendingUpdate();
+    };
+
+    function showUpdateWelcomeModal(pending) {
+        const overlay = document.getElementById("updateWelcomeModal");
+        if (!overlay) return;
+        renderUpdateWelcomeModal(pending);
+        overlay.classList.remove("hidden");
+        overlay.style.display = "flex";
+        overlay.setAttribute("aria-hidden", "false");
+    }
+
+    // Only shows the welcome screen when we have concrete evidence this
+    // exact version was just installed by the auto-updater (a matching
+    // PENDING_UPDATE_KEY entry) — that naturally excludes a brand-new
+    // install (nothing pending yet) and keeps this from firing off of a
+    // manual/dev version bump that didn't go through the updater.
+    function checkPostUpdateWelcome(currentVersion) {
+        if (!currentVersion) return;
+
+        const normalizedCurrent = normalizeVersion(currentVersion);
+
+        const dismissed = getDismissedWelcomeVersions().map(normalizeVersion);
+        if (dismissed.includes(normalizedCurrent)) return;
+
+        const pending = readPendingUpdate();
+        if (!pending || normalizeVersion(pending.version) !== normalizedCurrent) return;
+
+        showUpdateWelcomeModal(pending);
+    }
+
+    // ---- Settings > About > Updates status card -----------------------
 
     function initUpdatesSection() {
         const checkBtn = document.getElementById("checkForUpdatesBtn");
+        const downloadBtn = document.getElementById("downloadUpdateBtn");
+        const installBtn = document.getElementById("installUpdateBtn");
+        const retryBtn = document.getElementById("retryUpdateBtn");
+        const progressRow = document.getElementById("updateProgressRow");
+        const progressBar = document.getElementById("updateProgressBar");
+        const progressPercentEl = document.getElementById("updateProgressPercent");
+        const progressSizeEl = document.getElementById("updateProgressSize");
+        const progressSpeedEl = document.getElementById("updateProgressSpeed");
         const resultEl = document.getElementById("updateCheckResult");
+        const installedVersionEl = document.getElementById("updateInstalledVersion");
+        const availableVersionRow = document.getElementById("updateAvailableVersionRow");
+        const availableVersionEl = document.getElementById("updateAvailableVersion");
+        const stateBadgeEl = document.getElementById("updateStateBadge");
+        // Legacy element, kept in the DOM (hidden) for backward
+        // compatibility with anything still reading it directly.
+        const legacyCurrentVersionEl = document.getElementById("settingsCurrentVersion");
+
+        if (!isElectron()) {
+            // Web build — there's no installer to update, so the section
+            // just explains that instead of pretending to check.
+            if (checkBtn) checkBtn.disabled = true;
+            if (resultEl) resultEl.textContent = "Updates are only available in the desktop app.";
+            if (stateBadgeEl) {
+                stateBadgeEl.textContent = "Desktop app only";
+                stateBadgeEl.className = "updateStateBadge updateState-idle";
+            }
+            return;
+        }
+
+        // Show the installed version immediately from getAppInfo(), so
+        // it's correct even before any update-status event has fired.
+        window.electronAPI.getAppInfo?.().then((info) => {
+            if (installedVersionEl) installedVersionEl.textContent = info?.version ? `v${info.version}` : "—";
+            if (legacyCurrentVersionEl) legacyCurrentVersionEl.textContent = info?.version || "—";
+
+            // Phase 2: Update History + post-update welcome screen. Both
+            // are keyed off the actual installed version, not whatever
+            // the updater last reported, so they're correct even if
+            // Settings is opened without any update-status event firing.
+            installedVersion = info?.version || null;
+            if (installedVersion) {
+                recordVersionHistory(installedVersion);
+                // Was previously swallowed by a bare `.catch(() => {})` on this
+                // whole chain, so any error here (or upstream) silently killed
+                // the What's New modal with no trace. Now isolated in its own
+                // try/catch so a failure here can never block the version
+                // history render below, and is at least visible in devtools.
+                try {
+                    checkPostUpdateWelcome(installedVersion);
+                } catch (err) {
+                    console.warn("Post-update welcome check failed:", err);
+                }
+            }
+            renderUpdateHistory(installedVersion);
+        }).catch((err) => {
+            console.warn("Could not read app info for updates section:", err);
+        });
+
+        const setButtons = ({ checking = false, showDownload = false, showInstall = false, showRetry = false } = {}) => {
+            if (checkBtn) checkBtn.disabled = checking;
+            downloadBtn?.classList.toggle("hidden", !showDownload);
+            if (downloadBtn && showDownload) downloadBtn.disabled = false;
+            installBtn?.classList.toggle("hidden", !showInstall);
+            retryBtn?.classList.toggle("hidden", !showRetry);
+        };
+
+        const setBadge = (state, text) => {
+            if (!stateBadgeEl) return;
+            stateBadgeEl.textContent = text;
+            stateBadgeEl.className = `updateStateBadge updateState-${state}`;
+        };
+
+        const setAvailableVersion = (version) => {
+            if (!availableVersionRow || !availableVersionEl) return;
+            if (version) {
+                availableVersionEl.textContent = `v${version}`;
+                availableVersionRow.classList.remove("hidden");
+            } else {
+                availableVersionRow.classList.add("hidden");
+            }
+        };
+
+        window.electronAPI.onUpdateStatus?.((payload = {}) => {
+            // Keep the installed-version row accurate even if the panel
+            // was rendered before the first status event arrived.
+            if (payload.currentVersion && installedVersionEl) {
+                installedVersionEl.textContent = `v${payload.currentVersion}`;
+            }
+
+            switch (payload.status) {
+                case "checking":
+                    if (resultEl) resultEl.textContent = FRIENDLY_UPDATE_MESSAGES.checking;
+                    setBadge("checking", "Checking…");
+                    setButtons({ checking: true });
+                    progressRow?.classList.add("hidden");
+                    break;
+
+                case "available":
+                    window.RelayDesk.updateMeta = {
+                        version: payload.version,
+                        releaseNotes: payload.releaseNotes || null,
+                        releaseName: payload.releaseName || null,
+                        releaseDate: payload.releaseDate || null
+                    };
+                    setAvailableVersion(payload.version);
+                    // With auto-download on, "available" is immediately
+                    // followed by "downloading" — message reflects that
+                    // instead of implying the user needs to do anything.
+                    if (resultEl) {
+                        resultEl.textContent = currentSettings.autoDownloadUpdates
+                            ? FRIENDLY_UPDATE_MESSAGES.available(payload.version)
+                            : FRIENDLY_UPDATE_MESSAGES.availableManual(payload.version);
+                    }
+                    setBadge("available", "Update available");
+                    setButtons({ showDownload: !currentSettings.autoDownloadUpdates });
+
+                    // Phase 2: "ESM vX.X.X Available" toast + What's New button.
+                    showUpdateAvailableToast(window.RelayDesk.updateMeta);
+                    setWhatsNewButtonVisible(true);
+                    break;
+
+                case "not-available":
+                    if (resultEl) resultEl.textContent = FRIENDLY_UPDATE_MESSAGES.notAvailable;
+                    setAvailableVersion(null);
+                    setBadge("idle", "Up to date");
+                    setButtons();
+                    progressRow?.classList.add("hidden");
+                    setWhatsNewButtonVisible(false);
+                    break;
+
+                case "downloading": {
+                    const pct = Math.round(payload.percent || 0);
+                    if (resultEl) resultEl.textContent = FRIENDLY_UPDATE_MESSAGES.downloading(payload.version);
+                    if (progressBar) progressBar.value = payload.percent || 0;
+                    if (progressPercentEl) progressPercentEl.textContent = `${pct}%`;
+                    if (progressSizeEl) progressSizeEl.textContent = `${formatBytes(payload.transferred)} / ${formatBytes(payload.total)}`;
+                    if (progressSpeedEl) progressSpeedEl.textContent = formatSpeed(payload.bytesPerSecond);
+                    progressRow?.classList.remove("hidden");
+                    setBadge("downloading", "Downloading…");
+                    setButtons();
+                    break;
+                }
+
+                case "downloaded":
+                    window.RelayDesk.updateMeta = {
+                        version: payload.version,
+                        releaseNotes: payload.releaseNotes || null,
+                        releaseName: payload.releaseName || null,
+                        releaseDate: payload.releaseDate || null
+                    };
+                    if (resultEl) resultEl.textContent = FRIENDLY_UPDATE_MESSAGES.downloaded(payload.version);
+                    setAvailableVersion(payload.version);
+                    progressRow?.classList.add("hidden");
+                    setBadge("downloaded", "Ready to install");
+                    setButtons({ showInstall: true });
+                    setWhatsNewButtonVisible(true);
+
+                    // Phase 2: persist this update's metadata so the
+                    // post-update welcome screen has something to show
+                    // on the very next launch (after the restart).
+                    savePendingUpdate(window.RelayDesk.updateMeta);
+
+                    // In-app restart prompt (replaces the old native dialog).
+                    showUpdateReadyToast(payload.version);
+
+                    // The native "ESM Update Ready" OS notification is
+                    // now owned entirely by main.js (Phase 2) — it fires
+                    // there whenever the window isn't focused, so there's
+                    // exactly one place deciding whether to interrupt
+                    // the user instead of two independent checks.
+                    break;
+
+                case "error":
+                    // Cleanup safety: never leave ESM looking "stuck updating" —
+                    // the badge/message always resolve to a clear failed state
+                    // with a way forward, and the app itself keeps running
+                    // normally the whole time.
+                    if (resultEl) resultEl.textContent = FRIENDLY_UPDATE_MESSAGES.error;
+                    setAvailableVersion(null);
+                    setBadge("error", "Update failed");
+                    setButtons({ showRetry: true });
+                    progressRow?.classList.add("hidden");
+                    setWhatsNewButtonVisible(false);
+                    break;
+
+                default:
+                    break;
+            }
+        });
 
         checkBtn?.addEventListener("click", () => {
-            if (resultEl) resultEl.textContent = "Checking for updates...";
-
-            // Placeholder only — no update provider (e.g. GitHub Releases)
-            // is connected yet. This just simulates a check so the UI isn't
-            // dead, per the V1.2 planning doc's "Auto Update Placeholder" spec.
-            setTimeout(() => {
-                if (resultEl) resultEl.textContent = "No Update Available";
-            }, 600);
+            window.electronAPI.checkForUpdates();
         });
+
+        downloadBtn?.addEventListener("click", () => {
+            downloadBtn.disabled = true;
+            window.electronAPI.downloadUpdate();
+        });
+
+        installBtn?.addEventListener("click", () => {
+            window.electronAPI.quitAndInstall();
+        });
+
+        // Phase 3: "Retry" only ever appears after a failed check/download/
+        // install — main.js decides which of those to redo based on what
+        // actually failed, so this button always does the right thing.
+        retryBtn?.addEventListener("click", () => {
+            if (retryBtn) retryBtn.disabled = true;
+            window.electronAPI.retryUpdate?.().finally(() => {
+                if (retryBtn) retryBtn.disabled = false;
+            });
+        });
+
+        document.getElementById("viewUpdateWhatsNewBtn")?.addEventListener("click", () => {
+            window.openUpdateAvailableNotesModal();
+        });
+
+        // Phase 2: clicking the native "ESM Update Ready" OS notification
+        // brings ESM to the foreground (handled in main.js) and tells us
+        // to bring the in-app Restart Now / Remind Me Later toast back
+        // to the front too, in case it was dismissed/"Remind Me Later"d.
+        window.electronAPI.onUpdateNotificationClicked?.((payload = {}) => {
+            showUpdateReadyToast(payload.version || window.RelayDesk.updateMeta?.version);
+        });
+
+        // General > "Automatically check for updates" — polls every 15s
+        // while the setting is on, instead of just once at startup. Main.js
+        // already guards against overlapping checks (isCheckInProgress), so
+        // a tick landing mid-check/download is a safe no-op there. Manual
+        // "Check Now" clicks still work regardless of this setting/timer.
+        let autoUpdateCheckTimer = null;
+
+        function startAutoUpdateCheckPolling() {
+            if (autoUpdateCheckTimer) return; // already running
+            window.electronAPI.checkForUpdates();
+            autoUpdateCheckTimer = setInterval(() => {
+                window.electronAPI.checkForUpdates();
+            }, 15000);
+        }
+
+        function stopAutoUpdateCheckPolling() {
+            if (autoUpdateCheckTimer) {
+                clearInterval(autoUpdateCheckTimer);
+                autoUpdateCheckTimer = null;
+            }
+        }
+
+        if (currentSettings.autoCheckForUpdates) {
+            startAutoUpdateCheckPolling();
+        }
     }
 
     // ===========================================
@@ -789,9 +1739,14 @@
         document.documentElement.dataset.accent = currentSettings.accentColor;
         applyZoom(currentSettings.uiScale);
         pushCloseBehavior();
+        pushAutoDownloadPref();
+        pushUpdateDesktopNotificationsPref();
         if (isElectron()) {
             window.electronAPI.setLoginItemSettings(currentSettings.launchAtStartup);
         }
+
+        updateIdleBreakComputedDisplay(currentSettings.idleWarningMinutes + 1);
+        applyIdleDetectionGating();
 
         window.addEventListener("keydown", handleGlobalShortcuts);
     }
@@ -809,7 +1764,14 @@
         get: getSetting,
         set: setSetting,
         openSettingsScreen,
-        closeSettingsScreen
+        closeSettingsScreen,
+        // Called once after login (app.js) once RelayDesk.currentUser and
+        // `db` are ready, to start the company-wide idle detection sync
+        // and re-check admin gating now that the role is known.
+        initIdleDetectionSync() {
+            watchIdleDetectionConfig();
+            applyIdleDetectionGating();
+        }
     };
 
 })();
