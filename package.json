@@ -1,42 +1,33 @@
 {
-  "name": "esm",
-  "version": "3.0.0",
-  "buildDate": "2026-07-07",
-  "description": "ESM desktop application wrapped in Electron",
+  "name": "ESM",
+  "version": "4.0.3",
+  "buildDate": "2026-07-09",
+  "description": "Employee Status Monitor, or ESM for short, is our app-to-go for organizing our operations and keeping communication flowing. It is a simple, yet effective tool that allows the users to simplify daily tasks that were daunting and time-consuming.",
+  "author": "Sam",
   "main": "electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SamYoBoi284/ESM.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "build": "electron-builder --publish never",
+    "dist": "electron-builder --publish never",
+    "release": "node scripts/release.js",
+    "release:patch": "node scripts/release.js patch --force",
+    "release:minor": "node scripts/release.js minor --force",
+    "release:major": "node scripts/release.js major --force",
+    "release:force": "node scripts/release.js --force"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "electron": "^34.0.0",
     "electron-builder": "^26.0.0"
-  },
-  "build": {
-    "appId": "com.sts.esm",
-    "productName": "ESM",
-    "artifactName": "ESM-Setup-${version}.exe",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "**/*",
-      "!**/.git",
-      "!**/node_modules/**",
-      "!**/dist/**"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "assets/esm-icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    }
   },
   "allowScripts": {
     "electron@34.5.8": true,
