@@ -431,11 +431,19 @@ window.getShiftExpectedStartEpoch = function (shift, referenceTime = Date.now())
     const todayEpoch = window.zonedWallTimeToEpoch(tz, parts.year, parts.month, parts.day, s.h, s.m, refDate);
 
     const DAY_MS = 24 * 60 * 60 * 1000;
-    const candidates = [todayEpoch - DAY_MS, todayEpoch, todayEpoch + DAY_MS]
-        .filter(c => c <= referenceTime);
+    const candidates = [
+    todayEpoch - DAY_MS,
+    todayEpoch,
+    todayEpoch + DAY_MS
+];
 
-    return candidates.length ? Math.max(...candidates) : todayEpoch - DAY_MS;
-};
+return candidates.reduce((closest, candidate) => {
+    return Math.abs(candidate - referenceTime) < Math.abs(closest - referenceTime)
+        ? candidate
+        : closest;
+}, candidates[0]);
+
+}
 
 // Shift duration in ms (overnight-wrap aware — a shift whose end time
 // is numerically <= its start time, e.g. 22:00-07:00, wraps to the
