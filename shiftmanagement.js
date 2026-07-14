@@ -330,11 +330,46 @@ window.getTimezoneOffsetMinutes = function (timezone, date = new Date()) {
 
 // Converts a wall-clock "Y-M-D HH:MM" that's meant to be read IN
 // `timezone` into the actual epoch ms instant it represents.
-// `referenceForOffset` just needs to be close in time (used only to
-// resolve DST — the caller typically passes "now" or the same day).
-window.zonedWallTimeToEpoch = function (timezone, year, month, day, hour, minute, referenceForOffset = new Date()) {
-    const offsetMin = window.getTimezoneOffsetMinutes(timezone, referenceForOffset);
-    return Date.UTC(year, month - 1, day, hour, minute, 0) - offsetMin * 60000;
+// Uses iterative correction instead of assuming the offset from another
+// instant. This prevents false previous-day resolutions.
+window.zonedWallTimeToEpoch = function (timezone, year, month, day, hour, minute) {
+
+    timezone = timezone || "UTC";
+
+    // Initial guess: pretend the wall clock is UTC
+    let guess = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+    // Correct the guess using the timezone's actual displayed time
+    for (let i = 0; i < 3; i++) {
+
+        const parts = window.getZonedParts(timezone, new Date(guess));
+
+        const actualAsUTC = Date.UTC(
+            parts.year,
+            parts.month - 1,
+            parts.day,
+            parts.hour,
+            parts.minute,
+            parts.second || 0
+        );
+
+        const targetAsUTC = Date.UTC(
+            year,
+            month - 1,
+            day,
+            hour,
+            minute,
+            0
+        );
+
+        const difference = targetAsUTC - actualAsUTC;
+
+        if (difference === 0) break;
+
+        guess += difference;
+    }
+
+    return guess;
 };
 
 function parseHM(str) {
