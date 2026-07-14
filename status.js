@@ -515,8 +515,17 @@ await db.collection("shiftHistory")
             // keeps clock-in from breaking for anyone not yet migrated.
             const shiftDurationMs = window.getShiftDurationMs?.(RelayDesk.currentUserShift) ?? (9 * 60 * 60 * 1000);
 
+            // Anchor the end time to the SCHEDULED shift end
+            // (getShiftExpectedEndEpoch), not to clock-in-time +
+            // duration. Clocking in early/late no longer drags the
+            // whole window with it — e.g. a 14:00-23:00 shift clocked
+            // in at 12:00 still ends at 23:00, not 21:00. Falls back to
+            // the old now+duration math only if no shift resolves at
+            // all (e.g. employee not yet assigned in the new system).
+            const resolvedEndEpoch = window.getShiftExpectedEndEpoch?.(RelayDesk.currentUserShift, now) ?? null;
+
             RelayDesk.shiftStart = now;
-            RelayDesk.shiftEndTime = now + shiftDurationMs;
+            RelayDesk.shiftEndTime = resolvedEndEpoch ?? (now + shiftDurationMs);
             RelayDesk.shiftEnded = false;
 
             // ======================
