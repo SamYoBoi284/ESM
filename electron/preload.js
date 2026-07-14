@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // so idle detection isn't limited to in-app DOM events only.
     getSystemIdleTime: () => ipcRenderer.invoke("get-system-idle-time"),
 
+    // AddLoad "📋 Import Relay Copy" feature: reads the OS clipboard's
+    // plain text via the main process (electron.clipboard) instead of
+    // the browser-only navigator.clipboard.readText(), which is more
+    // reliable in a contextIsolation:true renderer like this one.
+    readClipboardText: () => ipcRenderer.invoke("read-clipboard-text"),
+
     // Settings feature: General > "Minimize To Tray" / "Confirm Before
     // Closing While On Duty"
     setCloseBehavior: (behavior = {}) => ipcRenderer.invoke("set-close-behavior", behavior),

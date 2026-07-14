@@ -10,7 +10,7 @@
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
-const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, shell, dialog, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, shell, dialog, powerMonitor, clipboard } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const updateLogger = require("./updateLogger");
 
@@ -666,6 +666,19 @@ ipcMain.handle("get-system-idle-time", () => {
         return powerMonitor.getSystemIdleTime();
     } catch (e) {
         return 0;
+    }
+});
+
+// AddLoad "📋 Import Relay Copy" feature: reads plain text off the OS
+// clipboard via Electron's native clipboard module (main-process only,
+// no permission prompt/renderer restrictions the way
+// navigator.clipboard.readText() can run into), so workspace.js can
+// parse it into the load fields.
+ipcMain.handle("read-clipboard-text", () => {
+    try {
+        return clipboard.readText() || "";
+    } catch (e) {
+        return "";
     }
 });
 

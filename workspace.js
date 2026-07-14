@@ -1538,6 +1538,8 @@ function bindLoadModal() {
         fromToContainer: document.getElementById("loadModalFromToContainer"),
         vridNumber: document.getElementById("loadModalVridNumber"),
         vridType: document.getElementById("loadModalVridType"),
+        importRelayBtn: document.getElementById("loadModalImportRelayBtn"),
+        importRelayError: document.getElementById("loadModalImportRelayError"),
         stopsContainer: document.getElementById("loadModalStopsContainer"),
         stopsList: document.getElementById("loadModalStopsList"),
         addStopBtn: document.getElementById("loadModalAddStopBtn"),
@@ -1569,6 +1571,8 @@ function bindLoadModal() {
     bindDriverCombobox();
     bindLoadModalVridAutoDetect();
     bindLoadModalPricePaste();
+    bindLoadModalFromToSplit();
+    bindLoadModalRelayImport();
     bindLoadModalStops();
 }
 
@@ -1926,6 +1930,203 @@ function bindLoadModalPricePaste() {
     });
 }
 
+// ===========================================
+// FROM / TO "X to Y" SPLITTING
+// ===========================================
+// Mirrors parsePricePaste() above: handles a user typing/pasting both
+// locations into the From field as "ORIGIN to DESTINATION" and splits
+// them into their correct fields instead of saving the combined blob
+// as a single From value.
+//
+// The separator must be a standalone "to" surrounded by whitespace (or
+// string start/end), matched case-insensitively, so location names
+// that merely contain "to" — "Toronto Warehouse", "Auto Parts
+// Facility" — are left alone.
+function parseFromToSplit(from) {
+    if (!from) return null;
+
+    const match = from.match(/\s+to\s+/i);
+    if (!match) return null;
+
+    const origin = from.slice(0, match.index).trim();
+    const destination = from.slice(match.index + match[0].length).trim();
+
+    if (!origin || !destination) return null;
+    return { from: origin, to: destination };
+}
+
+// Live version of the split, same idiom as bindLoadModalPricePaste():
+// as soon as the From field contains a recognizable "ORIGIN to
+// DESTINATION" pattern, move the destination over into the To field
+// right in the modal (not just silently at save time), so the user
+// can see it happen and correct it before saving if needed.
+//
+// Runs on paste (after the pasted text lands) and on blur (covers the
+// user typing it out by hand, like "BNSF to IND9"), and never
+// overwrites a To field the user already filled in themselves.
+function bindLoadModalFromToSplit() {
+    const applySplit = () => {
+        const existingTo = loadModalUI.to?.value?.trim();
+        if (existingTo) return;
+
+        const split = parseFromToSplit(loadModalUI.from?.value || "");
+        if (!split) return;
+
+        if (loadModalUI.from) loadModalUI.from.value = split.from;
+        if (loadModalUI.to) loadModalUI.to.value = split.to;
+    };
+
+    loadModalUI.from?.addEventListener("paste", () => {
+        // Let the paste land in the field first, then check it.
+        setTimeout(applySplit, 0);
+    });
+    loadModalUI.from?.addEventListener("blur", applySplit);
+}
+
+// ===========================================
+// RELAY LOAD CLIPBOARD IMPORTER
+// ===========================================
+// The team receives a booked load from Amazon Relay and re-sends it to
+// drivers as a fixed sequence of separate chat messages:
+//
+//   BOOKED
+//   <Load ID>
+//   <Origin> TO <Destination>
+//   <Trailer Number>
+//   <Pickup Number>            (only if the trailer is loaded)
+//   $<Price>
+//   $<Price>/mi
+//   NOTE: "<delay/load note>"  (optional)
+//   #<sender employee code>
+//
+// "📋 Import Relay Copy" lets someone select + copy that whole block
+// and have ESM pull the load-relevant fields (Load ID, From, To,
+// Price, Price per Mile) straight into the AddLoad modal, instead of
+// retyping them by hand. Trailer/Pickup/Note/sender-code are
+// deliberately ignored — they don't belong on the load record.
+//
+// This is a pattern-based parser, not a fixed-line-number one: any of
+// BOOKED / Trailer / Pickup / Note may be missing, and it still finds
+// what it needs by matching each field's shape (currency, "/mi",
+// " to " route separator) rather than assuming a position.
+function parseRelayClipboard(text) {
+    if (!text) return null;
+
+    // Strip chat-app timestamp/sender stamps, e.g. "[7/12/2026 07:43]
+    // STS Damascus: " — some copy modes (Telegram-style multi-select)
+    // glue several stamped messages onto a single physical line instead
+    // of one per line, so a simple per-line prefix strip isn't enough.
+    // This runs a global replace across the raw text BEFORE splitting
+    // into lines, turning every stamp into a line break so each
+    // original message becomes its own line again.
+    text = text.replace(/\[[^\]\n]+\]\s*[^:\n]+:\s*/g, "\n");
+
+    let lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    // Drop the leading "BOOKED" marker, if present.
+    lines = lines.filter(l => !/^booked$/i.test(l));
+
+    // Drop the NOTE section: the "NOTE:" label line, plus a
+    // directly-following quoted note line, if present. The note's
+    // content is never needed here.
+    const noteIdx = lines.findIndex(l => /^note:?$/i.test(l));
+    if (noteIdx !== -1) {
+        const hasQuotedLine = /^".*"$/.test(lines[noteIdx + 1] || "");
+        lines.splice(noteIdx, hasQuotedLine ? 2 : 1);
+    }
+
+    // Drop the sender employee code line, e.g. "#A005".
+    lines = lines.filter(l => !/^#\w+$/.test(l));
+
+    // Route: the first remaining line with a standalone "to"
+    // separator. Reuses parseFromToSplit()'s whitespace-bounded match
+    // so "Toronto Warehouse"-style lines are never mistaken for a
+    // route.
+    let from = null, to = null;
+    const routeIdx = lines.findIndex(l => /\s+to\s+/i.test(l));
+    if (routeIdx !== -1) {
+        const split = parseFromToSplit(lines[routeIdx]);
+        if (split) {
+            from = split.from;
+            to = split.to;
+        }
+        lines.splice(routeIdx, 1);
+    }
+
+    // Price per mile ("$3.77/mi") — found and removed before the
+    // plain price search below, so the same number/line can't get
+    // matched twice.
+    let pricePerMile = null;
+    const pmIdx = lines.findIndex(l => /\$?\s*[\d,]+(?:\.\d+)?\s*\/\s*mi\b/i.test(l));
+    if (pmIdx !== -1) {
+        const pmMatch = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
+        pricePerMile = pmMatch ? pmMatch[1].replace(/,/g, "") : null;
+        lines.splice(pmIdx, 1);
+    }
+
+    // Plain price ("$624.72").
+    let price = null;
+    const priceIdx = lines.findIndex(l => /\$\s*[\d,]+(?:\.\d{2})?/.test(l));
+    if (priceIdx !== -1) {
+        const priceMatch = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
+        price = priceMatch ? priceMatch[1].replace(/,/g, "") : null;
+        lines.splice(priceIdx, 1);
+    }
+
+    // Whatever's left (Load ID, and optionally Trailer/Pickup numbers
+    // that are deliberately ignored) keeps its original relative
+    // order. The Load ID is always the first of what remains, since
+    // in the source message sequence nothing but BOOKED comes before
+    // it.
+    const loadId = lines[0] || null;
+
+    if (!loadId && !from && !to && !price && !pricePerMile) return null;
+
+    return { loadId, from, to, price, pricePerMile };
+}
+
+function bindLoadModalRelayImport() {
+    loadModalUI.importRelayBtn?.addEventListener("click", async () => {
+        if (loadModalUI.importRelayError) loadModalUI.importRelayError.textContent = "";
+
+        let text = "";
+        try {
+            // Prefer the Electron main-process clipboard (see
+            // electron/preload.js) — more reliable in a
+            // contextIsolation:true renderer than the browser-only
+            // navigator.clipboard.readText(), which this app falls
+            // back to when running outside Electron.
+            text = window.electronAPI?.isElectron
+                ? await window.electronAPI.readClipboardText()
+                : await navigator.clipboard.readText();
+        } catch (err) {
+            console.error("Relay import: couldn't read clipboard:", err);
+            if (loadModalUI.importRelayError) {
+                loadModalUI.importRelayError.textContent = "Couldn't read the clipboard — copy the Relay messages and try again.";
+            }
+            return;
+        }
+
+        const parsed = parseRelayClipboard(text);
+        if (!parsed) {
+            if (loadModalUI.importRelayError) {
+                loadModalUI.importRelayError.textContent = "Didn't recognize that as a Relay load — copy the BOOKED message block and try again.";
+            }
+            return;
+        }
+
+        if (parsed.loadId && loadModalUI.vridNumber) {
+            loadModalUI.vridNumber.value = parsed.loadId;
+            // Keep the existing VRID-type auto-detect (bindLoadModalVridAutoDetect) in sync.
+            loadModalUI.vridNumber.dispatchEvent(new Event("input"));
+        }
+        if (parsed.from && loadModalUI.from) loadModalUI.from.value = parsed.from;
+        if (parsed.to && loadModalUI.to) loadModalUI.to.value = parsed.to;
+        if (parsed.price && loadModalUI.price) loadModalUI.price.value = parsed.price;
+        if (parsed.pricePerMile && loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = parsed.pricePerMile;
+    });
+}
+
 
 
 function openLoadModal(load) {
@@ -2109,8 +2310,20 @@ async function saveLoadModal() {
     // them) — ignore whatever's still sitting in those hidden inputs
     // rather than saving stale text left over from before the type was
     // switched to Trip.
-    const from = vridType === "Trip" ? "" : (loadModalUI.from?.value?.trim() || "");
-    const to = vridType === "Trip" ? "" : (loadModalUI.to?.value?.trim() || "");
+    let from = vridType === "Trip" ? "" : (loadModalUI.from?.value?.trim() || "");
+    let to = vridType === "Trip" ? "" : (loadModalUI.to?.value?.trim() || "");
+
+    // QoL: "ORIGIN to DESTINATION" pasted/typed into From — only kicks
+    // in when To is still empty, so a user who already filled both
+    // fields deliberately never gets overwritten.
+    if (from && !to) {
+        const split = parseFromToSplit(from);
+        if (split) {
+            from = split.from;
+            to = split.to;
+        }
+    }
+
     const note = loadModalUI.note?.value?.trim() || "";
     // V52: loadModalUI.driver (hidden) already holds the exact,
     // department-validated driver name confirmed by the combobox — see

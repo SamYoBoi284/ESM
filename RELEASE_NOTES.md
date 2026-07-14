@@ -37,3 +37,24 @@
 ##### • Retired the old fixed 3-shift-per-day system (Shift 1/2/3, US/SY schedule timezone toggle) now that every part of the app runs on the new Shift Management system.
 
 ##### 
+
+#### ESM v4.2.1 — Time Fair Update
+
+#### 
+
+#### Fixed:
+
+##### • Shift lateness detection incorrectly using previous-day timestamps
+
+##### • Improved timezone-aware shift calculations
+
+##### • Fixed day rollover handling for shifts near midnight/timezone boundaries
+
+#### 
+
+#### Changes:
+
+##### • Added DST-safe wall-clock to epoch conversion
+
+##### • Improved dynamic shift scheduling accuracy
+
