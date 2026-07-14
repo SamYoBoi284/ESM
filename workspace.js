@@ -19,7 +19,10 @@
                 noPermissionDeleteLoad: "You don't have permission to delete loads.",
                 accountFrozenBlocked: "Account frozen — action blocked",
                 noPermissionEditLoad: "You don't have permission to edit loads.",
-                loadSaveFailed: "Failed to save load — check your connection."
+                loadSaveFailed: "Failed to save load — check your connection.",
+                shiftEndPromptQuestion: "Your scheduled shift has ended. Are you continuing to work today?",
+                shiftEndPromptStartOvertime: "Start Overtime",
+                shiftEndPromptDecline: "No, I'm done for today"
             },
             ar: {
                 confirmDeleteLoad: "حذف هذه الشحنة؟ لا يمكن التراجع عن هذا الإجراء.",
@@ -30,7 +33,10 @@
                 noPermissionDeleteLoad: "ليس لديك صلاحية لحذف الشحنات.",
                 accountFrozenBlocked: "الحساب مجمّد — تم حظر الإجراء",
                 noPermissionEditLoad: "ليس لديك صلاحية لتعديل الشحنات.",
-                loadSaveFailed: "فشل حفظ الشحنة — تحقق من الاتصال."
+                loadSaveFailed: "فشل حفظ الشحنة — تحقق من الاتصال.",
+                shiftEndPromptQuestion: "انتهت ورديتك المجدولة. هل ستستمر بالعمل اليوم؟",
+                shiftEndPromptStartOvertime: "بدء العمل الإضافي",
+                shiftEndPromptDecline: "لا، انتهيت لهذا اليوم"
             }
         });
     }
@@ -1004,33 +1010,124 @@ function updateShiftCountdown() {
 
         shiftHandled = true;
 
-        // NOTE: the old shift-end grace automation (3 notifications every
-        // 5 min -> Auto Break -> Auto Off Duty) has been removed. The new
-        // Employee Activity Detection system (activitydetection.js) is
-        // its substitute — it already auto-switches an unattended
-        // On-Duty employee to Break/Off Duty based on real inactivity,
-        // independent of the shift countdown, so a second parallel
-        // "shift ended and nobody clocked out" sequence is redundant.
+        // Step 2: the normal shift now actually gets closed out the
+        // moment the countdown hits zero — shiftHistory write, timer
+        // reset, status -> Off Duty — instead of just logging an
+        // audit line and leaving everything running. See
+        // finalizeNormalShiftEnd() / showShiftEndContinuePrompt() /
+        // startOvertimeFromShiftEndPrompt() in status.js for the rest
+        // of the flow this kicks off.
+        if (typeof window.finalizeNormalShiftEnd === "function") {
+            window.finalizeNormalShiftEnd({ thenPrompt: true });
+        } else {
+            // Safety fallback: if status.js somehow hasn't loaded this
+            // function, fall back to at least logging it like before
+            // rather than silently doing nothing.
+            const endedAt = Date.now();
 
-        const endedAt = Date.now();
+            if (RelayDesk.workspace?.UI?.endedAt) {
+                RelayDesk.workspace.UI.endedAt.textContent =
+                    "Shift Ended: " + new Date(endedAt).toLocaleTimeString();
+            }
 
-        if (RelayDesk.workspace?.UI?.endedAt) {
-            RelayDesk.workspace.UI.endedAt.textContent =
-                "Shift Ended: " + new Date(endedAt).toLocaleTimeString();
+            if (typeof logAudit === "function") {
+                logAudit(RelayDesk.currentUser, "SHIFT_ENDED", "Auto end (fallback — finalizeNormalShiftEnd missing)");
+            }
+
+            db.collection("auditLogs").add({
+                user: RelayDesk.currentUser,
+                action: "SHIFT_ENDED",
+                detail: "Auto end (fallback — finalizeNormalShiftEnd missing)",
+                time: Date.now()
+            });
         }
-
-        if (typeof logAudit === "function") {
-            logAudit(RelayDesk.currentUser, "SHIFT_ENDED", "Auto end");
-        }
-
-        db.collection("auditLogs").add({
-            user: RelayDesk.currentUser,
-            action: "SHIFT_ENDED",
-            detail: "Auto end",
-            time: Date.now()
-        });
     }
 }
+
+
+// ===========================================
+// STEP 2: SHIFT-END CONTINUE/STOP PROMPT
+// ===========================================
+// Shown the instant the normal shift auto-finalizes (triggered from
+// finalizeNormalShiftEnd() in status.js, right after the shift is
+// already closed out). Forces an explicit choice so a forgotten
+// session can never silently roll into overtime OR silently roll into
+// the next day — no response within the timeout is treated exactly
+// the same as "No, I'm done for today" per the spec.
+
+const SHIFT_END_PROMPT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes — matches
+// the existing 5-minute notification cadence already used elsewhere in
+// this codebase (shift-ending-soon warning above, retired shiftautomation.js
+// grace flow). Not yet explicitly confirmed by Sam — flagged in the
+// context tracker, proceeding with this as the default.
+
+let shiftEndPromptTimeoutId = null;
+
+function removeShiftEndPromptToast() {
+    document.getElementById("shiftEndPromptToast")?.remove();
+}
+
+window.showShiftEndContinuePrompt = function () {
+
+    removeShiftEndPromptToast();
+    if (shiftEndPromptTimeoutId) clearTimeout(shiftEndPromptTimeoutId);
+
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+
+    const toast = document.createElement("div");
+    toast.id = "shiftEndPromptToast";
+    toast.className = "toast toast-warn shiftGraceToast";
+
+    const text = document.createElement("span");
+    text.textContent = window.I18N
+        ? window.I18N.t("workspace.shiftEndPromptQuestion")
+        : "Your scheduled shift has ended. Are you continuing to work today?";
+
+    const btnRow = document.createElement("div");
+    btnRow.className = "shiftEndPromptBtnRow";
+
+    const startBtn = document.createElement("button");
+    startBtn.type = "button";
+    startBtn.className = "shiftGraceResumeBtn";
+    startBtn.textContent = window.I18N
+        ? window.I18N.t("workspace.shiftEndPromptStartOvertime")
+        : "Start Overtime";
+    startBtn.onclick = () => {
+        clearTimeout(shiftEndPromptTimeoutId);
+        removeShiftEndPromptToast();
+        window.startOvertimeFromShiftEndPrompt?.();
+    };
+
+    const declineBtn = document.createElement("button");
+    declineBtn.type = "button";
+    declineBtn.className = "shiftEndPromptDeclineBtn";
+    declineBtn.textContent = window.I18N
+        ? window.I18N.t("workspace.shiftEndPromptDecline")
+        : "No, I'm done for today";
+    declineBtn.onclick = () => {
+        clearTimeout(shiftEndPromptTimeoutId);
+        removeShiftEndPromptToast();
+        window.declineOvertimeFromShiftEndPrompt?.();
+    };
+
+    btnRow.appendChild(startBtn);
+    btnRow.appendChild(declineBtn);
+
+    toast.appendChild(text);
+    toast.appendChild(btnRow);
+    container.appendChild(toast);
+
+    void toast.offsetHeight;
+    toast.classList.add("toastShow");
+
+    // No response -> same outcome as declining, per spec: never leave
+    // a session that can carry into the next day.
+    shiftEndPromptTimeoutId = setTimeout(() => {
+        removeShiftEndPromptToast();
+        window.declineOvertimeFromShiftEndPrompt?.();
+    }, SHIFT_END_PROMPT_TIMEOUT_MS);
+};
 
 
 // ===========================================

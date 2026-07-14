@@ -1497,7 +1497,65 @@ csv += `${id}, ${u.status}, ${u.loads}, ${shiftHours} hrs, ${idlePercent}%\n`;
     URL.revokeObjectURL(url);
 };
 
+// Step 1 (live drilldown sync): mirrors timers.js's own-view live calc
+// exactly — base totals as last written to Firestore, plus elapsed
+// time in whichever bucket matches the current status. Firestore only
+// gets a fresh work/breakT/away/lastSwitchTime write on each status
+// change (see status.js "SAVE USER STATE"), so this local tick is what
+// makes the admin view count up smoothly in between those writes,
+// same as the employee's own screen does.
+function renderDrillLiveSection(u) {
+
+    const section = document.getElementById("drillLiveSection");
+    if (!section || !u) return;
+
+    const now = Date.now();
+
+    let work = u.work || 0;
+    let breakT = u.breakT || 0;
+    let away = u.away || 0;
+
+    const elapsed = u.lastSwitchTime ? Math.max(0, now - u.lastSwitchTime) : 0;
+
+    if (u.status === "On Duty") work += elapsed;
+    if (u.status === "Break") breakT += elapsed;
+    if (u.status === "Away") away += elapsed;
+
+    section.innerHTML = `
+        <h4>📡 Live Status</h4>
+        <div>Status: ${u.status}${(u.autoIdleStatus && u.autoIdleStatus === u.status) ? ' <span class="autoIdleBadge">Auto Idle</span>' : ""}</div>
+        <div>Role: ${u.role}</div>
+        <div>Shift ID: ${u.shiftId || "N/A"}</div>
+        <div class="drillLiveTimers">
+            <span>🟢 Work: ${formatTime(work)}</span>
+            <span>🟡 Break: ${formatTime(breakT)}</span>
+            <span>🟣 Away: ${formatTime(away)}</span>
+        </div>
+        <button class="dangerBtn" onclick="clearUserStats('${u.id}')" style="margin-top:8px;">
+            🗑️ Clear Stats for ${u.id}
+        </button>
+    `;
+}
+
 let drillHistoryStack = [];
+
+// Step 1 (live drilldown sync): scoped single-doc listener + local
+// ticking interval for whichever user's drilldown panel is currently
+// open. Additive only — does not touch the existing global `users`
+// listener in presence.js or colleagues.js.
+let drillLiveUnsub = null;
+let drillLiveInterval = null;
+let drillLiveUserData = null;
+
+function teardownDrillLive() {
+    if (typeof drillLiveUnsub === "function") drillLiveUnsub();
+    drillLiveUnsub = null;
+
+    if (drillLiveInterval) clearInterval(drillLiveInterval);
+    drillLiveInterval = null;
+
+    drillLiveUserData = null;
+}
 
 window.openUserDrilldown = async function(userId) {
 
@@ -1517,11 +1575,32 @@ window.openUserDrilldown = async function(userId) {
         `👤 ${userId} Analytics`;
 
     renderUserDrilldown(userId);
+
+    // Tear down any previous target's listener/interval before wiring
+    // up this one (covers both re-opening and drilling into a
+    // different user without closing first).
+    teardownDrillLive();
+
+    drillLiveUnsub = db.collection("users").doc(userId).onSnapshot(doc => {
+        const data = doc.data();
+        if (!data) return;
+        drillLiveUserData = { id: userId, ...data };
+        renderDrillLiveSection(drillLiveUserData);
+    });
+
+    // Ticks the display every second between Firestore writes, using
+    // the exact same base + (now - lastSwitchTime) formula timers.js
+    // uses for the employee's own view — so admin sees the same live
+    // count, not just an update on every status change.
+    drillLiveInterval = setInterval(() => {
+        if (drillLiveUserData) renderDrillLiveSection(drillLiveUserData);
+    }, 1000);
 };
 
 window.closeUserDrilldown = function() {
     document.getElementById("userDrillPanel").classList.add("hidden");
     drillHistoryStack = [];
+    teardownDrillLive();
 };
 
 window.toggleOvertimeHistory = function (userId) {
@@ -1597,16 +1676,11 @@ totalShiftTime += (end - start);
     // =========================
     // LIVE SECTION
     // =========================
+    // Initial paint from the one-shot fetch above, so there's no blank
+    // flash before the onSnapshot listener (wired in openUserDrilldown)
+    // delivers its first update a moment later.
 
-    document.getElementById("drillLiveSection").innerHTML = `
-        <h4>📡 Live Status</h4>
-        <div>Status: ${u.status}${(u.autoIdleStatus && u.autoIdleStatus === u.status) ? ' <span class="autoIdleBadge">Auto Idle</span>' : ""}</div>
-        <div>Role: ${u.role}</div>
-        <div>Shift ID: ${u.shiftId || "N/A"}</div>
-        <button class="dangerBtn" onclick="clearUserStats('${userId}')" style="margin-top:8px;">
-            🗑️ Clear Stats for ${userId}
-        </button>
-    `;
+    renderDrillLiveSection({ id: userId, ...u });
 
     // =========================
     // OVERTIME
@@ -1624,11 +1698,30 @@ totalShiftTime += (end - start);
             </div>
             <div id="overtimeHistoryList-${userId}" class="hidden">
                 ${overtimeHistory.length
-                    ? overtimeHistory.map(o => `
+                    ? overtimeHistory.map(o => {
+                        // Legacy entries from before this workflow change
+                        // (approved-but-not-yet-worked placeholder) —
+                        // kept as-is for old data that never got
+                        // reconciled.
+                        if (o.pending && !o.overtimeReviewStatus) {
+                            return `
                         <div class="alertRow">
-                            <b>${o.date}</b> — ${o.pending ? "Approved (not yet worked)" : formatTime(o.durationMs || 0)}
+                            <b>${o.date}</b> — Approved (not yet worked)
                         </div>
-                    `).join("")
+                    `;
+                        }
+                        const reviewLabels = {
+                            pending: " — ⏳ Pending review",
+                            approved: " — ✅ Approved",
+                            denied: " — ❌ Denied (not counted)"
+                        };
+                        const reviewLabel = reviewLabels[o.overtimeReviewStatus] || "";
+                        return `
+                        <div class="alertRow">
+                            <b>${o.date}</b> — ${formatTime(o.durationMs || 0)}${reviewLabel}
+                        </div>
+                    `;
+                    }).join("")
                     : `<div class="workspaceEmpty">No overtime recorded.</div>`
                 }
             </div>

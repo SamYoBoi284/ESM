@@ -90,25 +90,66 @@ setInterval(() => {
     if (miniAway) miniAway.textContent = formatTime(a);
 
     // ======================
-    // OVERTIME TIMER (counts up once the scheduled 9hr shift end has
-    // passed, keeps counting until End Shift is pressed)
+    // OVERTIME TIMER — off-day shifts count up automatically from
+    // clock-in; normal scheduled-day shifts only count once Start
+    // Overtime has been manually pressed (see gating below). Keeps
+    // counting until End Shift is pressed either way.
     // ======================
 
     const overtimeEl = RelayDesk.UI.overtimeTimer || document.getElementById("overtimeTimer");
 
     if (overtimeEl) {
-        // On a normal scheduled day, overtimeBaseline == shiftEndTime
-        // (9hrs after clock-in) — overtime only counts up past that.
-        // On a configured weekly off day, overtimeBaseline is set to
-        // the clock-in moment itself in status.js, so the ENTIRE shift
-        // counts as overtime from minute 0 (see status.js On Duty init).
-        const overtimeMs = (RelayDesk.overtimeBaseline && !RelayDesk.shiftEnded)
-            ? Math.max(0, now - RelayDesk.overtimeBaseline)
-            : 0;
+
+        // STEP 3 GATING: the overtime calc no longer runs unconditionally
+        // off overtimeBaseline. Two separate paths now:
+        //
+        // - Off-day auto overtime (unchanged, per the confirmed
+        //   exception): overtimeBaseline is set to the clock-in moment
+        //   itself in status.js's On Duty init, so the entire shift
+        //   counts as overtime from minute 0, no manual gate.
+        // - Normal scheduled-day overtime: only counts once the
+        //   employee has explicitly pressed Start Overtime (via the
+        //   shift-end continue/stop prompt or the standalone button),
+        //   which sets overtimeStarted/overtimeStartedAt — counts up
+        //   from overtimeStartedAt, not the old scheduled-end baseline.
+        let overtimeMs = 0;
+
+        if (!RelayDesk.shiftEnded) {
+
+            if (RelayDesk.isOffDayShift) {
+                overtimeMs = RelayDesk.overtimeBaseline
+                    ? Math.max(0, now - RelayDesk.overtimeBaseline)
+                    : 0;
+            } else if (RelayDesk.overtimeStarted && RelayDesk.overtimeStartedAt) {
+                overtimeMs = Math.max(0, now - RelayDesk.overtimeStartedAt);
+            }
+        }
+
         overtimeEl.innerText = formatTime(overtimeMs);
 
         const miniOvertime = document.getElementById("miniOvertimeTimer");
         if (miniOvertime) miniOvertime.textContent = formatTime(overtimeMs);
+    }
+
+    // ======================
+    // STANDALONE START OVERTIME BUTTON (Step 3)
+    // Always visible now (not just after the shift ends) — greyed out
+    // and non-functional (disabled) until it actually applies: an
+    // active user, the normal shift has ended (RelayDesk.shiftEnded),
+    // it's not an off-day shift (already auto-overtime, no manual
+    // start needed there), and no overtime session is already running.
+    // ======================
+
+    const startOvertimeBtn = document.getElementById("startOvertimeBtn");
+
+    if (startOvertimeBtn) {
+
+        const shouldEnable = !!RelayDesk.currentUser &&
+            RelayDesk.shiftEnded === true &&
+            !RelayDesk.isOffDayShift &&
+            !RelayDesk.overtimeStarted;
+
+        startOvertimeBtn.disabled = !shouldEnable;
     }
 
     // ======================

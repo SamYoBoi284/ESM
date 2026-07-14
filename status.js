@@ -166,6 +166,29 @@ if (RelayDesk.currentUserData?.frozen) {
     const overtimeBaselineForCalc = RelayDesk.overtimeBaseline || RelayDesk.shiftEndTime;
     const wasOffDayShift = RelayDesk.isOffDayShift === true;
 
+    // Manual-overtime End Shift fix (found while wiring up how a
+    // manual overtime session's End Shift should record into
+    // shiftHistory): a session started via startOvertimeSession()
+    // never had a real RelayDesk.shiftStart of its own (the normal
+    // shift's shiftStart was already nulled out by the End Shift
+    // that closed the base shift) — so re-running the primary
+    // finalize block below against it would produce a corrupt
+    // NaN shiftDuration and stomp the already-correct completed
+    // shiftHistory doc. Captured here, before anything below can
+    // reset RelayDesk.overtimeStarted, so both this branch and the
+    // FINALIZE WORKED OVERTIME block downstream can tell which
+    // kind of End Shift this actually is.
+    const endingOvertimeSession = RelayDesk.overtimeStarted === true;
+
+    // Step 2: same "capture before it's cleared" reasoning — remember
+    // which shift is being closed out so that if the employee starts
+    // a manual overtime session afterward (shift-end continue/stop
+    // prompt, or the standalone Start Overtime button), that session
+    // can still be attributed to this shift's shiftHistory doc even
+    // though RelayDesk.shiftId itself gets nulled a few lines down.
+    const completingShiftId = RelayDesk.shiftId;
+    RelayDesk.lastCompletedShiftId = completingShiftId;
+
     // STEP 5 CUTOVER: same "capture before overwrite" reasoning as
     // overtimeBaselineForCalc above — this is the *scheduled* end
     // (shiftStart + the employee's actual assigned shift duration,
@@ -176,6 +199,15 @@ if (RelayDesk.currentUserData?.frozen) {
     RelayDesk.shiftEndTime = now;
     RelayDesk.shiftEnded = true;
 
+    // Only the End Shift call that's actually closing out the base
+    // shift (real shiftStart, real shiftId) runs the primary
+    // finalize write below. An End Shift that's closing a manual
+    // overtime session instead is handled entirely by the FINALIZE
+    // APPROVED OVERTIME block further down, which merges onto the
+    // *existing* shiftHistory doc via RelayDesk.lastCompletedShiftId
+    // rather than trying to recompute a shift duration that was
+    // never this session's to compute.
+    if (!endingOvertimeSession) {
     try {
 const shiftDurationMs = now - RelayDesk.shiftStart;
 
@@ -209,6 +241,7 @@ await db.collection("shiftHistory")
 
     } catch (e) {
         console.error("End Shift failed:", e);
+    }
     }
 
     // ======================
@@ -319,13 +352,20 @@ await db.collection("shiftHistory")
     }
 
     // ======================
-    // FINALIZE APPROVED OVERTIME
-    // (Overtime timer = time worked past the scheduled 9hr shift end.
-    // If admin approved an overtime request, log the actual duration
-    // worked into this user's overtime history for the analytics
-    // drilldown, and close out the request. Skipped for off-day
-    // shifts — those are already fully logged above, and an off-day
-    // shift has no "scheduled 9hr end" to measure a request against.)
+    // FINALIZE WORKED OVERTIME
+    // (Employee work time is captured here immediately, no matter
+    // whether an overtime request exists yet or what its approval
+    // status is. This used to only run once a request had already
+    // been approved ("FINALIZE APPROVED OVERTIME"), which meant any
+    // overtime worked between "Request Overtime" and an admin's
+    // decision was silently lost if End Shift was pressed first.
+    // Reality is captured now; approveOvertimeRequest() /
+    // denyOvertimeRequest() (admin-extras.js) are the review layer
+    // that decides whether it counts, applied retroactively via
+    // overtimeReviewStatus if the admin decides after End Shift has
+    // already run. Skipped for off-day shifts — those are already
+    // fully logged above, and an off-day shift has no separate
+    // overtime request to reconcile against.)
     // ======================
 
     try {
@@ -336,68 +376,117 @@ await db.collection("shiftHistory")
             ? Math.max(0, now - overtimeBaselineForCalc)
             : 0;
 
+        // Scope the request lookup to THIS shift (shiftId is
+        // per-user-per-day — see getTodayShiftId) instead of the old
+        // "any approved request this user has ever made" query, which
+        // could cross-match a stale/unrelated request. For a
+        // standalone overtime session (endingOvertimeSession), also
+        // require the request to have been submitted at/after this
+        // exact session's start — same disambiguation
+        // activitydetection.js's abandoned-overtime clear already
+        // relies on — so a second overtime session on the same base
+        // shift can never pick up the first session's request (or
+        // vice versa).
         const otSnap = await db.collection("overtimeRequests")
-            .where("user", "==", RelayDesk.currentUser)
-            .where("status", "==", "approved")
+            .where("shiftId", "==", RelayDesk.shiftId)
             .get();
 
-        if (!otSnap.empty) {
+        const sessionStart = endingOvertimeSession
+            ? (RelayDesk.overtimeStartedAt || 0)
+            : 0;
 
-            const requestIds = [];
-            const batch = db.batch();
+        const otCandidates = otSnap.docs.filter(doc => {
+            const d = doc.data();
+            if (d.overtimeWorkRecorded) return false; // already finalized once
+            if (endingOvertimeSession) {
+                return typeof d.time === "number" && d.time >= sessionStart;
+            }
+            return true;
+        });
 
-            otSnap.forEach(doc => {
-                requestIds.push(doc.id);
-                batch.set(doc.ref, {
-                    status: "completed",
-                    durationMs: overtimeMs,
-                    completedAt: now
+        if (otCandidates.length > 0) {
+
+            // Normally exactly one request maps to a session; if more
+            // than one somehow matches, the most recently submitted
+            // one wins — the rest stay untouched/still pending for
+            // admin to resolve separately.
+            otCandidates.sort((a, b) => (b.data().time || 0) - (a.data().time || 0));
+            const matchedDoc = otCandidates[0];
+            const matchedReq = matchedDoc.data();
+
+            // The request's own status IS the review state — pending
+            // until an admin acts, then approved/denied. Nothing here
+            // ever forces it to "completed"; approve/deny in
+            // admin-extras.js are the only things that move it from
+            // this point on.
+            const overtimeReviewStatus =
+                (matchedReq.status === "approved" || matchedReq.status === "denied")
+                    ? matchedReq.status
+                    : "pending";
+
+            try {
+                await matchedDoc.ref.set({
+                    overtimeWorkRecorded: true,
+                    overtimeWorkedMs: overtimeMs,
+                    overtimeWorkedAt: now
                 }, { merge: true });
-            });
-
-            await batch.commit();
-
-            // Reconcile the "pending" overtimeHistory entries that were
-            // created immediately at approval time with the real
-            // duration actually worked (may be 0 if the shift ended
-            // before/at the scheduled end time).
-            const userRef = db.collection("users").doc(RelayDesk.currentUser);
-            const userSnap = await userRef.get();
-            const existingHistory = userSnap.data()?.overtimeHistory || [];
-
-            let matched = false;
-
-            const updatedHistory = existingHistory.map(entry => {
-                if (entry.pending && requestIds.includes(entry.requestId)) {
-                    matched = true;
-                    return {
-                        ...entry,
-                        durationMs: overtimeMs,
-                        shiftId: RelayDesk.shiftId || null,
-                        pending: false
-                    };
-                }
-                return entry;
-            });
-
-            // Safety net in case a request was approved before this
-            // reconciliation existed and never got a pending entry
-            if (!matched) {
-                updatedHistory.push({
-                    date: new Date().toISOString().split("T")[0],
-                    durationMs: overtimeMs,
-                    shiftId: RelayDesk.shiftId || null,
-                    pending: false
-                });
+            } catch (reqErr) {
+                console.error("Overtime request work-recorded write failed:", reqErr);
             }
 
-            await userRef.set({ overtimeHistory: updatedHistory }, { merge: true });
+            // Mirror this onto the base shift's shiftHistory doc, same
+            // pattern the off-day path already uses above (merge
+            // fields onto the existing completed doc rather than
+            // writing a new one). FieldValue.increment (not a plain
+            // set) so a second manual overtime session against the
+            // same base shift adds onto the total instead of
+            // overwriting it. overtimeRequestId/overtimeReviewStatus
+            // reflect only the most recently finalized session — this
+            // doc has one slot for them, same limitation overtimeMs
+            // itself already had before this change.
+            if (RelayDesk.shiftId) {
+                try {
+                    await db.collection("shiftHistory")
+                        .doc(RelayDesk.shiftId)
+                        .set({
+                            manualOvertime: true,
+                            overtimeMs: firebase.firestore.FieldValue.increment(overtimeMs),
+                            overtimeRequestId: matchedDoc.id,
+                            overtimeReviewStatus
+                        }, { merge: true });
+                } catch (shErr) {
+                    console.error("Manual overtime shiftHistory merge failed:", shErr);
+                }
+            }
+
+            // Record into the user's overtimeHistory analytics
+            // drilldown right now — the actual worked duration is
+            // known immediately, so approveOvertimeRequest() no longer
+            // needs to push a "pending: true, durationMs: 0"
+            // placeholder ahead of time (that placeholder is what used
+            // to get silently orphaned if End Shift ran before the
+            // approval ever happened).
+            const userRef = db.collection("users").doc(RelayDesk.currentUser);
+            try {
+                await userRef.set({
+                    overtimeHistory: firebase.firestore.FieldValue.arrayUnion({
+                        date: new Date().toISOString().split("T")[0],
+                        durationMs: overtimeMs,
+                        shiftId: RelayDesk.shiftId || null,
+                        requestId: matchedDoc.id,
+                        manualOvertime: true,
+                        overtimeReviewStatus
+                    })
+                }, { merge: true });
+            } catch (uhErr) {
+                console.error("Overtime overtimeHistory write failed:", uhErr);
+            }
 
             if (typeof logAudit === "function") {
                 await logAudit(
                     RelayDesk.currentUser,
                     "OVERTIME_LOGGED",
-                    `${formatTime(overtimeMs)}`
+                    `${formatTime(overtimeMs)} (review: ${overtimeReviewStatus})`
                 );
             }
         }
@@ -437,6 +526,14 @@ await db.collection("shiftHistory")
                 shiftId: null,
                 overtimeBaseline: null,
                 isOffDayShift: false,
+                // Step 3: clear the manual-overtime flags too, same
+                // reasoning as overtimeBaseline/isOffDayShift above — an
+                // End Shift always fully closes out any overtime session
+                // that was running, so nothing stale should be left for
+                // timers.js's overtimeStarted gate to pick up next time.
+                overtimeStarted: false,
+                overtimeStartedAt: null,
+                lastCompletedShiftId: completingShiftId || null,
                 bookedLoads: []
             }, { merge: true });
 
@@ -457,6 +554,8 @@ await db.collection("shiftHistory")
         RelayDesk.bookedLoads = [];
         RelayDesk.overtimeBaseline = null;
         RelayDesk.isOffDayShift = false;
+        RelayDesk.overtimeStarted = false;
+        RelayDesk.overtimeStartedAt = null;
         window.renderBookedLoads?.();
 
     } catch (err) {
@@ -487,6 +586,8 @@ await db.collection("shiftHistory")
         RelayDesk.shiftId = null;
         RelayDesk.overtimeBaseline = null;
         RelayDesk.isOffDayShift = false;
+        RelayDesk.overtimeStarted = false;
+        RelayDesk.overtimeStartedAt = null;
     }
 
 
@@ -544,6 +645,14 @@ await db.collection("shiftHistory")
 
             RelayDesk.isOffDayShift = isOffDayShift;
             RelayDesk.overtimeBaseline = isOffDayShift ? now : RelayDesk.shiftEndTime;
+
+            // Step 3 defensive reset: a brand new shift should never
+            // start with a manual overtime session already marked
+            // active — this should already be false from the End Shift/
+            // Off Duty resets above, but a fresh clock-in is a hard
+            // boundary either way.
+            RelayDesk.overtimeStarted = false;
+            RelayDesk.overtimeStartedAt = null;
 
             // ======================
             // LATENESS CHECK
@@ -710,6 +819,128 @@ await db.collection("shiftHistory")
 
     updateStatusDisplay(newStatus);
 }
+
+
+// ===========================================
+// STEP 2: SHIFT-END AUTO-FINALIZE + CONTINUE/STOP PROMPT
+// ===========================================
+// Called by workspace.js the moment the normal shift's countdown hits
+// 00:00:00. Reuses the exact same "End Shift" finalize path a manual
+// click already goes through — shiftHistory write, off-day/approved-
+// overtime reconciliation, timer reset, status -> Off Duty — so
+// nothing about the existing overtime request submission/approval
+// workflow changes; this only changes *when* that path fires
+// (automatically, instead of only on a manual click), then optionally
+// follows up with the continue/stop prompt (workspace.js).
+
+window.finalizeNormalShiftEnd = async function (opts = {}) {
+
+    await changeUserStatus("End Shift", { auto: true });
+
+    if (opts.thenPrompt && typeof window.showShiftEndContinuePrompt === "function") {
+        window.showShiftEndContinuePrompt();
+    }
+};
+
+// Shared core for every manual "Start Overtime" entry point (the
+// shift-end continue/stop prompt, and Step 3's standalone always-
+// visible button). Deliberately does NOT go through the normal On
+// Duty clock-in path (changeUserStatus("On Duty")) — that path's
+// "FIRST TIME START ONLY" block would wrongly re-arm a brand new full
+// shift (new shiftId, shiftEndTime, lateness check). This starts a
+// standalone overtime session layered on top of the shift that was
+// just closed instead.
+//
+// Sets both the new overtimeStarted/overtimeStartedAt fields (what
+// timers.js's Step 3 gating now reads for normal-day overtime) and the
+// existing overtimeBaseline field (kept in sync for anything else that
+// still reads it, e.g. the off-day path shares the same field name).
+async function startOvertimeSession(auditNote) {
+
+    if (!RelayDesk.currentUser) return;
+
+    const now = Date.now();
+    const forShiftId = RelayDesk.lastCompletedShiftId || null;
+
+    RelayDesk.currentStatus = "On Duty";
+    RelayDesk.lastSwitchTime = now;
+    RelayDesk.overtimeStarted = true;
+    RelayDesk.overtimeStartedAt = now;
+    RelayDesk.overtimeBaseline = now;
+    RelayDesk.shiftEnded = false;
+
+    // Restore RelayDesk.shiftId to the shift this overtime session
+    // belongs to (it was nulled when that shift's End Shift ran).
+    // Without this, the End Shift call that later closes THIS
+    // session looks up shiftHistory.doc(null) and silently fails
+    // (caught, logged, nothing written) instead of ever recording
+    // the overtime — this is what actually fixes that.
+    RelayDesk.shiftId = forShiftId;
+
+    try {
+        await db.collection("users").doc(RelayDesk.currentUser).set({
+            status: "On Duty",
+            lastSwitchTime: now,
+            lastChange: now,
+            overtimeStarted: true,
+            overtimeStartedAt: now,
+            overtimeBaseline: now,
+            overtimeForShiftId: forShiftId,
+            shiftId: forShiftId
+        }, { merge: true });
+    } catch (err) {
+        console.error("Start Overtime failed:", err);
+    }
+
+    if (typeof logAudit === "function") {
+        await logAudit(
+            RelayDesk.currentUser,
+            "OVERTIME_STARTED",
+            auditNote
+        );
+    }
+
+    updateStatusDisplay("On Duty");
+}
+
+// "Start Overtime" chosen from the shift-end continue/stop prompt.
+window.startOvertimeFromShiftEndPrompt = function () {
+    return startOvertimeSession("Manual Start Overtime (shift-end prompt)");
+};
+
+// Step 3: the always-visible standalone Start Overtime button, for
+// starting overtime outside the shift-end prompt (e.g. the prompt was
+// declined/timed out earlier, or was missed entirely, and the employee
+// decides afterward to start an overtime session). Same underlying
+// session as the prompt's button — just a different, always-available
+// entry point into it. timers.js only shows this button when it's
+// actually applicable (shift already ended, not an off-day shift, no
+// overtime session already running).
+window.startOvertimeStandalone = function () {
+
+    if (RelayDesk.isOffDayShift || RelayDesk.overtimeStarted || !RelayDesk.shiftEnded) {
+        // Defensive no-op: off-day shifts auto-overtime already, a
+        // session already in progress shouldn't be restarted/clobbered,
+        // and a normal shift that hasn't ended yet isn't eligible for
+        // manual overtime. The button is disabled (not hidden) in these
+        // states now, so this only guards against a stale click racing
+        // a state change.
+        return;
+    }
+
+    return startOvertimeSession("Manual Start Overtime (standalone button)");
+};
+
+// "No, I'm done for today" chosen, or the prompt timed out with no
+// response — both are explicitly the same outcome per the spec. The
+// normal shift is already fully finalized by finalizeNormalShiftEnd()
+// above by the time this fires, so there's nothing left to reset here
+// — this just makes sure no overtime session gets marked started for
+// a decision that was actually a decline/no-response.
+window.declineOvertimeFromShiftEndPrompt = function () {
+    RelayDesk.overtimeStarted = false;
+    RelayDesk.overtimeStartedAt = null;
+};
 
 
 // ===========================================

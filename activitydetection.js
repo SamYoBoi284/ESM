@@ -33,7 +33,8 @@
             autoOffDuty: "🔴 You've been automatically switched to Off Duty after an extended period of inactivity.",
             returnPrompt: "Activity detected. Would you like to return to On Duty?",
             returnBtn: "Return to On Duty",
-            stayBtn: "Stay on Break"
+            stayBtn: "Stay on Break",
+            overtimeAbandonedCleared: "🕐 Your overtime session was reset after 9 hours with no Request Overtime or End Shift."
         },
         ar: {
             idleWarning: "لم يتم رصد أي نشاط لفترة. سيتم تحويلك تلقائيًا إلى استراحة خلال {minutes} دقيقة ما لم يُستأنف النشاط.",
@@ -41,7 +42,8 @@
             autoOffDuty: "🔴 تم تحويلك تلقائيًا إلى خارج الدوام بعد فترة طويلة من عدم النشاط.",
             returnPrompt: "تم رصد نشاط. هل ترغب بالعودة إلى وضع الدوام؟",
             returnBtn: "العودة إلى الدوام",
-            stayBtn: "البقاء في الاستراحة"
+            stayBtn: "البقاء في الاستراحة",
+            overtimeAbandonedCleared: "🕐 تمت إعادة تعيين جلسة العمل الإضافي بعد 9 ساعات دون طلب عمل إضافي أو إنهاء الوردية."
         }
     });
 
@@ -56,7 +58,12 @@
         offDutyTimer: null,
         pollInterval: null,
         listenersBound: false,
-        returnDialogOpen: false
+        returnDialogOpen: false,
+        // Step 4: guards the abandoned-overtime Firestore check below
+        // from overlapping itself across ticks while a query is already
+        // in flight (the poll runs every 5s; the check itself is only
+        // meaningful once every ~9hrs, but the guard is cheap insurance).
+        overtimeAbandonCheckInFlight: false
     };
 
     function minutesToMs(m) {
@@ -375,10 +382,118 @@
     }
 
     // ===========================================
+    // STEP 4: ABANDONED-OVERTIME 9HR SAFETY CLEAR
+    // ===========================================
+    // Reuses this file's existing 5-second poll loop (tick(), below)
+    // rather than standing up a second parallel unattended-timer
+    // system. Narrow scope, per the tracker: only fires for a manual
+    // overtime session (RelayDesk.overtimeStarted) where NEITHER
+    // Request Overtime NOR End Shift has happened within 9hrs of
+    // overtimeStartedAt, AND no overtimeRequests doc was ever
+    // submitted for that session. If a request was submitted (any
+    // status — pending/approved/denied), the session is no longer
+    // "abandoned" from this clear's perspective; it's governed by the
+    // existing submission/approval workflow instead, untouched here.
+    // Never touches an already-submitted overtimeRequests doc, and
+    // never writes to overtimeHistory — nothing was ever logged for a
+    // session that was never requested in the first place, so there's
+    // nothing to scrub, only the live session state to reset.
+
+    const NINE_HOURS_MS = 9 * 60 * 60 * 1000;
+
+    async function checkAbandonedOvertime() {
+
+        if (!RelayDesk.currentUser) return;
+        if (!RelayDesk.overtimeStarted || !RelayDesk.overtimeStartedAt) return;
+
+        const elapsed = Date.now() - RelayDesk.overtimeStartedAt;
+        if (elapsed < NINE_HOURS_MS) return;
+
+        if (state.overtimeAbandonCheckInFlight) return;
+        state.overtimeAbandonCheckInFlight = true;
+
+        try {
+            // Fetch this user's overtime requests and filter client-side
+            // for anything submitted at/after this session's start,
+            // rather than adding a new inequality+equality composite
+            // query (and the Firestore index that would require) on
+            // top of the existing simple equality queries this codebase
+            // already relies on elsewhere.
+            const snap = await db.collection("overtimeRequests")
+                .where("user", "==", RelayDesk.currentUser)
+                .get();
+
+            const sessionStart = RelayDesk.overtimeStartedAt;
+            const hasRequestForSession = snap.docs.some(doc => {
+                const t = doc.data()?.time;
+                return typeof t === "number" && t >= sessionStart;
+            });
+
+            if (hasRequestForSession) {
+                // A request exists for this session — no longer
+                // "abandoned"; the existing approval workflow governs
+                // it now regardless of whether End Shift ever happens.
+                return;
+            }
+
+            await clearAbandonedOvertimeSession();
+
+        } catch (err) {
+            console.error("Abandoned-overtime check failed:", err);
+        } finally {
+            state.overtimeAbandonCheckInFlight = false;
+        }
+    }
+
+    async function clearAbandonedOvertimeSession() {
+
+        RelayDesk.overtimeStarted = false;
+        RelayDesk.overtimeStartedAt = null;
+        RelayDesk.overtimeBaseline = null;
+
+        try {
+            await db.collection("users").doc(RelayDesk.currentUser).set({
+                overtimeStarted: false,
+                overtimeStartedAt: null,
+                overtimeBaseline: null
+            }, { merge: true });
+        } catch (err) {
+            console.error("Abandoned-overtime clear write failed:", err);
+        }
+
+        if (typeof logAudit === "function") {
+            await logAudit(
+                RelayDesk.currentUser,
+                "OVERTIME_ABANDONED_CLEARED",
+                "9hr unattended overtime session reset (never requested)"
+            );
+        }
+
+        if (typeof window.NotificationManager === "object") {
+            window.NotificationManager.notify(
+                window.I18N ? window.I18N.t("activity.overtimeAbandonedCleared") : "🕐 Your overtime session was reset after 9 hours with no Request Overtime or End Shift.",
+                "warning",
+                { category: "overtime" }
+            );
+        } else if (typeof window.showToast === "function") {
+            window.showToast(
+                window.I18N ? window.I18N.t("activity.overtimeAbandonedCleared") : "🕐 Your overtime session was reset after 9 hours with no Request Overtime or End Shift.",
+                "warn"
+            );
+        }
+    }
+
+    // ===========================================
     // MAIN POLL LOOP
     // ===========================================
 
     async function tick() {
+
+        // Step 4: independent of the idle-detection enabled setting
+        // below — an abandoned overtime session should still get
+        // cleared even if idle detection itself is turned off.
+        checkAbandonedOvertime();
+
         const cfg = getConfig();
         if (!cfg.enabled) return;
 
@@ -409,15 +524,20 @@
 
     function applyEnabledState() {
         const cfg = getConfig();
+
+        // Step 4: the poll loop itself must keep running even when idle
+        // detection is disabled in Settings — it now also drives the
+        // independent abandoned-overtime check in tick(), which has
+        // nothing to do with idle detection. Only the idle-detection-
+        // specific listeners/state below are gated on cfg.enabled.
+        if (!state.pollInterval) {
+            state.pollInterval = setInterval(tick, 5000);
+        }
+
         if (cfg.enabled) {
             bindActivityListeners();
-            if (!state.pollInterval) {
-                state.pollInterval = setInterval(tick, 5000);
-            }
         } else {
             unbindActivityListeners();
-            clearInterval(state.pollInterval);
-            state.pollInterval = null;
             resetIdleState();
         }
     }

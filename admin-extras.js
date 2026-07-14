@@ -336,6 +336,17 @@ function initOvertimeAdmin() {
         }, err => console.error("Overtime requests listener failed:", err));
 }
 
+// Approve/deny are now the FINAL decision layer, not a gate that has
+// to happen before overtime gets recorded. status.js's End Shift
+// finalize block always writes the actual worked duration first
+// (overtimeReviewStatus: "pending" if no decision exists yet), tagged
+// with the request's id (overtimeRequestId on shiftHistory,
+// requestId on the user's overtimeHistory entry). If that write
+// already happened by the time an admin decides, these retroactively
+// flip overtimeReviewStatus wherever it was stored. If it hasn't
+// happened yet (employee still mid-session), there's nothing to
+// retro-update — status.js will read this request's approved/denied
+// status directly once End Shift eventually runs.
 window.approveOvertimeRequest = async function (reqId) {
 
     try {
@@ -345,27 +356,13 @@ window.approveOvertimeRequest = async function (reqId) {
 
         if (!req) return;
 
-        const now = Date.now();
-
         await reqRef.set({
             status: "approved",
-            approvedAt: now
+            approvedAt: Date.now()
         }, { merge: true });
 
-        // Credit the employee's analytics right away instead of waiting
-        // for them to actually work overtime and click End Shift — this
-        // entry is marked "pending" and gets reconciled with the real
-        // duration worked once the shift actually ends (see status.js).
-        if (req.user) {
-            await db.collection("users").doc(req.user).set({
-                overtimeHistory: firebase.firestore.FieldValue.arrayUnion({
-                    date: new Date().toISOString().split("T")[0],
-                    durationMs: 0,
-                    requestId: reqId,
-                    shiftId: null,
-                    pending: true
-                })
-            }, { merge: true });
+        if (req.overtimeWorkRecorded && req.user) {
+            await reconcileOvertimeReviewStatus(reqId, req, "approved");
         }
 
         if (typeof logAudit === "function") {
@@ -379,10 +376,23 @@ window.approveOvertimeRequest = async function (reqId) {
 window.denyOvertimeRequest = async function (reqId) {
 
     try {
-        await db.collection("overtimeRequests").doc(reqId).set({
+        const reqRef = db.collection("overtimeRequests").doc(reqId);
+        const reqSnap = await reqRef.get();
+        const req = reqSnap.data();
+
+        await reqRef.set({
             status: "denied",
             deniedAt: Date.now()
         }, { merge: true });
+
+        // Never deletes/zeroes the already-recorded worked duration —
+        // it's kept for auditability, just flagged as not admin-
+        // approved (so it can be excluded from anything that later
+        // sums up "counted" overtime, without losing the record of
+        // what was actually worked).
+        if (req && req.overtimeWorkRecorded && req.user) {
+            await reconcileOvertimeReviewStatus(reqId, req, "denied");
+        }
 
         if (typeof logAudit === "function") {
             await logAudit("A000", "OVERTIME_DENIED", reqId);
@@ -391,6 +401,44 @@ window.denyOvertimeRequest = async function (reqId) {
         console.error("Deny overtime failed:", err);
     }
 };
+
+// Shared by approve/deny above: pushes a decision made AFTER End Shift
+// already recorded the worked duration onto both places that duration
+// lives — the base shift's shiftHistory doc and the user's
+// overtimeHistory drilldown entry — without touching durationMs itself.
+async function reconcileOvertimeReviewStatus(reqId, req, reviewStatus) {
+
+    if (req.shiftId) {
+        try {
+            const shRef = db.collection("shiftHistory").doc(req.shiftId);
+            const shSnap = await shRef.get();
+            // Only overwrite if this doc's review status is still
+            // tracking THIS request — guards against a later overtime
+            // session on the same base shift having already
+            // overwritten the single overtimeReviewStatus slot with
+            // its own review.
+            if (shSnap.exists && shSnap.data()?.overtimeRequestId === reqId) {
+                await shRef.set({ overtimeReviewStatus: reviewStatus }, { merge: true });
+            }
+        } catch (shErr) {
+            console.error("Overtime shiftHistory review-status update failed:", shErr);
+        }
+    }
+
+    try {
+        const userRef = db.collection("users").doc(req.user);
+        const userSnap = await userRef.get();
+        const existingHistory = userSnap.data()?.overtimeHistory || [];
+        const updatedHistory = existingHistory.map(entry =>
+            entry.requestId === reqId
+                ? { ...entry, overtimeReviewStatus: reviewStatus }
+                : entry
+        );
+        await userRef.set({ overtimeHistory: updatedHistory }, { merge: true });
+    } catch (uhErr) {
+        console.error("Overtime overtimeHistory review-status update failed:", uhErr);
+    }
+}
 
 
 // ===========================================

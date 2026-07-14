@@ -49,6 +49,18 @@
         const btn = document.getElementById("requestOvertimeBtn");
         const reasonBox = document.getElementById("overtimeReasonInput");
 
+        // Step 3: standalone Start Overtime button — always present in
+        // the DOM, visibility toggled by timers.js based on live state.
+        // Wired here alongside Request Overtime since both live in the
+        // same button group and this module already owns that init.
+        const startBtn = document.getElementById("startOvertimeBtn");
+
+        if (startBtn) {
+            startBtn.onclick = () => {
+                window.startOvertimeStandalone?.();
+            };
+        }
+
         if (!btn) return;
 
         btn.onclick = async () => {

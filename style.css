@@ -409,6 +409,25 @@ button:hover{
 
 }
 
+/* Step 3 (revised): generic disabled-button look — needed now that
+   Start Overtime stays visible but non-functional until shiftEnded,
+   rather than being hidden outright. Reusable by any other button. */
+button:disabled{
+
+    opacity:.45;
+
+    cursor:not-allowed;
+
+}
+
+button:disabled:hover{
+
+    background:var(--button-bg);
+
+    transform:none;
+
+}
+
 
 /* ========= DROPDOWNS (SELECT) — consistent across the whole app ========= */
 /* A single tag-level rule so every <select> (audit filters, role pickers,
@@ -5146,4 +5165,42 @@ label.settingsLabel[for] {
     color: var(--text-muted);
     flex-shrink: 0;
     white-space: nowrap;
+}
+
+/* Step 1 (live drilldown sync): row for the live Work/Break/Away
+   timers shown in the Admin Panel user drilldown's Live Status
+   section (admin.js renderDrillLiveSection). */
+.drillLiveTimers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* Step 2 (shift-end continue/stop prompt): row for the two action
+   buttons in the shift-end toast (workspace.js showShiftEndContinuePrompt).
+   .shiftGraceResumeBtn (existing) is reused for "Start Overtime"; this
+   adds the muted secondary style for "No, I'm done for today". */
+.shiftEndPromptBtnRow {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.shiftEndPromptDeclineBtn {
+    align-self: flex-start;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.shiftEndPromptDeclineBtn:hover {
+    background: rgba(255,255,255,.06);
 }

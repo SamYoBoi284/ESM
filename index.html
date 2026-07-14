@@ -352,13 +352,19 @@
 
                 <button id="endShiftBtn" data-en="⚫ End Shift" data-ar="⚫ إنهاء الوردية">⚫ End Shift</button>
 
-                <button id="requestOvertimeBtn" data-en="🕐 Request Overtime" data-ar="🕐 طلب وقت إضافي">🕐 Request Overtime</button>
-
                 <button id="loadHistoryBtn" type="button" data-en="📜 Load History" data-ar="📜 سجل الشحنات">📜 Load History</button>
 
                 <button id="todaysTimersToggleBtn" type="button" data-en="🕐 Today's Timers ▾" data-ar="🕐 مؤقتات اليوم ▾">🕐 Today's Timers ▾</button>
 
                 <button id="monthlyStatsToggleBtn" type="button" data-en="📊 Monthly Statistics ▾" data-ar="📊 الإحصائيات الشهرية ▾">📊 Monthly Statistics ▾</button>
+
+                <!-- Step 3 (revised): always visible, not just once the
+                     shift has ended — disabled via timers.js until
+                     RelayDesk.shiftEnded is true (or a no-op on an
+                     off-day shift, which auto-overtimes instead). -->
+                <button id="startOvertimeBtn" data-en="🕐 Start Overtime" data-ar="🕐 بدء وقت إضافي">🕐 Start Overtime</button>
+
+                <button id="requestOvertimeBtn" data-en="🕐 Request Overtime" data-ar="🕐 طلب وقت إضافي">🕐 Request Overtime</button>
 
             </div>
 
