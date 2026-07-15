@@ -1644,12 +1644,6 @@
         const text = Chat.UI.input?.value.trim();
         if (!text || !Chat.openChatId) return;
 
-        const userData = RelayDesk.currentUserData;
-        if (userData?.frozen) {
-            alert("Account frozen — messaging blocked");
-            return;
-        }
-
         Chat.UI.input.value = "";
         autoGrowChatInput();
         clearTypingFlag();

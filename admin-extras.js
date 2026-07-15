@@ -167,11 +167,18 @@ function renderFilteredAuditLogs(filters) {
             `;
         }).join("");
 
+        // a fresh Filter click is a deliberate action, so results start
+        // expanded — but from here on they follow the same shared
+        // open/close state as the live feed (audit.js), so they won't
+        // get yanked shut by the next refresh/filter re-render
+        window._auditOpenUsers?.add(user);
+
         container.innerHTML = `
-            <div class="auditHeader" onclick="this.nextElementSibling.classList.toggle('open')">
+            <div class="auditHeader" onclick="window.auditToggleOpen(this, '${user}')">
                 👤 ${user} ▼
             </div>
             <div class="auditDropdown open">
+                <div class="auditCloseBtn" onclick="window.auditCloseGroup(this, '${user}')">✕ Close</div>
                 ${details}
             </div>
         `;
@@ -264,8 +271,6 @@ function bindAddEmployeeForm() {
                 adminStatus: "Not Authorized",
                 role,
                 weeklyOffDays,
-                frozen: false,
-                lastStatusBeforeFreeze: null,
                 createdByAdmin: true,
                 // ===== PERMISSION SYSTEM =====
                 permissionLevel,

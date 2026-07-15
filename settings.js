@@ -502,6 +502,15 @@
     // All of the above except Esc are reversible: pressing the same
     // shortcut again undoes what it just did (closes the modal/screen it
     // opened, or in Admin Panel's case, returns to the Dashboard).
+    //
+    // Phase 6: Esc also backs out of the Admin Panel / User Guide / Admin
+    // Guide screens (same target each of those already returns to via its
+    // own Back button), for non-A000 users only — A000 has no Dashboard to
+    // land on, so its Escape handling stops at the pre-existing modal/Dev
+    // Panel/Settings cases above. Skipped entirely while focus is in an
+    // input or textarea (search boxes, the Report Formatter's template/
+    // notes fields, etc.) so it never hijacks normal text editing or loses
+    // unsaved report text.
 
     function topMostOpenOverlay() {
         return Array.from(document.querySelectorAll(".modalOverlay"))
@@ -529,6 +538,38 @@
                 closeSettingsScreen();
                 return;
             }
+
+            // Phase 6 — general "back to previous/last screen" navigation.
+            // A000 is excluded per spec (no Dashboard to return to); every
+            // other case below reuses the screen's own existing Back
+            // control/close function rather than a new nav mechanism.
+            if (window.RelayDesk?.currentUser === "A000") return;
+
+            // Don't hijack Esc while typing — includes the Guide search
+            // boxes and the Report Formatter's template/department-notes
+            // textareas, none of which should lose focus/content because
+            // of a stray Escape press.
+            const typingInField = ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName);
+            if (typingInField) return;
+
+            const adminScreenEl = document.getElementById("adminScreen");
+            if (adminScreenEl && !adminScreenEl.classList.contains("hidden")) {
+                document.getElementById("backToDashboardBtn")?.click();
+                return;
+            }
+
+            const userGuideEl = document.getElementById("userGuideScreen");
+            if (userGuideEl && !userGuideEl.classList.contains("hidden")) {
+                window.closeUserGuide?.();
+                return;
+            }
+
+            const adminGuideEl = document.getElementById("adminGuideScreen");
+            if (adminGuideEl && !adminGuideEl.classList.contains("hidden")) {
+                window.closeAdminGuide?.();
+                return;
+            }
+
             return;
         }
 

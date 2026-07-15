@@ -10,6 +10,72 @@ let auditInitialized = false;
 
 
 // ===========================================
+// AUDIT GROUP OPEN/CLOSE STATE (Phase 2)
+// ===========================================
+// Both loadAuditLogs() below and admin-extras.js's
+// renderFilteredAuditLogs() rebuild #auditLog's innerHTML from
+// scratch on every refresh (loadAuditLogs runs every 10s via
+// setInterval). That used to blow away any group an admin had
+// expanded — effectively "auto-closing" it out from under them.
+// This tracks which user-groups are expanded across re-renders, so a
+// group only closes when the admin actually closes it: the ✕ button,
+// clicking outside the audit panel, or scrolling the panel out of
+// view. Shared globally since both render functions use it.
+
+window._auditOpenUsers = window._auditOpenUsers || new Set();
+
+window.auditIsOpen = function (user) {
+    return window._auditOpenUsers.has(user);
+};
+
+window.auditToggleOpen = function (headerEl, user) {
+    if (window._auditOpenUsers.has(user)) {
+        window._auditOpenUsers.delete(user);
+    } else {
+        window._auditOpenUsers.add(user);
+    }
+    headerEl.nextElementSibling.classList.toggle("open");
+};
+
+window.auditCloseGroup = function (closeBtnEl, user) {
+    window._auditOpenUsers.delete(user);
+    closeBtnEl.closest(".auditDropdown")?.classList.remove("open");
+};
+
+window.auditCloseAllGroups = function () {
+    if (!window._auditOpenUsers.size) return;
+    window._auditOpenUsers.clear();
+    document.querySelectorAll("#auditLog .auditDropdown.open")
+        .forEach(el => el.classList.remove("open"));
+};
+
+let auditCloseListenersBound = false;
+
+function bindAuditCloseListeners() {
+
+    if (auditCloseListenersBound) return;
+    auditCloseListenersBound = true;
+
+    // outside click closes any expanded groups
+    document.addEventListener("click", (e) => {
+        if (e.target.closest("#auditLog")) return;
+        window.auditCloseAllGroups();
+    });
+
+    // scrolling the audit panel out of view closes any expanded groups
+    const panel = document.getElementById("auditLog");
+    if (panel && "IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) window.auditCloseAllGroups();
+            });
+        }, { threshold: 0 });
+        observer.observe(panel);
+    }
+}
+
+
+// ===========================================
 // INIT AUDIT SYSTEM
 // ===========================================
 
@@ -40,6 +106,7 @@ function initAuditSystem() {
     }
 
     loadAuditLogs();
+    bindAuditCloseListeners();
 
     setInterval(loadAuditLogs, 10000);
 
@@ -180,12 +247,15 @@ function loadAuditLogs() {
                     `;
                 }).join("");
 
+                const isOpen = window.auditIsOpen(user);
+
                 container.innerHTML = `
                     <div class="auditHeader"
-                         onclick="this.nextElementSibling.classList.toggle('open')">
+                         onclick="window.auditToggleOpen(this, '${user}')">
                         👤 ${user} ▼
                     </div>
-                    <div class="auditDropdown">
+                    <div class="auditDropdown${isOpen ? " open" : ""}">
+                        <div class="auditCloseBtn" onclick="window.auditCloseGroup(this, '${user}')">✕ Close</div>
                         ${details}
                     </div>
                 `;
@@ -254,6 +324,81 @@ window.logShiftEnd = async function (user, reason = "Shift ended") {
     if (typeof logAudit !== "function") return;
 
     await logAudit(user, "SHIFT_ENDED", reason);
+};
+
+
+// ===========================================
+// EXPORT (Phase 2 item 3)
+// ===========================================
+// Mirrors admin.js's exportShiftHistoryPdf: same jsPDF line()/page-break
+// helper, same doc.save(...) pattern. Gated on canViewAudit (not
+// canExportHistory) since that's the permission that already governs
+// who sees the audit log at all.
+
+window.exportAuditLogPdf = async function () {
+
+    if (!window.hasPermission?.("canViewAudit")) {
+        alert("You don't have permission to export the audit log.");
+        return;
+    }
+
+    if (!window.jspdf?.jsPDF) {
+        alert("PDF library not loaded. Check your connection and try again.");
+        return;
+    }
+
+    const snapshot = await db.collection("auditLogs")
+        .orderBy("time", "desc")
+        .limit(300)
+        .get();
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    let y = 15;
+    const lineGap = 6;
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    function line(text, size = 10, bold = false) {
+        if (y > pageHeight - 15) {
+            doc.addPage();
+            y = 15;
+        }
+        doc.setFontSize(size);
+        doc.setFont(undefined, bold ? "bold" : "normal");
+        doc.text(String(text), 14, y);
+        y += lineGap;
+    }
+
+    line("RelayDesk Audit Log Export", 16, true);
+    line(`Generated ${new Date().toLocaleString()}`, 9);
+    line(`Most recent ${snapshot.size} entries`, 9);
+    y += 3;
+
+    snapshot.forEach(docSnap => {
+
+        const l = docSnap.data();
+        const time = l.time ? new Date(l.time).toLocaleString() : "N/A";
+
+        line(`${time}  |  ${l.user || "Unknown"}  |  ${l.action || ""}`, 9, true);
+
+        if (l.detail) line(String(l.detail), 9);
+
+        if (l.changedFields?.length) {
+            l.changedFields.forEach(f => {
+                const before = l.before?.[f] ?? "—";
+                const after = l.after?.[f] ?? "—";
+                line(`  ${f}: ${before} -> ${after}`, 8);
+            });
+            if (l.reason) line(`  Reason: ${l.reason}`, 8);
+        }
+
+        y += 1;
+    });
+
+    doc.save(`audit-log-export-${Date.now()}.pdf`);
+
+    logAudit(RelayDesk.currentUser, "EXPORT_AUDIT_LOG", "Downloaded PDF export");
 };
 
 

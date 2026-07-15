@@ -10,13 +10,11 @@ if (window.I18N) {
     window.I18N.register("admin", {
         en: {
             confirmRebuildShiftHistory: "Rebuild missing active shift history?",
-            confirmResetAllUsers: "Reset ALL users?",
             confirmDeleteUser: "Delete user {id}?",
             confirmResetPin: "Reset PIN for {id}? They'll be asked to set a new one at next login."
         },
         ar: {
             confirmRebuildShiftHistory: "إعادة بناء سجل الوردية النشطة المفقود؟",
-            confirmResetAllUsers: "إعادة تعيين جميع المستخدمين؟",
             confirmDeleteUser: "حذف المستخدم {id}؟",
             confirmResetPin: "إعادة تعيين الرقم السري لـ {id}؟ سيُطلب منه تعيين رقم جديد عند تسجيل الدخول التالي."
         }
@@ -701,21 +699,6 @@ window.setUserStatus = async (id, status) => {
         alert("You don't have permission to change employee status.");
         return;
     }
-
-    // prevent frozen user from changing anything except Off Duty
-if (id !== "A000") {
-
-    const userDoc = await db.collection("users").doc(id).get();
-    const u = userDoc.data();
-
-    if (u?.frozen) {
-
-        if (status !== "Off Duty") {
-            alert("User is frozen");
-            return;
-        }
-    }
-}
 
     await db.collection("users").doc(id).set({
         status: status,

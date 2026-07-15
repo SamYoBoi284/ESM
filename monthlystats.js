@@ -253,6 +253,16 @@ async function maybeArchiveMonth(info) {
         const existing = await ref.get();
         if (existing.exists) return; // already archived — common case, cheap bail-out
 
+        // Phase 7, item 10: date-sensitive protection — get a full
+        // Firestore export out (local download + GitHub if enabled)
+        // before this month's data gets rolled into the archive.
+        // Never blocks the archive itself if the export fails.
+        if (window.DevDataExport?.enabled) {
+            window.DevDataExport.runFullExport("pre-monthly-archive").catch(err => {
+                console.warn("Monthly Statistics: pre-archive data export failed (archive itself still proceeds):", err);
+            });
+        }
+
         const result = await aggregateMonthOnce(info);
 
         const payload = {
@@ -447,6 +457,7 @@ window.initMonthlyArchiveAdmin = function () {
     const viewBox = document.getElementById("monthlyArchiveView");
     const csvBtn = document.getElementById("monthlyArchiveCsvBtn");
     const jsonBtn = document.getElementById("monthlyArchiveJsonBtn");
+    const pdfBtn = document.getElementById("monthlyArchivePdfBtn");
     const refreshBtn = document.getElementById("monthlyArchiveRefreshBtn");
 
     let currentArchiveDoc = null;
@@ -527,6 +538,11 @@ window.initMonthlyArchiveAdmin = function () {
         downloadMonthlyArchiveJson(currentArchiveDoc);
     });
 
+    pdfBtn?.addEventListener("click", () => {
+        if (!currentArchiveDoc) return;
+        downloadMonthlyArchivePdf(currentArchiveDoc);
+    });
+
     loadArchiveList();
     initGithubBackupControls();
 };
@@ -558,6 +574,64 @@ function downloadMonthlyArchiveJson(data) {
     a.href = URL.createObjectURL(blob);
     a.download = `relaydesk-monthly-stats-${data.month}.json`;
     a.click();
+}
+
+function downloadMonthlyArchivePdf(data) {
+
+    if (!window.hasPermission?.("canViewStatistics")) {
+        alert("You don't have permission to export monthly statistics.");
+        return;
+    }
+
+    if (!window.jspdf?.jsPDF) {
+        alert("PDF library not loaded. Check your connection and try again.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    let y = 15;
+    const lineGap = 7;
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    function line(text, size = 11, bold = false) {
+        if (y > pageHeight - 15) {
+            doc.addPage();
+            y = 15;
+        }
+        doc.setFontSize(size);
+        doc.setFont(undefined, bold ? "bold" : "normal");
+        doc.text(String(text), 14, y);
+        y += lineGap;
+    }
+
+    line("RelayDesk Monthly Statistics", 16, true);
+    line(data.monthLabel, 12, true);
+    line(`Archived ${new Date(data.archivedAt).toLocaleString()} by ${data.archivedBy}`, 9);
+    y += 3;
+
+    line("Summary", 13, true);
+    line(`Total Booked Loads: ${data.totalLoads}`);
+    line(`Total Revenue: ${formatCurrencyMS(data.totalRevenue)}`);
+    y += 3;
+
+    const rows = Object.keys(data.perEmployee || {})
+        .map(id => ({ id, ...data.perEmployee[id] }))
+        .sort((a, b) => b.revenue - a.revenue);
+
+    line("Employees", 13, true);
+    if (!rows.length) {
+        line("No qualifying loads that month.");
+    } else {
+        rows.forEach(r => {
+            line(`${r.id} — Booked Loads: ${r.loads} | Revenue: ${formatCurrencyMS(r.revenue)}`, 9);
+        });
+    }
+
+    doc.save(`relaydesk-monthly-stats-${data.month}.pdf`);
+
+    logAudit(RelayDesk.currentUser, "EXPORT_MONTHLY_STATS", "Downloaded PDF export");
 }
 
 

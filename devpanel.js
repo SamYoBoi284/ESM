@@ -590,6 +590,201 @@
 
         document.getElementById("viewReleaseNotesBtn")?.addEventListener("click", window.openReleaseNotesModal);
         document.getElementById("aboutEsmReleaseNotesBtn")?.addEventListener("click", window.openReleaseNotesModal);
+
+        bindDataExportControls();
+    }
+
+    // ===========================================
+    // PHASE 7: DATA RECOVERY & GITHUB EXPORT
+    // (Developer accounts only)
+    // ===========================================
+    // Full-Firestore export bundler + optional push to a private GitHub
+    // repo, mirroring the same Contents-API PUT pattern already used by
+    // MonthlyStatsGithubBackup / ViolationsGithubBackup (monthlystats.js /
+    // violations.js). Config lives in its own doc (system/devExportConfig)
+    // — kept separate from appConfig/main so it's independent of the
+    // Version/Credits/Release Notes save flow above.
+    //
+    // ⚠️ SECURITY NOTE: same caveat as the other GitHub integrations —
+    // whatever token is saved here lands in Firestore, which is
+    // world-readable/writable under the temporary open rule in
+    // firestore.rules until it expires. Use a fine-grained, repo-scoped
+    // token.
+
+    const DEV_EXPORT_COLLECTIONS = [
+        "announcements", "appConfig", "auditLogs", "chats", "featureRequests",
+        "loadChangeNotifications", "loadVridIndex", "monthlyStatsArchive",
+        "offDayChangeRequests", "overtimeRequests", "shiftHistory", "shifts",
+        "system", "users", "violationLogs", "violationsArchive"
+    ];
+
+    window.DevDataExport = {
+        enabled: false,
+        repo: "",
+        path: "esm-backups",
+        token: ""
+    };
+
+    async function loadDevExportConfig() {
+        try {
+            const doc = await db.collection("system").doc("devExportConfig").get();
+            const cfg = doc.exists ? doc.data() : {};
+            window.DevDataExport.enabled = !!cfg.githubBackupEnabled;
+            window.DevDataExport.repo = cfg.githubRepo || "";
+            window.DevDataExport.path = cfg.githubPath || "esm-backups";
+            window.DevDataExport.token = cfg.githubToken || "";
+        } catch (err) {
+            console.warn("Dev Data Export: could not load config:", err);
+        }
+    }
+
+    // Pulls every collection in DEV_EXPORT_COLLECTIONS into one bundle,
+    // tagged with the metadata the roadmap asked for (month/year/
+    // timestamp/ESM version).
+    async function buildFullExportBundle() {
+        const now = new Date();
+        const data = {};
+
+        for (const name of DEV_EXPORT_COLLECTIONS) {
+            const snap = await db.collection(name).get();
+            const docs = {};
+            snap.forEach(d => { docs[d.id] = d.data(); });
+            data[name] = docs;
+        }
+
+        return {
+            meta: {
+                exportedAt: now.getTime(),
+                year: now.getUTCFullYear(),
+                month: now.getUTCMonth() + 1,
+                esmVersion: getEffectiveVersion(),
+                exportedBy: RelayDesk.currentUser || "system-auto"
+            },
+            data
+        };
+    }
+
+    function downloadJsonFile(filename, obj) {
+        const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    async function uploadJsonToGithub(filename, obj, commitMessage) {
+        const cfg = window.DevDataExport;
+        if (!cfg.repo || !cfg.token) throw new Error("GitHub repo/token not configured");
+
+        const path = `${cfg.path.replace(/\/$/, "")}/${filename}`;
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(obj, null, 2))));
+
+        const res = await fetch(`https://api.github.com/repos/${cfg.repo}/contents/${path}`, {
+            method: "PUT",
+            headers: {
+                "Authorization": `token ${cfg.token}`,
+                "Accept": "application/vnd.github+json"
+            },
+            body: JSON.stringify({ message: commitMessage, content })
+        });
+
+        if (!res.ok) {
+            throw new Error(`GitHub upload failed: ${res.status} ${await res.text()}`);
+        }
+    }
+
+    // reason: "manual" | "pre-monthly-archive" | "pre-violations-archive".
+    // Manual runs always trigger a local download; every reason pushes to
+    // GitHub too if that's enabled/configured. Callers that fire this
+    // ahead of an archive (monthlystats.js / violations.js) always wrap
+    // it in a .catch() — a failed backup export must never block the
+    // archive itself.
+    window.DevDataExport.runFullExport = async function (reason = "manual") {
+        const bundle = await buildFullExportBundle();
+        const stamp = new Date(bundle.meta.exportedAt).toISOString().replace(/[:.]/g, "-");
+        const filename = `esm-export-${bundle.meta.year}-${String(bundle.meta.month).padStart(2, "0")}-${stamp}.json`;
+
+        if (reason === "manual") {
+            downloadJsonFile(filename, bundle);
+        }
+
+        if (window.DevDataExport.enabled) {
+            await uploadJsonToGithub(filename, bundle, `ESM data export (${reason}) — ${bundle.meta.year}-${String(bundle.meta.month).padStart(2, "0")}`);
+        }
+
+        if (typeof window.logAudit === "function") {
+            window.logAudit(RelayDesk.currentUser || "system-auto", "EXPORT_DEV_BACKUP", `Reason: ${reason}`);
+        }
+
+        return filename;
+    };
+
+    // Item 11 — GitHub Export Test: a real upload of a small test file so
+    // a developer can confirm repo/token/path are correct before relying
+    // on the automatic pre-archive export.
+    window.DevDataExport.runExportTest = async function () {
+        const testPayload = { test: true, timestamp: Date.now(), esmVersion: getEffectiveVersion() };
+        await uploadJsonToGithub("esm_export_test.json", testPayload, "ESM GitHub Export Test");
+    };
+
+    function bindDataExportControls() {
+        const box = document.getElementById("devDataExportSection");
+        if (!box) return;
+
+        const enabledCk = document.getElementById("devExportGithubEnabled");
+        const repoInput = document.getElementById("devExportGithubRepo");
+        const pathInput = document.getElementById("devExportGithubPath");
+        const tokenInput = document.getElementById("devExportGithubToken");
+        const saveBtn = document.getElementById("devExportConfigSaveBtn");
+        const exportBtn = document.getElementById("devExportNowBtn");
+        const exportResult = document.getElementById("devExportNowResult");
+        const testBtn = document.getElementById("devExportTestBtn");
+        const testResult = document.getElementById("devExportTestResult");
+
+        loadDevExportConfig().then(() => {
+            if (enabledCk) enabledCk.checked = window.DevDataExport.enabled;
+            if (repoInput) repoInput.value = window.DevDataExport.repo;
+            if (pathInput) pathInput.value = window.DevDataExport.path;
+        });
+
+        saveBtn?.addEventListener("click", async () => {
+            const cfg = {
+                githubBackupEnabled: !!enabledCk?.checked,
+                githubRepo: repoInput?.value.trim() || "",
+                githubPath: pathInput?.value.trim() || "esm-backups",
+                githubToken: tokenInput?.value.trim() || window.DevDataExport.token
+            };
+            await db.collection("system").doc("devExportConfig").set(cfg, { merge: true });
+            await loadDevExportConfig();
+            if (tokenInput) tokenInput.value = "";
+            alert("GitHub export settings saved.");
+        });
+
+        exportBtn?.addEventListener("click", async () => {
+            if (exportResult) exportResult.textContent = "Exporting...";
+            try {
+                const filename = await window.DevDataExport.runFullExport("manual");
+                if (exportResult) exportResult.textContent = `✅ Exported: ${filename}`;
+            } catch (err) {
+                console.error("Manual data export failed:", err);
+                if (exportResult) exportResult.textContent = `❌ Export failed: ${err.message}`;
+            }
+        });
+
+        testBtn?.addEventListener("click", async () => {
+            if (testResult) testResult.textContent = "Testing...";
+            try {
+                await window.DevDataExport.runExportTest();
+                if (testResult) testResult.textContent = "✅ Test upload succeeded — check the repo for esm_export_test.json";
+            } catch (err) {
+                console.error("GitHub export test failed:", err);
+                if (testResult) testResult.textContent = `❌ Test failed: ${err.message}`;
+            }
+        });
     }
 
     window.initDevPanel = function () {

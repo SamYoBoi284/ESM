@@ -17,7 +17,6 @@
                 notesSaveFailed: "Save Failed",
                 shiftEndingSoon: "⏳ 15 minutes left in your shift.",
                 noPermissionDeleteLoad: "You don't have permission to delete loads.",
-                accountFrozenBlocked: "Account frozen — action blocked",
                 noPermissionEditLoad: "You don't have permission to edit loads.",
                 loadSaveFailed: "Failed to save load — check your connection.",
                 shiftEndPromptQuestion: "Your scheduled shift has ended. Are you continuing to work today?",
@@ -31,7 +30,6 @@
                 notesSaveFailed: "فشل الحفظ",
                 shiftEndingSoon: "⏳ تبقّى 15 دقيقة على انتهاء ورديتك.",
                 noPermissionDeleteLoad: "ليس لديك صلاحية لحذف الشحنات.",
-                accountFrozenBlocked: "الحساب مجمّد — تم حظر الإجراء",
                 noPermissionEditLoad: "ليس لديك صلاحية لتعديل الشحنات.",
                 loadSaveFailed: "فشل حفظ الشحنة — تحقق من الاتصال.",
                 shiftEndPromptQuestion: "انتهت ورديتك المجدولة. هل ستستمر بالعمل اليوم؟",
@@ -145,10 +143,10 @@
         initialized: false,
         UI: {},
 
-        // Default template shown the first time an employee opens the
-        // panel. Employees (or admins, via the same textarea) can
-        // overwrite this with whatever structure they want — it's
-        // saved per-browser so it sticks around next shift.
+        // Template 1 — the fixed, uneditable default. Phase 4 item 5:
+        // this is always available in the template dropdown and can no
+        // longer be overwritten in place (that's what the two Custom
+        // slots below are for).
         DEFAULT_TEMPLATE:
 `End of Shift Report — {{date}}
 {{user}}
@@ -159,6 +157,28 @@ Loads Booked ({{loadCount}}):
 
 Notes:
 {{notes}}`,
+
+        // Recognized placeholders — used both to fill the template and
+        // (Phase 4 item 6) to auto-detect whether a pasted Custom
+        // template is usable at all.
+        KNOWN_TOKENS: [
+            "{{date}}", "{{user}}", "{{shiftStart}}", "{{shiftEnd}}",
+            "{{loadCount}}", "{{loads}}", "{{notes}}"
+        ],
+
+        TEMPLATE_SLOTS: ["template1", "custom1", "custom2"],
+
+        // Phase 4 items 5+6: which template is active, plus the raw
+        // pasted text for the two Custom slots. Template 1 itself is
+        // never stored here — it's always DEFAULT_TEMPLATE. Saved
+        // per-user in Firestore (`reportTemplates` +
+        // `activeReportTemplate` on the user doc), not per-browser —
+        // this replaces the old localStorage-only single template.
+        templateState: {
+            active: "template1",
+            custom1: "",
+            custom2: ""
+        },
 
         // Team Members (combined shift report) — selection is kept in
         // memory only (per V51 item 6): it's a report-generation-time
@@ -182,7 +202,14 @@ Notes:
             this.mount();
             this.cacheUI();
             this.bindEvents();
-            this.restoreTemplate();
+
+            // Paint Template 1 immediately so the panel never shows a
+            // blank textarea while the Firestore read below is in
+            // flight, then swap in the user's actual saved slot/state
+            // once it resolves.
+            this.applyActiveTemplateToUI();
+            this.loadTemplateState().then(() => this.renderPreview());
+
             this.autoLoadShiftData().then(() => this.renderPreview());
             this.renderPreview();
 
@@ -226,10 +253,15 @@ Notes:
 
                     <label for="reportTemplateInput">Report Template Format</label>
                     <textarea id="reportTemplateInput" rows="6"
-                        placeholder="Paste your (or your admin's) report template here. Use {{date}}, {{user}}, {{shiftStart}}, {{shiftEnd}}, {{loadCount}}, {{loads}}, {{notes}} as placeholders."></textarea>
+                        placeholder="Paste your report template here. Use {{date}}, {{user}}, {{shiftStart}}, {{shiftEnd}}, {{loadCount}}, {{loads}}, {{notes}} as placeholders."></textarea>
+                    <div id="reportTemplateFallbackNotice" class="reportTemplateFallbackNotice hidden">⚠️ This custom template has no recognized placeholders, so Template 1 is being used instead.</div>
 
                     <div class="reportFormatterRow">
-                        <label>Department Notes</label>
+                        <select id="reportTemplateSelect" class="reportTemplateSelect">
+                            <option value="template1">Template 1 (Default)</option>
+                            <option value="custom1">Custom Template 1</option>
+                            <option value="custom2">Custom Template 2</option>
+                        </select>
                         <button id="reportAutoLoadBtn" class="smallButton" type="button">🔄 Auto-Load Today's Shift Data</button>
                     </div>
                     <div class="reportDeptNotesGrid">
@@ -264,6 +296,8 @@ Notes:
 
             this.UI = {
                 template: document.getElementById("reportTemplateInput"),
+                templateSelect: document.getElementById("reportTemplateSelect"),
+                templateFallbackNotice: document.getElementById("reportTemplateFallbackNotice"),
                 preview: document.getElementById("reportPreview"),
                 autoLoadBtn: document.getElementById("reportAutoLoadBtn"),
                 copyBtn: document.getElementById("reportCopyBtn"),
@@ -303,7 +337,21 @@ Notes:
             );
 
             this.UI.template?.addEventListener("input", () => {
-                this.saveTemplate();
+                // Template 1 is rendered read-only, but guard here too
+                // in case the readonly attribute gets bypassed somehow
+                // — it must never be overwritten in place.
+                if (this.templateState.active === "template1") return;
+
+                this.templateState[this.templateState.active] = this.UI.template.value;
+                this.queueTemplateStateSave();
+                this.renderPreview();
+            });
+
+            this.UI.templateSelect?.addEventListener("change", () => {
+                const value = this.UI.templateSelect.value;
+                this.templateState.active = this.TEMPLATE_SLOTS.includes(value) ? value : "template1";
+                this.applyActiveTemplateToUI();
+                this.saveTemplateState(); // discrete action — save immediately, no debounce
                 this.renderPreview();
             });
 
@@ -335,27 +383,75 @@ Notes:
             this.UI.teamCancelBtn?.addEventListener("click", () => this.closeTeamModal());
         },
 
-        // Template is a personal formatting preference, so it's kept
-        // per-browser rather than round-tripped through Firestore.
-        saveTemplate() {
-            try {
-                localStorage.setItem(
-                    "relaydesk_reportTemplate",
-                    this.UI.template?.value ?? ""
-                );
-            } catch (e) {}
+        // Phase 4 items 5+6: template state (active slot + the two
+        // Custom slots' pasted text) is a per-USER preference now, not
+        // per-browser — saved on the user's own Firestore doc so it
+        // follows them across devices, same pattern as deptNotes below.
+        loadTemplateState() {
+
+            if (!RelayDesk.currentUser) return Promise.resolve();
+
+            return db.collection("users").doc(RelayDesk.currentUser).get()
+                .then(doc => {
+
+                    const data = doc.exists ? (doc.data() || {}) : {};
+                    const saved = data.reportTemplates || {};
+
+                    this.templateState.custom1 = saved.custom1 || "";
+                    this.templateState.custom2 = saved.custom2 || "";
+                    this.templateState.active = this.TEMPLATE_SLOTS.includes(data.activeReportTemplate)
+                        ? data.activeReportTemplate
+                        : "template1";
+
+                    this.applyActiveTemplateToUI();
+                })
+                .catch(err => {
+                    console.error("⚠️ Failed to load report templates:", err);
+                });
         },
 
-        restoreTemplate() {
+        queueTemplateStateSave() {
+            clearTimeout(this._templateSaveTimeout);
+            this._templateSaveTimeout = setTimeout(() => this.saveTemplateState(), 1200);
+        },
 
-            let saved = null;
+        saveTemplateState() {
 
-            try {
-                saved = localStorage.getItem("relaydesk_reportTemplate");
-            } catch (e) {}
+            if (!RelayDesk.currentUser) return;
+
+            RelayDesk.queue.enqueue("FIRESTORE_MERGE", {
+                collection: "users",
+                docId: RelayDesk.currentUser,
+                data: {
+                    activeReportTemplate: this.templateState.active,
+                    reportTemplates: {
+                        custom1: this.templateState.custom1,
+                        custom2: this.templateState.custom2
+                    }
+                }
+            }, { dedupeKey: `reportTemplates:${RelayDesk.currentUser}` });
+        },
+
+        // Paints the dropdown + textarea to match templateState.active.
+        // Template 1 is always DEFAULT_TEMPLATE and always read-only;
+        // Custom 1/2 show whatever's been pasted into that slot (or
+        // blank) and are freely editable.
+        applyActiveTemplateToUI() {
+
+            if (this.UI.templateSelect) {
+                this.UI.templateSelect.value = this.templateState.active;
+            }
 
             if (this.UI.template) {
-                this.UI.template.value = saved || this.DEFAULT_TEMPLATE;
+
+                const isDefault = this.templateState.active === "template1";
+
+                this.UI.template.value = isDefault
+                    ? this.DEFAULT_TEMPLATE
+                    : (this.templateState[this.templateState.active] || "");
+
+                this.UI.template.readOnly = isDefault;
+                this.UI.template.classList.toggle("reportTemplateReadOnly", isDefault);
             }
         },
 
@@ -645,9 +741,31 @@ Notes:
         // per-employee Notes breakdown) rather than plain values —
         // this is a report-generation-only combination, nothing is
         // ever merged or written back to Firestore.
+        // Phase 4 item 6: a Custom slot only gets used as-is if it
+        // actually contains at least one recognized {{placeholder}}.
+        // An empty slot, or one pasted in without any known token,
+        // falls back to Template 1 instead — surfaced to the employee
+        // via the fallback notice in renderPreview().
+        resolveActiveTemplateText() {
+
+            if (this.templateState.active === "template1") {
+                return { text: this.DEFAULT_TEMPLATE, fellBack: false };
+            }
+
+            const custom = this.templateState[this.templateState.active] || "";
+            const hasKnownToken = this.KNOWN_TOKENS.some(t => custom.includes(t));
+
+            if (!custom.trim() || !hasKnownToken) {
+                return { text: this.DEFAULT_TEMPLATE, fellBack: true };
+            }
+
+            return { text: custom, fellBack: false };
+        },
+
         buildReport() {
 
-            const template = this.UI.template?.value || "";
+            const { text: template, fellBack } = this.resolveActiveTemplateText();
+            this._lastTemplateFallback = fellBack;
 
             const selectedIds = this.teamMembers.selected.size
                 ? Array.from(this.teamMembers.selected).sort()
@@ -2182,6 +2300,99 @@ function parseRelayClipboard(text) {
     return { loadId, from, to, price, pricePerMile };
 }
 
+// ===========================================
+// RELAY TRIP CLIPBOARD IMPORTER (Trip ID -> Sub Load IDs -> Stops)
+// ===========================================
+// A Trip booking arrives as the same fixed message sequence documented
+// above (BOOKED / ... / $price / $price/mi / NOTE / #sender), but
+// instead of one <Load ID> + one route line, it has a Trip ID followed
+// by a repeating (Sub Load ID, route) pair per leg — one pair per
+// sub load, however many legs the trip has:
+//
+//   BOOKED
+//   <Trip ID>                  e.g. T-11669D9N1
+//   <Sub Load ID>               e.g. 1133F8G77
+//   <Origin> TO <Destination>
+//   <Sub Load ID>               e.g. 1164XQ9HZ
+//   <Origin> TO <Destination>
+//   ...                         (any number of additional legs)
+//   $<Price>                    (trip total, appears once)
+//   $<Price>/mi                 (trip total, appears once)
+//   NOTE: "<delay/load note>"  (optional)
+//   #<sender employee code>
+//
+// Sub Load IDs are only load-bearing for recognizing where each leg
+// boundary falls while parsing — like Trailer/Pickup/sender-code in
+// the single-load format, they're deliberately not kept on the load
+// record itself. What IS kept is the resulting chain of stops
+// (waypoints), built leg by leg: the first leg contributes both its
+// origin and destination, every leg after that normally contributes
+// only its destination (Relay legs connect end-to-end) — unless a
+// leg's origin doesn't match the running last stop, in which case
+// it's inserted too rather than silently dropped.
+//
+// Detection: this only recognizes the blob as a Trip at all if there
+// are 2+ route ("X to Y") lines — a single-load blob always has
+// exactly one, so this never misfires on the existing format and the
+// caller can safely try this parser first.
+function parseRelayClipboardTrip(text) {
+    if (!text) return null;
+
+    text = text.replace(/\[[^\]\n]+\]\s*[^:\n]+:\s*/g, "\n");
+
+    let lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    lines = lines.filter(l => !/^booked$/i.test(l));
+
+    const noteIdx = lines.findIndex(l => /^note:?$/i.test(l));
+    if (noteIdx !== -1) {
+        const hasQuotedLine = /^".*"$/.test(lines[noteIdx + 1] || "");
+        lines.splice(noteIdx, hasQuotedLine ? 2 : 1);
+    }
+
+    lines = lines.filter(l => !/^#\w+$/.test(l));
+
+    const routeLineCount = lines.filter(l => /\s+to\s+/i.test(l)).length;
+    if (routeLineCount < 2) return null;
+
+    let pricePerMile = null;
+    const pmIdx = lines.findIndex(l => /\$?\s*[\d,]+(?:\.\d+)?\s*\/\s*mi\b/i.test(l));
+    if (pmIdx !== -1) {
+        const pmMatch = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
+        pricePerMile = pmMatch ? pmMatch[1].replace(/,/g, "") : null;
+        lines.splice(pmIdx, 1);
+    }
+
+    let price = null;
+    const priceIdx = lines.findIndex(l => /\$\s*[\d,]+(?:\.\d{2})?/.test(l));
+    if (priceIdx !== -1) {
+        const priceMatch = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
+        price = priceMatch ? priceMatch[1].replace(/,/g, "") : null;
+        lines.splice(priceIdx, 1);
+    }
+
+    // Whatever's left: Trip ID first, then Sub Load ID / route lines
+    // interleaved in original order. Only the route lines matter from
+    // here — a Sub Load ID line is just skipped over.
+    const tripId = lines[0] || null;
+    const rest = lines.slice(1);
+
+    const stops = [];
+    rest.forEach(line => {
+        if (!/\s+to\s+/i.test(line)) return; // Sub Load ID line, not a route
+        const split = parseFromToSplit(line);
+        if (!split) return;
+        const lastStop = stops[stops.length - 1];
+        if (!lastStop || lastStop.toLowerCase() !== split.from.toLowerCase()) {
+            stops.push(split.from);
+        }
+        stops.push(split.to);
+    });
+
+    if (!tripId && !stops.length && !price && !pricePerMile) return null;
+
+    return { tripId, stops, price, pricePerMile };
+}
+
 function bindLoadModalRelayImport() {
     loadModalUI.importRelayBtn?.addEventListener("click", async () => {
         if (loadModalUI.importRelayError) loadModalUI.importRelayError.textContent = "";
@@ -2201,6 +2412,40 @@ function bindLoadModalRelayImport() {
             if (loadModalUI.importRelayError) {
                 loadModalUI.importRelayError.textContent = "Couldn't read the clipboard — copy the Relay messages and try again.";
             }
+            return;
+        }
+
+        // Trip blobs (2+ route lines) are tried first — a single-load
+        // blob only ever has one route line, so this never misfires on
+        // the existing single-load format below.
+        const trip = parseRelayClipboardTrip(text);
+        if (trip) {
+            if (trip.tripId && loadModalUI.vridNumber) {
+                loadModalUI.vridNumber.value = trip.tripId;
+                loadModalUI.vridNumber.dispatchEvent(new Event("input"));
+            }
+            // Force VRID Type to Trip (and reveal the stops list) here
+            // explicitly rather than relying on detectVridTypeFromNumber
+            // picking it up from the "T-" prefix — a Trip ID that
+            // doesn't start with "T-" would otherwise leave the modal
+            // showing From/To instead of the stops it just filled.
+            if (loadModalUI.vridType) {
+                loadModalUI.vridType.value = "Trip";
+                onLoadModalVridTypeChange();
+            }
+            if (trip.stops.length) {
+                loadModalStops = trip.stops.slice();
+                renderLoadModalStops();
+            }
+            if (trip.price && loadModalUI.price) loadModalUI.price.value = trip.price;
+            if (trip.pricePerMile && loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = trip.pricePerMile;
+
+            // Roadmap: a Trip import auto-enables "Show these stops in
+            // the End-of-Shift Report" — a Trip's report line is always
+            // meant to show its stop chain, not a blank From/To, so
+            // there's no reason to leave this off after an auto-fill.
+            if (loadModalUI.includeStopsToggle) loadModalUI.includeStopsToggle.checked = true;
+
             return;
         }
 
@@ -2227,11 +2472,6 @@ function bindLoadModalRelayImport() {
 
 
 function openLoadModal(load) {
-
-    if (RelayDesk.currentUserData?.frozen) {
-        alert(window.I18N ? window.I18N.t("workspace.accountFrozenBlocked") : "Account frozen — action blocked");
-        return;
-    }
 
     if (load && !window.hasPermission?.("canEditLoads")) {
         alert(window.I18N ? window.I18N.t("workspace.noPermissionEditLoad") : "You don't have permission to edit loads.");

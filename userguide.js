@@ -511,9 +511,9 @@
                         "Ctrl + H — opens Load History.",
                         "Ctrl + K — opens Team Chat.",
                         "Ctrl + , — opens Settings.",
-                        "Escape — closes whatever modal or overlay is currently open (or closes Settings if that's what's open).",
+                        "Escape — closes whatever modal or overlay is currently open, or closes Settings/Dev Panel if one of those is open. Otherwise, it now also backs you out of the Admin Panel, the User Guide, or the Admin Guide to wherever you came from (not available to A000, and it won't fire while you're typing in a text box or text area).",
                         "Ctrl + Shift + A — opens the Admin Panel (only works if your account has admin access).",
-                        "These shortcuts are automatically disabled while you're typing in a text box or text area (except Escape, Ctrl + ,, and Ctrl + Shift + A, which always work), so they never interfere with normal typing."
+                        "These shortcuts are automatically disabled while you're typing in a text box or text area (except Ctrl + , and Ctrl + Shift + A, which always work). Escape closing a modal, Settings, or the Dev Panel also always works while typing — only Escape's newer Admin Panel/Guide back-navigation is held back while a text box or text area is focused."
                     ]},
                     { p: "About" },
                     { ul: [
@@ -577,9 +577,9 @@
                         "Ctrl + H — سجل الشحنات.",
                         "Ctrl + K — دردشة الفريق.",
                         "Ctrl + , — الإعدادات.",
-                        "Escape — إغلاق أي نافذة مفتوحة حاليًا.",
+                        "Escape — إغلاق أي نافذة مفتوحة حاليًا، أو إغلاق الإعدادات/لوحة المطورين إذا كانت إحداهما مفتوحة. كما أصبح يعيدك الآن من لوحة تحكم المشرف، أو دليل المستخدم، أو دليل المشرف إلى الشاشة التي أتيت منها (غير متاح لحساب A000، ولا يعمل أثناء الكتابة في حقل نصي).",
                         "Ctrl + Shift + A — لوحة تحكم المشرف (لأصحاب صلاحية الوصول فقط).",
-                        "تُعطَّل هذه الاختصارات تلقائيًا أثناء الكتابة في حقل نصي (باستثناء Escape و Ctrl + , و Ctrl + Shift + A، التي تعمل دائمًا)."
+                        "تُعطَّل هذه الاختصارات تلقائيًا أثناء الكتابة في حقل نصي (باستثناء Ctrl + , و Ctrl + Shift + A، اللذين يعملان دائمًا). كما أن إغلاق Escape لنافذة أو للإعدادات أو للوحة المطورين يعمل دائمًا أثناء الكتابة أيضًا — فقط التنقّل الجديد الخاص بلوحة المشرف/الأدلة عبر Escape يتوقف أثناء التركيز على حقل نصي."
                     ]},
                     { p: "حول" },
                     { ul: [

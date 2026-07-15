@@ -78,8 +78,6 @@ function initAuth() {
     restoreSession();
 }
 
-let hasSeenInitialBroadcast = false;
-
 const SESSION_KEY = "relaydesk_session_user";
 
 
@@ -218,8 +216,6 @@ async function login() {
             lastChange: Date.now(),
             adminStatus: "Not Authorized",
             role: "Not Set",
-            frozen: false,
-            lastStatusBeforeFreeze: null,
             // ===== PERMISSION SYSTEM =====
             permissionLevel: "Owner",
             permissions: {}
@@ -467,10 +463,6 @@ async function startSession() {
             // logged in, instead of requiring a re-login/refresh
             RelayDesk.currentUserPermissions = window.getUserPermissions(u, RelayDesk.currentUser);
             applyAdminPanelButtonVisibility();
-
-            if (u.frozen) {
-                console.log("🧊 User is FROZEN (live update)");
-            }
         });
 
     RelayDesk.currentUserRole = data.role || "Not Set";
@@ -504,111 +496,6 @@ async function startSession() {
         console.error("startSession: dashboard display setup failed:", err);
     }
 
-    // ===============================
-    // 📢 LIVE BROADCAST LISTENER
-    // ===============================
-
-    db.collection("system")
-  .doc("broadcast")
-  .onSnapshot(doc => {
-
-      const data = doc.data();
-      if (!data || !data.message) return;
-
-      // 🔥 SKIP FIRST FIRE ON LOGIN
-      if (!hasSeenInitialBroadcast) {
-          hasSeenInitialBroadcast = true;
-          return;
-      }
-
-      let banner = document.getElementById("broadcastBanner");
-
-      if (!banner) {
-          banner = document.createElement("div");
-          banner.id = "broadcastBanner";
-          document.body.appendChild(banner);
-      }
-
-        const rawMsg = data.message.trim();
-
-        const isUrgent = rawMsg.toLowerCase().startsWith("urgent ");
-
-        const message = isUrgent
-            ? rawMsg.substring(7).trim()
-            : rawMsg;
-
-        // BASE STYLE
-        banner.style.position = "fixed";
-        banner.style.top = "0";
-        banner.style.left = "0";
-        banner.style.width = "100%";
-        banner.style.zIndex = "9999";
-        banner.style.textAlign = "center";
-        banner.style.fontWeight = "bold";
-        banner.style.padding = "10px";
-        banner.style.transform = "translateY(-100%)";
-        banner.style.opacity = "0";
-        banner.style.transition = "all 0.35s ease";
-
-        // STYLE TYPE
-        if (isUrgent) {
-            banner.style.background = "red";
-            banner.style.color = "white";
-            banner.style.animation = "flash 0.8s infinite";
-        } else {
-            banner.style.background = "#ffcc00";
-            banner.style.color = "#000";
-            banner.style.animation = "none";
-        }
-
-        // TEXT
-        banner.innerText = (isUrgent ? "🚨 " : "📢 ") + message;
-
-        // FORCE REFLOW
-        void banner.offsetHeight;
-
-        // SHOW
-        banner.style.transform = "translateY(0)";
-        banner.style.opacity = "1";
-
-        // SOUND — respects Settings > Notifications > Announcements (Phase 4)
-        const soundsEnabled = window.ESMSettings?.get("enableNotificationSounds") !== false
-            && window.ESMSettings?.get("notifAnnouncementsSound") !== false;
-        if (soundsEnabled) {
-            try {
-                const ping = new Audio("assets/announcement_ping.mp3");
-                ping.volume = 1;
-                ping.play().catch(() => {});
-            } catch (e) {
-                console.log("audio blocked");
-            }
-        }
-
-        // Desktop notification + badge, both settings-aware (Phase 4)
-        window.NotificationManager?.notify(message, isUrgent ? "critical" : "info", {
-            category: "announcements",
-            title: isUrgent ? "🚨 Urgent Announcement" : "📢 Announcement",
-            toast: false,
-            duration: 8000
-        });
-
-        // EXIT TIMER
-        clearTimeout(window._broadcastTimeout);
-
-        window._broadcastTimeout = setTimeout(() => {
-
-            banner.style.opacity = "0";
-            banner.style.transform = "translateY(-100%)";
-
-            setTimeout(() => {
-                if (banner?.parentNode) {
-                    banner.remove();
-                }
-            }, 400);
-
-        }, 10000);
-    });
-
     try {
         const userLabel = document.getElementById("userLabel");
         if (userLabel) {
@@ -624,25 +511,3 @@ async function startSession() {
 }
 
 
-// ===========================================
-// GLOBAL FREEZE CHECK
-// ===========================================
-
-window.isUserFrozen = function () {
-    return RelayDesk?.currentUserData?.frozen === true;
-};
-
-
-// ===========================================
-// FLASH ANIMATION (ADD ONCE)
-// ===========================================
-
-const style = document.createElement("style");
-style.innerHTML = `
-@keyframes flash {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
-`;
-document.head.appendChild(style);

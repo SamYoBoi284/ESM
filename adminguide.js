@@ -112,13 +112,17 @@
                     { p: "The Audit Log is one of the most important tools for reviewing changes and understanding what happened during a shift." },
                     { p: "Refresh it regularly to see the latest actions, or filter by user, action, or date range if you are investigating a specific issue." },
                     { p: "Use it when you need to confirm who changed something, when it happened, and whether the change was expected." },
-                    { p: "It is especially useful when a user reports a problem or when you want to confirm that a correction was completed properly." }
+                    { p: "It is especially useful when a user reports a problem or when you want to confirm that a correction was completed properly." },
+                    { p: "An expanded user group now stays open across the log's automatic refreshes — it no longer collapses on you mid-review. Use the ✕ Close button on a group, click outside the log, or scroll it out of view to close groups again." },
+                    { p: "📄 Export (PDF): downloads the currently loaded audit entries as a PDF, alongside the existing filter/search tools." }
                 ],
                 ar: [
                     { p: "يُعد سجل التدقيق (Audit Log) من أهم الأدوات لمراجعة التغييرات وفهم ما جرى خلال الوردية." },
                     { p: "قم بتحديثه بانتظام لرؤية أحدث الإجراءات، أو استخدم عوامل التصفية حسب المستخدم أو الإجراء أو النطاق الزمني إذا كنت تحقق في مشكلة معينة." },
                     { p: "استخدمه عندما تحتاج إلى التأكد من الشخص الذي أجرى تغييرًا ما، ومتى حدث ذلك، وما إذا كان التغيير متوقعًا." },
-                    { p: "يُعد مفيدًا بشكل خاص عندما يُبلغ أحد المستخدمين عن مشكلة، أو عندما تريد التأكد من أن التصحيح قد اكتمل بشكل صحيح." }
+                    { p: "يُعد مفيدًا بشكل خاص عندما يُبلغ أحد المستخدمين عن مشكلة، أو عندما تريد التأكد من أن التصحيح قد اكتمل بشكل صحيح." },
+                    { p: "لم تعد مجموعة المستخدم الموسّعة تُغلق تلقائيًا عند تحديث السجل — تبقى مفتوحة أثناء مراجعتك. استخدم زر ✕ Close على المجموعة، أو اضغط خارج السجل، أو مرّره خارج نطاق الرؤية لإغلاق المجموعات مجددًا." },
+                    { p: "📄 Export (PDF): يقوم بتنزيل الإدخالات المحمَّلة حاليًا في السجل بصيغة PDF، إلى جانب أدوات التصفية والبحث الحالية." }
                 ]
             }
         },
@@ -131,14 +135,14 @@
                     { p: "Every completed calendar month from the company-wide Monthly Statistics panel (visible to all employees on the dashboard) is kept here permanently, admin-only." },
                     { p: "The current, still-running month stays live in Monthly Statistics and isn't in the archive yet — it's archived automatically the moment the new month's first client boots after the old one ends, no manual step needed." },
                     { p: "Pick a past month from the dropdown and press Refresh to load it: company-wide Total Loads and Total Revenue for that month, plus the same per-employee breakdown Monthly Statistics shows." },
-                    { p: "Download the currently selected month as CSV or JSON for record-keeping or reporting outside ESM." },
+                    { p: "Download the currently selected month as CSV, JSON, or PDF for record-keeping or reporting outside ESM." },
                     { p: "Uses the exact same load data as every other load feature (loadsLog) — cancelled and disputed loads are never counted, edited loads are." }
                 ],
                 ar: [
                     { p: "يُحفظ هنا بشكل دائم كل شهر ميلادي مكتمل من لوحة الإحصائيات الشهرية على مستوى الشركة (المرئية لكل الموظفين في لوحة التحكم)، وهذا القسم للمشرفين فقط." },
                     { p: "الشهر الحالي الجاري لا يزال حيًّا في الإحصائيات الشهرية ولم يُؤرشف بعد — يتم أرشفته تلقائيًا فور بدء تشغيل أول جهاز عميل في الشهر الجديد بعد انتهاء الشهر السابق، دون أي خطوة يدوية." },
                     { p: "اختر شهرًا سابقًا من القائمة المنسدلة واضغط تحديث لتحميله: إجمالي الشحنات وإجمالي الإيرادات على مستوى الشركة لذلك الشهر، بالإضافة إلى نفس تفصيل كل موظف الذي تعرضه الإحصائيات الشهرية." },
-                    { p: "يمكنك تنزيل الشهر المحدد حاليًا بصيغة CSV أو JSON لأغراض الأرشفة أو التقارير خارج ESM." },
+                    { p: "يمكنك تنزيل الشهر المحدد حاليًا بصيغة CSV أو JSON أو PDF لأغراض الأرشفة أو التقارير خارج ESM." },
                     { p: "يستخدم نفس بيانات الشحنات (loadsLog) التي تعتمدها كل ميزات الشحنات الأخرى — لا تُحتسب الشحنات الملغاة أو المتنازع عليها أبدًا، بينما تُحتسب الشحنات المعدَّلة." }
                 ]
             }
@@ -399,6 +403,7 @@
                     { p: "🔍 Search Loads: opens the Load History tool so you can search booked loads across the system by date, VRID, driver, or department." },
                     { p: "🔄 Refresh: reloads the audit log so you can see the newest changes immediately without refreshing the whole page." },
                     { p: "🗑 Clear Log: removes the existing audit log entries from the visible log area. Use with care because it permanently clears the currently loaded log content." },
+                    { p: "📄 Export Stats (PDF) / 📄 Export History (PDF): same data as the existing 📤 CSV/TXT export buttons next to them, just rendered as a PDF instead — handy when you need something ready to print or attach as-is." },
                     { p: "Filter controls: let you narrow the audit log by specific user, action type, or date range so you can investigate a particular issue faster." },
                     { p: "Filter button: applies the selected audit filter values and updates the visible results based on your chosen criteria." },
                     { p: "📊 Statistics / user panel controls: show the current system workload and allow you to inspect users, shifts, and performance details from the admin overview." },
@@ -424,6 +429,7 @@
                     { p: "🔍 Search Loads: يفتح أداة Load History حتى تتمكن من البحث في الشحنات المحجوزة عبر النظام حسب التاريخ أو VRID أو السائق أو القسم." },
                     { p: "🔄 Refresh: يعيد تحميل سجل التدقيق حتى تتمكن من رؤية أحدث التغييرات فورًا دون إعادة تحميل الصفحة بأكملها." },
                     { p: "🗑 Clear Log: يزيل إدخالات سجل التدقيق الحالية من منطقة السجل المرئية. استخدمه بحذر لأنه يمسح محتوى السجل المحمَّل حاليًا بشكل نهائي." },
+                    { p: "📄 Export Stats (PDF) / 📄 Export History (PDF): نفس بيانات زري التصدير 📤 CSV/TXT المجاورين لهما، لكن بصيغة PDF بدلًا من ذلك — مفيد عندما تحتاج ملفًا جاهزًا للطباعة أو الإرفاق مباشرة." },
                     { p: "أدوات التصفية (Filter controls): تتيح لك تضييق نطاق سجل التدقيق حسب مستخدم معين، أو نوع إجراء، أو نطاق زمني، حتى تتمكن من التحقيق في مشكلة معينة بسرعة أكبر." },
                     { p: "زر Filter: يطبّق قيم التصفية المحددة لسجل التدقيق ويحدّث النتائج المرئية بناءً على المعايير التي اخترتها." },
                     { p: "📊 أدوات الإحصائيات / لوحة المستخدمين: تعرض حجم العمل الحالي للنظام وتتيح لك فحص المستخدمين والورديات وتفاصيل الأداء من النظرة العامة للمشرف." },

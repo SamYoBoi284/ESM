@@ -253,6 +253,15 @@ async function maybeArchiveViolationsMonth(info) {
         const existing = await ref.get();
         if (existing.exists) return; // already archived — common case, cheap bail-out
 
+        // Phase 7, item 10: date-sensitive protection — same hook as
+        // monthlystats.js's maybeArchiveMonth. Never blocks the archive
+        // itself if the export fails.
+        if (window.DevDataExport?.enabled) {
+            window.DevDataExport.runFullExport("pre-violations-archive").catch(err => {
+                console.warn("Violations Log: pre-archive data export failed (archive itself still proceeds):", err);
+            });
+        }
+
         const result = await aggregateViolationsMonthOnce(info);
 
         const payload = {

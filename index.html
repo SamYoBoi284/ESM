@@ -1142,6 +1142,10 @@
                         📤 Export Stats
                     </button>
 
+                    <button onclick="exportAdminStatsPdf()" data-en="📄 Export Stats (PDF)" data-ar="📄 تصدير الإحصائيات (PDF)">
+                        📄 Export Stats (PDF)
+                    </button>
+
                     <button id="statsClearBtn" class="dangerButton" onclick="clearStatistics()" data-en="🧹 Clear Stats" data-ar="🧹 مسح الإحصائيات">
                         🧹 Clear Stats
                     </button>
@@ -1275,6 +1279,10 @@
                             🗑 Clear Log
                         </button>
 
+                        <button id="exportAuditLogPdfBtn" onclick="exportAuditLogPdf()" data-en="📄 Export (PDF)" data-ar="📄 تصدير (PDF)">
+                            📄 Export (PDF)
+                        </button>
+
                     </div>
 
                     <div class="auditFilters">
@@ -1327,6 +1335,12 @@
 
                     <button id="exportShiftHistoryBtn" data-en="📤 Export History" data-ar="📤 تصدير السجل">
                         📤 Export History
+                    </button>
+
+                    <br><br>
+
+                    <button id="exportShiftHistoryPdfBtn" data-en="📄 Export History (PDF)" data-ar="📄 تصدير السجل (PDF)">
+                        📄 Export History (PDF)
                     </button>
 
                 </section>
@@ -1423,6 +1437,10 @@
 
                     <button id="monthlyArchiveJsonBtn" type="button" data-en="📤 Download JSON" data-ar="📤 تنزيل JSON">
                         📤 Download JSON
+                    </button>
+
+                    <button id="monthlyArchivePdfBtn" type="button" data-en="📄 Export (PDF)" data-ar="📄 تصدير (PDF)">
+                        📄 Export (PDF)
                     </button>
 
                     <!-- Developer-only (window.DEVELOPER_ACCOUNTS) — hidden for -->
@@ -1831,6 +1849,37 @@
             <div id="devCustomFieldsList" class="devPanelList"></div>
 
             <button type="button" id="devAddCustomFieldBtn" class="settingsActionButton">➕ Add Field</button>
+
+            <hr>
+
+            <div id="devDataExportSection">
+
+                <h3>🗄️ Data Recovery &amp; GitHub Export</h3>
+                <p class="settingsHint">Exports every Firestore collection into one JSON file (tagged with month/year/timestamp/ESM version). Runs automatically right before a month is archived (Monthly Statistics / Violations Log), and can also be triggered manually here. ⚠️ The token below is stored in Firestore — use a fine-grained, repo-scoped GitHub token only.</p>
+
+                <label class="settingsLabel" for="devExportGithubEnabled">
+                    <input type="checkbox" id="devExportGithubEnabled"> Push exports to GitHub automatically
+                </label>
+
+                <label class="settingsLabel" for="devExportGithubRepo">GitHub repo (owner/repo)</label>
+                <input type="text" id="devExportGithubRepo" placeholder="e.g. myorg/esm-backups-private">
+
+                <label class="settingsLabel" for="devExportGithubPath">Path inside repo</label>
+                <input type="text" id="devExportGithubPath" placeholder="esm-backups">
+
+                <label class="settingsLabel" for="devExportGithubToken">GitHub token (fine-grained, repo-scoped)</label>
+                <input type="password" id="devExportGithubToken" placeholder="Leave blank to keep the current saved token">
+
+                <div class="settingsButtonRow">
+                    <button type="button" id="devExportConfigSaveBtn" class="settingsActionButton">💾 Save GitHub Config</button>
+                    <button type="button" id="devExportNowBtn" class="settingsActionButton">⬇️ Export Now</button>
+                    <button type="button" id="devExportTestBtn" class="smallButton">🧪 Test GitHub Export</button>
+                </div>
+
+                <p id="devExportNowResult" class="settingsHint"></p>
+                <p id="devExportTestResult" class="settingsHint"></p>
+
+            </div>
 
             <hr>
 

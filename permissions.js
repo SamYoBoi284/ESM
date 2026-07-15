@@ -21,7 +21,6 @@
 //       canAssignShifts: true,
 //       canViewStatistics: true,
 //       canExportHistory: true,
-//       canFreezeAccounts: true,
 //       canAccessAdminPanel: true
 //   }
 //
@@ -47,7 +46,6 @@ window.PERMISSION_KEYS = [
     "canAssignShifts",
     "canViewStatistics",
     "canExportHistory",
-    "canFreezeAccounts",
     "canAccessAdminPanel"
 ];
 
@@ -59,7 +57,6 @@ window.PERMISSION_LABELS = {
     canAssignShifts:     "🕐 Assign Shifts",
     canViewStatistics:   "📊 View Statistics",
     canExportHistory:    "📤 Export History",
-    canFreezeAccounts:   "🧊 Freeze / Unfreeze Accounts",
     canAccessAdminPanel: "🛠 Access Admin Panel"
 };
 
@@ -113,7 +110,6 @@ window.PERMISSION_PRESETS = {
         canAssignShifts: true,
         canViewStatistics: true,
         canExportHistory: true,
-        canFreezeAccounts: true,
         canAccessAdminPanel: true
     },
 

@@ -10,13 +10,11 @@ window.updateStatusDisplay = updateStatusDisplay;
 if (window.I18N) {
     window.I18N.register("status", {
         en: {
-            accountFrozen: "Your account is currently frozen by the Administrator.",
             confirmResetTimers: "Reset timers?",
             offDayShiftStarted: "📴 You're clocking in on a scheduled day off — this entire shift will count as overtime.",
             clockedInLate: "⏰ You clocked on {minutes} min late for your assigned shift."
         },
         ar: {
-            accountFrozen: "حسابك مجمّد حاليًا من قبل المشرف.",
             confirmResetTimers: "إعادة ضبط المؤقتات؟",
             offDayShiftStarted: "📴 أنت تسجل دخولك في يوم إجازة مجدول — ستُحتسب هذه الوردية بالكامل كعمل إضافي.",
             clockedInLate: "⏰ سجلت دخولك متأخرًا بـ {minutes} دقيقة عن ورديتك المحددة."
@@ -88,21 +86,6 @@ async function changeUserStatus(newStatus, opts = {}) {
     if (!opts.isAutomationStep) {
         window.ActivityDetection?.cancelIdleAuto();
     }
-
-    // ======================
-// FROZEN USER GUARD
-// ======================
-
-if (RelayDesk.currentUserData?.frozen) {
-
-    // Only these actions are allowed while frozen
-    if (newStatus !== "Off Duty" && newStatus !== "End Shift") {
-
-        alert(window.I18N ? window.I18N.t("status.accountFrozen") : "Your account is currently frozen by the Administrator.");
-
-        return;
-    }
-}
 
     // clear stale "Shift Ended" text as soon as the user does anything
     const endedAtEl = document.getElementById("shiftEndedAt");
