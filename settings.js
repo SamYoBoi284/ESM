@@ -38,6 +38,12 @@
         use24HourDamascus: false,
         use24HourUSA: false,
 
+        // APPEARANCE — Dashboard Layout ("classic" and "tabs" are both
+        // live, wired up via dashboardlayout.js; "sidebar" isn't built
+        // yet and isn't selectable in the UI). Local-only, same as the
+        // rest of Appearance, not Firestore-synced.
+        dashboardLayout: "classic",
+
         // NOTIFICATIONS — master switches
         enableDesktopNotifications: true,
         enableNotificationSounds: true,
@@ -185,6 +191,13 @@
                 // Takes effect within the same second — no need to wait for
                 // the next tick of the top-bar clock's own 1s interval.
                 window.refreshClockDisplay?.();
+                break;
+
+            case "dashboardLayout":
+                // Tabbed mode is implemented (dashboardlayout.js); Sidebar
+                // isn't yet — applyDashboardLayout() falls back to Classic
+                // safely for any value it doesn't recognize.
+                window.applyDashboardLayout?.(value);
                 break;
 
             case "uiScale":
@@ -1779,6 +1792,7 @@
         applyTheme(currentSettings.theme);
         document.documentElement.dataset.accent = currentSettings.accentColor;
         applyZoom(currentSettings.uiScale);
+        window.applyDashboardLayout?.(currentSettings.dashboardLayout);
         pushCloseBehavior();
         pushAutoDownloadPref();
         pushUpdateDesktopNotificationsPref();

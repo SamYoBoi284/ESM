@@ -230,10 +230,12 @@ function bindAddEmployeeForm() {
         }
 
         const codeInput = document.getElementById("newEmpCode");
+        const nameInput = document.getElementById("newEmpName");
         const roleInput = document.getElementById("newEmpRole");
         const pinInput = document.getElementById("newEmpPin");
 
         const code = (codeInput?.value || "").trim().toUpperCase();
+        const name = (nameInput?.value || "").trim();
         const role = roleInput?.value || "Not Set";
         const pin = (pinInput?.value || "").trim();
 
@@ -269,6 +271,7 @@ function bindAddEmployeeForm() {
                 lastSwitchTime: Date.now(),
                 lastChange: Date.now(),
                 adminStatus: "Not Authorized",
+                name: name || null,
                 role,
                 weeklyOffDays,
                 createdByAdmin: true,
@@ -282,6 +285,7 @@ function bindAddEmployeeForm() {
             alert(`Employee ${code} created ✔`);
 
             codeInput.value = "";
+            if (nameInput) nameInput.value = "";
             pinInput.value = "";
             if (levelSelect) levelSelect.value = "Employee";
             refreshPermGrid();
@@ -789,6 +793,9 @@ function bindPermissionsEditor() {
     const levelSelect = document.getElementById("permissionsLevelSelect");
     const grid = document.getElementById("permissionsModalGrid");
     const offDaysGrid = document.getElementById("permissionsModalOffDays");
+    const nameInput = document.getElementById("permissionsModalName");
+    const roleSelect = document.getElementById("permissionsModalRole");
+    const resetPinBtn = document.getElementById("permissionsModalResetPinBtn");
     const saveBtn = document.getElementById("permissionsSaveBtn");
     const cancelBtn = document.getElementById("permissionsCancelBtn");
 
@@ -808,6 +815,19 @@ function bindPermissionsEditor() {
         };
     }
 
+    if (resetPinBtn) {
+        resetPinBtn.onclick = () => {
+            if (!permissionsEditorTargetId) return;
+            // Reuses the existing per-employee PIN reset flow (same
+            // function as the "Reset PIN" button on the admin user
+            // card) — blanks the PIN so the employee sets a new one
+            // at their next login. Already confirms via confirm()
+            // and permission-checks internally, so nothing extra
+            // needed here.
+            window.resetUserPin?.(permissionsEditorTargetId);
+        };
+    }
+
     saveBtn.onclick = async () => {
 
         if (!permissionsEditorTargetId) return;
@@ -821,6 +841,8 @@ function bindPermissionsEditor() {
         const permissionLevel = levelSelect.value;
         const permissions = window.readPermissionCheckboxes?.(grid) || {};
         const weeklyOffDays = window.readOffDayCheckboxes?.(offDaysGrid) || [];
+        const name = (nameInput?.value || "").trim();
+        const role = roleSelect?.value || "";
 
         // ===== LOGIN CHANGES (Phase 9) =====
         // Granting (or revoking) Owner is restricted to A000 only —
@@ -840,13 +862,15 @@ function bindPermissionsEditor() {
             await db.collection("users").doc(permissionsEditorTargetId).set({
                 permissionLevel,
                 permissions,
-                weeklyOffDays
+                weeklyOffDays,
+                name: name || null,
+                role
             }, { merge: true });
 
             await logAudit(
                 RelayDesk.currentUser,
                 "PERMISSIONS_UPDATED",
-                `${permissionsEditorTargetId} -> ${permissionLevel}`
+                `${permissionsEditorTargetId} -> ${permissionLevel}${role ? `, role: ${role}` : ""}`
             );
 
             alert(`Permissions updated for ${permissionsEditorTargetId} ✔`);
@@ -875,6 +899,8 @@ window.openPermissionsEditor = async function (userId) {
     const levelSelect = document.getElementById("permissionsLevelSelect");
     const grid = document.getElementById("permissionsModalGrid");
     const offDaysGrid = document.getElementById("permissionsModalOffDays");
+    const nameInput = document.getElementById("permissionsModalName");
+    const roleSelect = document.getElementById("permissionsModalRole");
     const titleEl = document.getElementById("permissionsModalUser");
 
     if (!modal || !levelSelect || !grid) return;
@@ -910,6 +936,14 @@ window.openPermissionsEditor = async function (userId) {
 
         if (offDaysGrid) {
             window.renderOffDayCheckboxes?.(offDaysGrid, u.weeklyOffDays || []);
+        }
+
+        if (nameInput) {
+            nameInput.value = u.name || "";
+        }
+
+        if (roleSelect) {
+            roleSelect.value = u.role || "Dispatch";
         }
 
         modal.classList.remove("hidden");

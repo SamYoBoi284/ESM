@@ -1,0 +1,458 @@
+/* ===========================================
+   ESM — MOBILE / SMALL-SCREEN ENHANCEMENTS
+   ===========================================
+   This file is 100% additive: every rule below lives inside a
+   max-width media query, so nothing here can ever change desktop
+   layout, sizing, or behavior. Desktop keeps using style.css exactly
+   as it did before.
+
+   Loaded AFTER style.css (see index.html), so these rules win the
+   cascade only on screens narrow enough to match their query.
+
+   Breakpoints reuse the app's existing convention (700px / 480px)
+   plus a couple of extra steps (900px, 600px, 380px) for finer
+   control on phones and small tablets. No JavaScript is used —
+   everything here is pure CSS media queries.
+   =========================================== */
+
+
+/* ===========================================
+   TABLET (≤900px)
+   Light touch-up pass: a bit more breathing room before the phone
+   breakpoints kick in, and the first step down for the 3-column
+   Workspace grid.
+   =========================================== */
+@media (max-width: 900px) {
+
+    /* Workspace grid (Chat / Announcements / Overtime / Notes / Loads)
+       stays a fixed 3-column grid in style.css at every width, which
+       gets uncomfortably tight once the panel itself has dropped to
+       100% width on tablets. Two columns keeps every card readable. */
+    #dashboardScreen .workspaceGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Admin screen's 900px main-column budget plus the 340px stats
+       column no longer both fit — let the reserved widths flex so
+       nothing is forced narrower than its content. */
+    #adminScreen .adminLayout {
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    }
+}
+
+
+/* ===========================================
+   TABLETS & LARGE PHONES (≤768px)
+   =========================================== */
+@media (max-width: 768px) {
+
+    /* ---- Prevent page-level horizontal scrolling ---- */
+    html, body {
+        overflow-x: hidden;
+    }
+
+    /* ---- Touch scrolling feel ---- */
+    #colleaguesBox,
+    .loadHistoryResults,
+    #dashboardScreen .bookedLoads,
+    .chatMessages,
+    .guideBody,
+    .settingsContent,
+    .settingsSidebar,
+    .reportTableWrap,
+    #adminScreen .adminLayout .statsCard,
+    #adminScreen .adminLayout .drillPanel {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* ---- Top bar ----
+       On narrow screens the two clocks + sync indicator + four mini
+       timers + settings gear + date no longer fit on one 60px-tall
+       row. Rather than hide any of that information, the bar itself
+       becomes a horizontally-swipeable strip (its own internal
+       scroll), so the page never gains a body-level scrollbar and no
+       existing element is removed or resized unpredictably. */
+    .topBar {
+        overflow-x: auto;
+        overflow-y: hidden;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 0 12px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .topBar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .topBar > *,
+    .topBar .topBarCenterGroup > * {
+        flex-shrink: 0;
+    }
+
+    .topBar div,
+    .topBarSettingsBtn {
+        padding: 7px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .miniTimer {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    .topBar .topBarCenterGroup {
+        gap: 8px;
+    }
+
+    /* ---- Cards / screens ---- */
+    .screen {
+        padding: 84px 14px 30px;
+    }
+
+    .card {
+        padding: 22px;
+        border-radius: 16px;
+    }
+
+    h1 {
+        font-size: 26px;
+    }
+
+    /* ---- Chat floating panel ----
+       style.css only repositions this at ≤480px; a 420px-wide fixed
+       panel anchored 24px from the edge already overflows any phone
+       or small tablet in this range, so extend the same full-bleed
+       treatment here. */
+    .chatWindowBox {
+        right: 10px;
+        left: 10px;
+        bottom: 10px;
+        width: auto;
+        height: 70vh;
+        max-height: 70vh;
+    }
+
+    .chatModalInner {
+        width: 100%;
+    }
+
+    .chatInputRow {
+        flex-wrap: wrap;
+    }
+
+    /* ---- Modals ----
+       .reportModalBox has a hard 720px width with no fallback in
+       style.css, so on anything narrower than that it would push the
+       modal off-screen and force horizontal scrolling. */
+    .reportModalBox {
+        width: 100%;
+        max-width: 94vw;
+    }
+
+    .modalBox.wideModal,
+    .modalBox.loadHistoryModalBox {
+        width: 100%;
+        max-width: 94vw;
+    }
+
+    .modalButtons {
+        flex-wrap: wrap;
+    }
+
+    /* ---- Tables ----
+       Report rows use white-space:nowrap by design (dates/amounts
+       shouldn't wrap mid-value); give the wrapper a horizontal
+       scrollbar of its own instead of letting the table squeeze text
+       or blow out the page width. */
+    .reportTableWrap {
+        overflow-x: auto;
+    }
+
+    .reportTable {
+        font-size: 0.78em;
+    }
+
+    .reportSummaryGrid {
+        grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    }
+
+    /* ---- Touch target sizing ----
+       A handful of controls are sized for a mouse pointer (28px
+       collapse toggles, compact icon buttons); bump the tappable
+       area up without changing how they look on desktop. */
+    .panelCollapseToggleBtn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .guideBackBtn,
+    .smallButton,
+    #dashboardScreen .smallButton,
+    #adminScreen .statsCard .smallButton {
+        min-height: 40px;
+        padding: 9px 14px;
+    }
+
+    /* ---- Prevent iOS Safari auto-zoom on focus ----
+       Inputs below 16px trigger an automatic zoom-in on iPhone; the
+       app's inputs/selects are 12–15px. Raising just the font-size on
+       mobile keeps every existing desktop size untouched. */
+    input,
+    select,
+    textarea,
+    .auditFilters select,
+    .auditFilters input,
+    .reportControls select,
+    .reportControls input[type="date"] {
+        font-size: 16px;
+    }
+}
+
+
+/* ===========================================
+   PHONES (≤600px)
+   =========================================== */
+@media (max-width: 600px) {
+
+    /* Workspace grid drops to a single column — two columns still
+       squeezes chat bubbles, notes, and the loads list too tightly
+       once the whole panel is phone-width. */
+    #dashboardScreen .workspaceGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .monthlyStatsSummary {
+        grid-template-columns: 1fr;
+    }
+
+    .settingsSidebar {
+        gap: 6px;
+    }
+
+    .settingsTab {
+        padding: 10px 12px;
+        min-height: 40px;
+    }
+
+    .dashboardTabBtn {
+        padding: 10px 14px;
+        min-height: 40px;
+    }
+
+    .dashboardSidebarArea.sidebarModeActive {
+        flex-direction: column;
+    }
+
+    .dashboardSidebarNav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        width: auto;
+    }
+
+    .dashboardSidebarBtn {
+        width: auto;
+        min-height: 40px;
+    }
+
+    .guideToc {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+
+/* ===========================================
+   SMALL PHONES (≤480px)
+   Builds on style.css's own 480px breakpoint — only adding what it
+   doesn't already cover.
+   =========================================== */
+@media (max-width: 480px) {
+
+    .screen {
+        padding: 78px 10px 24px;
+    }
+
+    .card {
+        padding: 18px;
+    }
+
+    h1 {
+        font-size: 22px;
+    }
+
+    .topBar {
+        padding: 0 8px;
+    }
+
+    .topBarSettingsBtn {
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+
+    #date,
+    #clock,
+    #damascusClock {
+        font-size: 12px;
+    }
+
+    .offDaysGrid,
+    .reportSummaryGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .guideToc {
+        grid-template-columns: 1fr;
+    }
+
+    .modalBox {
+        width: 100%;
+        max-width: 94vw;
+        padding: 16px;
+    }
+
+    .wizardCard {
+        padding: 18px;
+    }
+
+    /* Buttons keep the app's full-width look, but a slightly shorter
+       vertical pad + guaranteed 44px minimum height reads better as a
+       thumb target on the smallest screens without changing their
+       appearance anywhere else. */
+    button {
+        min-height: 44px;
+    }
+}
+
+
+/* ===========================================
+   PHONE / TABLET — LANDSCAPE, TOUCHSCREEN
+   ("Desktop Site" + rotate to landscape)
+   ===========================================
+   style.css itself switches the dashboard/admin layouts to a single
+   stacked column any time the viewport drops below 1150px — that's
+   original desktop-authored behavior (a real desktop window resized
+   that narrow gets the same stacked view) and isn't something this
+   pass changes.
+
+   This section only re-widens things back out for touchscreens held
+   sideways. Gating it correctly — so it can never fire for an actual
+   desktop browser window, only for a phone/tablet turned landscape —
+   originally used the CSS (pointer: coarse) media feature. That's a
+   Media Queries Level 4 feature that some older WebViews (e.g. the
+   stock browser on EMUI 8-era Huawei phones) don't recognize, and an
+   unrecognized media feature makes the whole query evaluate to false,
+   silently skipping this section instead of applying it.
+
+   responsive.js does the same touch-device check in plain JS (feature
+   detection that's worked in mobile browsers for well over a decade)
+   and toggles html.is-touch-device / html.is-landscape accordingly.
+   Every selector below is scoped under those two classes, so the
+   effect is identical — real desktops (no touch) are still never
+   affected — without depending on a media feature at all.
+
+   Column widths below are deliberately smaller than their desktop
+   pixel values so four columns can sit side by side again inside a
+   phone's landscape width instead of just reproducing the desktop
+   layout at full size (which would only fit on an iPad-class
+   screen). A horizontal scroll fallback is included so nothing ever
+   gets clipped on the narrowest phones — worst case is a short swipe
+   to see the rest of the row instead of it breaking or overlapping. */
+@media (max-width: 1150px) {
+
+    html.is-touch-device.is-landscape #dashboardScreen .dashboardLayout {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        max-width: 100%;
+    }
+
+    html.is-touch-device.is-landscape .reportFormatterColumn,
+    html.is-touch-device.is-landscape #dashboardScreen .dashboardLayout > .card,
+    html.is-touch-device.is-landscape #dashboardScreen .workspacePanel,
+    html.is-touch-device.is-landscape .performanceCard {
+        flex-shrink: 0;
+    }
+
+    html.is-touch-device.is-landscape .reportFormatterColumn {
+        width: 230px;
+    }
+
+    html.is-touch-device.is-landscape #dashboardScreen .dashboardLayout > .card {
+        width: 300px;
+        max-width: 300px;
+        padding: 16px;
+    }
+
+    html.is-touch-device.is-landscape #dashboardScreen .workspacePanel {
+        width: 320px;
+        max-width: 320px;
+    }
+
+    html.is-touch-device.is-landscape #dashboardScreen .workspaceGrid {
+        grid-template-columns: 1fr;
+    }
+
+    html.is-touch-device.is-landscape .performanceCard {
+        width: 230px;
+    }
+
+    html.is-touch-device.is-landscape #dashboardScreen .dashboardLayout,
+    html.is-touch-device.is-landscape #dashboardScreen .dashboardLayout h1 {
+        font-size: 13px;
+    }
+
+    html.is-touch-device.is-landscape #dashboardScreen .dashboardLayout h1 {
+        font-size: 17px;
+    }
+
+    /* Admin screen: same idea — side by side instead of stacked,
+       sized to fit rather than reproduced at full desktop width. */
+    html.is-touch-device.is-landscape #adminScreen .adminLayout,
+    html.is-touch-device.is-landscape #adminScreen .adminLayout:has(.drillPanel:not(.hidden)) {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 10px;
+        padding-bottom: 8px;
+    }
+
+    html.is-touch-device.is-landscape #adminScreen .adminLayout .adminMainCard,
+    html.is-touch-device.is-landscape #adminScreen .adminLayout .statsCard,
+    html.is-touch-device.is-landscape #adminScreen .adminLayout .drillPanel,
+    html.is-touch-device.is-landscape #adminScreen .adminLayout .alertsCard {
+        flex-shrink: 0;
+        width: 320px !important;
+        max-width: 320px !important;
+        margin: 0 !important;
+    }
+}
+
+/* Smaller phones in landscape (most phones, as opposed to small
+   tablets): shrink the same four columns further so the row has a
+   realistic chance of fitting without a horizontal swipe. */
+@media (max-width: 900px) {
+
+    html.is-touch-device.is-landscape .reportFormatterColumn {
+        width: 190px;
+    }
+
+    html.is-touch-device.is-landscape #dashboardScreen .dashboardLayout > .card {
+        width: 250px;
+        max-width: 250px;
+    }
+
+    html.is-touch-device.is-landscape #dashboardScreen .workspacePanel {
+        width: 260px;
+        max-width: 260px;
+    }
+
+    html.is-touch-device.is-landscape .performanceCard {
+        width: 190px;
+    }
+}

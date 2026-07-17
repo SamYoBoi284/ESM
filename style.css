@@ -929,6 +929,94 @@ select option{
     margin: 0 auto;
 }
 
+/* Tabbed Workspace dashboard layout mode (dashboardlayout.js).
+   Hidden by default — Classic mode never shows this bar. Buttons echo
+   .settingsTab's visual language but laid out horizontally instead of
+   in a vertical sidebar, since this sits above the dashboard grid. */
+.dashboardTabsNav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0 0 14px;
+}
+
+.dashboardTabBtn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: .2s;
+}
+
+.dashboardTabBtn:hover {
+    background: var(--topbar-chip-bg);
+    color: var(--text-secondary);
+    transform: none;
+}
+
+.dashboardTabBtn.active {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+/* Sidebar Navigation dashboard layout mode (dashboardlayout.js).
+   #dashboardSidebarArea has no special layout by default — it only
+   becomes a flex row (nav + grid side by side) once .sidebarModeActive
+   is added, so Classic/Tabbed modes render it as a plain block
+   wrapper with zero visual effect. */
+.dashboardSidebarArea.sidebarModeActive {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.dashboardSidebarArea.sidebarModeActive > .dashboardLayout {
+    flex: 1;
+    min-width: 0;
+}
+
+.dashboardSidebarNav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 200px;
+    flex-shrink: 0;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--topbar-bg);
+    border: 1px solid #2d3440;
+}
+
+.dashboardSidebarBtn {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: .2s;
+}
+
+.dashboardSidebarBtn:hover {
+    background: var(--topbar-chip-bg);
+    color: var(--text-secondary);
+    transform: none;
+}
+
+.dashboardSidebarBtn.active {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.dashboardSidebarDivider {
+    border: none;
+    border-top: 1px solid #2d3440;
+    margin: 6px 0;
+}
+
 /* Phase 5: Report Formatter's new leftmost column */
 .reportFormatterColumn {
     width: 340px;
@@ -1522,6 +1610,78 @@ body {
     cursor: pointer;
 }
 
+/* Phase 0 polish: per-entry emoji on the "My Activity" timeline
+   (activitytimeline.js). Scoped to .activityTimelineEntry so it does
+   not affect other .shiftBlock usages (myhistory.js, shift lists, etc). */
+.shiftBlock.activityTimelineEntry {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.activityTimelineIcon {
+    flex-shrink: 0;
+    font-size: 1.15em;
+    line-height: 1.4;
+}
+
+.activityTimelineBody {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Phase 2: Employee Profiles */
+
+.colItemClickable {
+    cursor: pointer;
+}
+
+.colItemClickable:hover {
+    filter: brightness(1.15);
+}
+
+.employeeProfileLink {
+    cursor: pointer;
+    text-decoration: underline dotted;
+}
+
+.employeeProfileHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.employeeProfileAvatar {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.employeeProfileCode {
+    margin: 0 0 4px 0;
+}
+
+.employeeProfileName {
+    opacity: 0.85;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+}
+
+.employeeProfileStatusLine {
+    opacity: 0.85;
+    font-size: 0.9rem;
+}
+
+.employeeProfileDetails {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.employeeProfileRow span {
+    opacity: 0.9;
+}
+
 .performanceCard {
     background: var(--card-bg) !important;
     border-radius: 15px;
@@ -1746,6 +1906,53 @@ body {
 
 .chatWindowBox.dragging {
     transition: none;
+}
+
+/* Sidebar-mode "Team Chat" popup (dashboardlayout.js). Mirrors
+   .chatWindowBox's floating pattern (chat.js) — same fixed-overlay,
+   draggable-by-header language — but offset to the opposite corner so
+   it can sit on screen at the same time as an open chat conversation
+   without fully overlapping it. Starts open/draggable already; there's
+   no Static toggle for this one (unlike #chatWindow). */
+.teamChatPopup {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    width: 360px;
+    height: 520px;
+    max-height: calc(100vh - 48px);
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
+    z-index: 499;
+}
+
+.teamChatPopupHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    margin-bottom: 8px;
+    flex: 0 0 auto;
+    cursor: grab;
+}
+
+.teamChatPopupHeader:active {
+    cursor: grabbing;
+}
+
+.teamChatPopup.dragging {
+    transition: none;
+}
+
+.teamChatPopupBody {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .chatStaticToggleWrap {
@@ -4416,6 +4623,53 @@ label.settingsLabel[for] {
 
 .notifBadge.hidden {
     display: none;
+}
+
+/* ===========================================
+   PHASE 1: NOTIFICATION CENTER
+   Top-bar bell button + dropdown-style modal. Scoped classes only —
+   reuses .modalOverlay/.modalBox/.wideModal/.smallButton/.shiftBlock/
+   .activityTimelineIcon/.activityTimelineBody from the Activity
+   Timeline (Phase 0) rather than duplicating that layout.
+   =========================================== */
+
+.notificationCenterBtn {
+    position: relative;
+}
+
+.notifCenterFilterBar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.notifCenterFilterBar .smallButton {
+    opacity: .6;
+}
+
+.notifCenterFilterBar .smallButton.notifCenterFilterActive {
+    opacity: 1;
+    font-weight: 700;
+}
+
+.notifCenterEntry {
+    cursor: pointer;
+}
+
+.notifCenterEntryUnread {
+    border-left: 3px solid #4a90e2;
+}
+
+@media (max-width: 700px) {
+    .notifCenterFilterBar {
+        gap: 4px;
+    }
+
+    .notifCenterFilterBar .smallButton {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
 }
 
 /* ===========================================

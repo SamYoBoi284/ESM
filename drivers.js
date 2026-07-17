@@ -52,7 +52,8 @@ window.DRIVER_LISTS = {
         "Shanard",
         "Raghdah",
         "Christopher",
-        "Shadi"
+        "Shadi",
+        "Atif"
     ],
 
     "iTour": [

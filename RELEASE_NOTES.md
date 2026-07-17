@@ -1,100 +1,149 @@
-# What's New — ESM v4.5.0
+# ESM v5.0.2 — Major Overhaul Update 🚀
 
-## ✨ New Features
+## ✨ ESM Dashboard Overhaul
 
-### 📄 PDF Export Support
-Added PDF export functionality for:
-- Admin Statistics
-- Shift History
-- Monthly Statistics Archive
-- Audit Logs
+This update introduces a complete dashboard experience overhaul, improving navigation, personalization, and visibility across the application.
 
-Existing CSV, TXT, and JSON export options remain available.
+### 🖥️ Redesigned Dashboard Layouts
+- Added multiple dashboard layouts to give employees more flexibility in how they use ESM.
+- Improved workspace organization with cleaner separation between:
+  - Status controls
+  - Workspace tools
+  - Employee information
+  - Quick actions
+  - Communication features
+- Layout preferences are now respected to provide a more personalized experience.
 
----
-
-### 🚚 Amazon Relay Trip Import
-Relay Import Copy now supports multi-stop Amazon Relay trips.
-
-New capabilities:
-- Automatic Trip ID detection
-- Automatic Sub Load ID detection
-- Automatic stop parsing
-- Automatic stop generation
-- Automatically enables "Show these stops in report"
+### 💬 Improved Chat Experience
+- Chat has been redesigned to better fit different dashboard layouts.
+- When using the sidebar layout, chats now open as a dedicated popup window instead of replacing the main workspace.
+- This allows employees to keep their dashboard visible while communicating.
 
 ---
 
-### 📝 Report Formatter Templates
-- Added selectable report templates.
-- Template 1 remains the default format.
-- Added support for user-importable templates.
-- Supports placeholders such as:
-  - {{date}}
-  - {{user}}
-  - {{shiftStart}}
-  - {{shiftEnd}}
-  - {{loadCount}}
-  - {{loads}}
-  - {{notes}}
-- Custom templates now sync across devices using Firestore.
+# 🆕 New Employee Experience Features
+
+## 🕘 Activity Timeline (New)
+A completely new personal activity history system.
+
+Employees can now:
+- View their recent activity timeline.
+- See important actions and status changes in a cleaner visual format.
+- Track their daily activity history with improved readability.
+
+Improvements:
+- Added activity icons for easier recognition.
+- Added consistent status indicators matching ESM's existing status colors.
+- Added automatic fallback icons for future activity types.
 
 ---
 
-### ⌨️ ESC Navigation
-Added Escape key navigation for supported employee screens.
-- Returns to the previous screen where applicable.
-- Does not interfere with typing inside inputs or editors.
+## 🔔 Notification Center (New)
+Introduced a centralized notification history system.
+
+Features:
+- View previous notifications even after they disappear.
+- Notification history is saved separately from temporary popups.
+- Added unread notification tracking.
+- Added notification badge counter.
+- Added filtering by category:
+  - System
+  - Status
+  - Chat
+  - Announcements
+  - Reports
+  - Loads
+
+Actions:
+- Mark notifications as read.
+- Mark all as read.
+- Clear read notifications.
+- Clear notification history.
 
 ---
 
-### 🗄️ Developer Data Recovery
-Added a developer-only backup system featuring:
-- Manual exports
-- Automated pre-archive backups
-- GitHub backup support
-- Recovery exports with version and timestamp metadata
+## 👤 Employee Profiles (New)
+Employees can now view detailed profiles directly from employee lists.
+
+Added profile access from:
+- Live Employee Board
+- Admin employee list
+
+Profile information includes:
+- Name
+- Employee code
+- Role
+- Permission level
+- Assigned shift
+- Current status
+- Status duration
+- Today's activity timeline
+
+Design:
+- Uses the same visual language as existing ESM modals.
+- Reuses existing activity and status systems instead of creating duplicates.
 
 ---
 
-### 🧪 GitHub Export Test
-Added a dedicated testing utility to verify GitHub export configuration before relying on scheduled backups.
+# 🛠️ Desktop & Stability Improvements
+
+## 🖥️ Electron Focus Bug Fix (Major)
+Fixed a major issue where buttons, modals, text fields and textareas could become unusable after interacting with native OS dialogs.
+
+Previously:
+- Closing alerts, confirmations, and native dialogs could cause ESM inputs to stop accepting keyboard input.
+- Textareas appeared focused but would not receive typing.
+- The issue could happen anywhere, including:
+  - Login screen
+  - Logout flow
+  - Admin actions
+  - Confirmation dialogs
+  - Load additions
+  - Load edits through Load History
+  - etc.
+
+Fixed:
+- Added a centralized Electron window focus recovery system.
+- ESM now correctly restores renderer keyboard focus after dialogs close.
+- No more need to:
+  - Alt+Tab away and back
+  - Click the window title bar
+  - Refocus manually before typing again
+
+This fix improves reliability across the entire application.
 
 ---
 
-## 🛠️ Improvements
+# 🔧 Technical Improvements
 
-- Audit logs now stay expanded until manually closed.
-- Added PDF export for Audit Logs.
-- Improved audit log viewing experience during live refreshes.
-- Updated User Guide and Admin Guide to reflect the latest features.
-- Improved report customization and workflow flexibility.
-- Improved export consistency across reporting modules.
-
----
-
-## 🧹 Cleanup
-
-Removed deprecated Admin Action Center remnants:
-- Freeze Accounts
-- Unfreeze Accounts
-- Force End Shift
-- Broadcast Message
-- Reset All Users
-- Related permissions
-- Legacy backend logic
-- Unused listeners and dead code
-
-Reduced technical debt and simplified the admin system.
+- Continued additive architecture approach:
+  - Existing systems reused instead of duplicated.
+  - No unnecessary rewrites.
+  - Existing permission and status systems preserved.
+- Improved module separation for new features.
+- Maintained compatibility with existing employee workflows.
 
 ---
 
-## 🐞 Fixes
+# 📦 Updated Files & Systems
 
-- Fixed audit logs collapsing during automatic refreshes.
-- Fixed Monthly Statistics Archive missing PDF export support.
-- Fixed Report Formatter documentation to match current functionality.
-- Fixed outdated guide information after template system overhaul.
-- Fixed multiple legacy references to removed Admin Action Center features.
-- Fixed various UI consistency issues across export panels.
-- Fixed several minor backend cleanup issues and improved overall stability.
+Major additions:
+- Activity Timeline system
+- Notification Center system
+- Employee Profile system
+- Dashboard layout improvements
+
+Electron:
+- Improved window focus handling.
+- Improved application stability after native dialogs.
+
+---
+
+# 🎯 What's Next
+
+Future improvements will continue expanding ESM's productivity tools, employee experience, and workflow automation.
+
+---
+
+**ESM v5.0.2**
+A major step toward making ESM a complete employee operations platform.

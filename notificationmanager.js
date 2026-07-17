@@ -172,6 +172,18 @@
                 this.bumpBadge(finalCategory);
             }
 
+            // Phase 1: Notification Center — persistent history. Additive
+            // only; does not alter or gate anything above. Guarded so this
+            // still works fine if notificationcenter.js hasn't loaded yet.
+            if (options.center !== false) {
+                window.NotificationCenter?.log({
+                    message: finalMessage,
+                    category: finalCategory,
+                    priority: finalPriority,
+                    timestamp: options.timestamp || Date.now()
+                });
+            }
+
             return {
                 message: finalMessage,
                 category: finalCategory,

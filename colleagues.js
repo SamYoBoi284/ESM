@@ -87,7 +87,11 @@ function renderColleagues(users) {
 
         const div = document.createElement("div");
 
-        div.className = "colItem";
+        div.className = "colItem colItemClickable";
+
+        // Phase 2: every employee in this board opens their profile
+        // (view-only). Additive — the row's markup/content is unchanged.
+        div.onclick = () => window.openEmployeeProfile?.(user.id);
 
         // Safe fallback for missing data
         const status = user.status || "Unknown";

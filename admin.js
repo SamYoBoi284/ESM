@@ -493,6 +493,10 @@ setInterval(loadStatisticsPanel, 10000);
                     <small>PIN: <span id="adminPinValue-${id}" class="adminPinValue${window.adminRevealedPins?.has(id) ? " revealed" : ""}">${u.pin || "Not Set"}</span> <button type="button" class="adminPinToggleBtn" id="adminPinToggleBtn-${id}" onclick="toggleAdminPinVisibility('${id}')" title="Show/hide this employee's PIN/Password">${window.adminRevealedPins?.has(id) ? "🙈" : "👁️"}</button></small>
                 </div>
 
+                <div>
+                    <small>Name: <span id="adminNameValue-${id}" class="adminPinValue${window.adminRevealedNames?.has(id) ? " revealed" : ""}">${u.name || "Not Set"}</span> <button type="button" class="adminPinToggleBtn" id="adminNameToggleBtn-${id}" onclick="toggleAdminNameVisibility('${id}')" title="Show/hide this employee's name">${window.adminRevealedNames?.has(id) ? "🙈" : "👁️"}</button></small>
+                </div>
+
                 <div class="adminTimers" id="timer-${id}">
                     Work: ${formatTime(u.work || 0)}<br>
                     Break: ${formatTime(u.breakT || 0)}<br>
@@ -521,7 +525,7 @@ setInterval(loadStatisticsPanel, 10000);
                     ${window.hasPermission?.("canManageEmployees") ? `
                         <button onclick="resetUser('${id}')">Reset</button>
                         <button onclick="resetUserPin('${id}')">Reset PIN</button>
-                        <button onclick="openPermissionsEditor('${id}')">🔑 Permissions</button>
+                        <button onclick="openPermissionsEditor('${id}')">✏️ Edit Employee</button>
                     ` : ""}
 
                     ${window.isOwnerOrAbove?.() ? `
@@ -817,6 +821,26 @@ window.toggleAdminPinVisibility = function (id) {
 
     const span = document.getElementById(`adminPinValue-${id}`);
     const btn = document.getElementById(`adminPinToggleBtn-${id}`);
+
+    if (span) span.classList.toggle("revealed", nowRevealed);
+    if (btn) btn.textContent = nowRevealed ? "🙈" : "👁️";
+};
+
+// Same masked-by-default / per-employee reveal pattern as PINs above,
+// applied to the newly-added employee `name` field — admin list
+// shouldn't show real names in plain text at all times either.
+window.adminRevealedNames = window.adminRevealedNames || new Set();
+
+window.toggleAdminNameVisibility = function (id) {
+
+    const set = window.adminRevealedNames;
+    const nowRevealed = !set.has(id);
+
+    if (nowRevealed) set.add(id);
+    else set.delete(id);
+
+    const span = document.getElementById(`adminNameValue-${id}`);
+    const btn = document.getElementById(`adminNameToggleBtn-${id}`);
 
     if (span) span.classList.toggle("revealed", nowRevealed);
     if (btn) btn.textContent = nowRevealed ? "🙈" : "👁️";
@@ -1798,4 +1822,3 @@ totalShiftTime += (end - start);
         stackEl.appendChild(div);
     });
 }
-

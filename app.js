@@ -274,6 +274,24 @@ function bootWorkspace() {
         initializeMyHistory();
     }
 
+    // 6c. personal activity timeline ("My Activity") — reads auditLogs,
+    // doesn't touch/replace audit.js's admin feed.
+    if (window.initializeActivityTimeline) {
+        initializeActivityTimeline();
+    }
+
+    // 6d. Notification Center — persistent general notification history,
+    // additive to notificationmanager.js's toast pipeline.
+    if (window.initializeNotificationCenter) {
+        initializeNotificationCenter();
+    }
+
+    // 6e. Employee Profiles (Phase 2) — view-only, opened on demand from
+    // colleagues.js / admin.js via window.openEmployeeProfile(id).
+    if (window.initializeEmployeeProfiles) {
+        initializeEmployeeProfiles();
+    }
+
     // 7. overtime request button
     if (window.initializeOvertime) {
         initializeOvertime();
@@ -311,7 +329,6 @@ function bootWorkspace() {
 
 bindStatusButtons();
 initializePresence();
-initializeRoleSelector();
 initTodaysTimersToggle();
 initMonthlyStatsToggle?.();
 window.initPanelCollapseToggles?.();

@@ -81,7 +81,7 @@
             if (cancelBtn) {
                 cancelBtn.onclick = () => {
                     modal.classList.add("hidden");
-                    modal.style.display = "none";
+                    modal.remove();
                 };
             }
 

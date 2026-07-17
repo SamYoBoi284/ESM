@@ -590,7 +590,7 @@
         const modal = document.getElementById("feedbackViewModal");
         if (modal) {
             modal.classList.add("hidden");
-            modal.style.display = "none";
+            modal.remove();
         }
 
         if (feedbackViewReturnToId) {
@@ -1727,7 +1727,7 @@
             const modal = document.getElementById("feedbackModal");
             if (modal) {
                 modal.classList.add("hidden");
-                modal.style.display = "none";
+                modal.remove();
             }
             resetForm();
             duplicateCache = null;
@@ -1916,7 +1916,7 @@
         if (cancelBtn && modal) {
             cancelBtn.onclick = () => {
                 modal.classList.add("hidden");
-                modal.style.display = "none";
+                modal.remove();
             };
         }
 

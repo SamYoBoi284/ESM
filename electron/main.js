@@ -116,6 +116,35 @@ function getBuildDate() {
         return "Unknown";
     }
 }
+function restoreWindowFocus() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
+    setTimeout(() => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+
+        if (!mainWindow.isVisible()) {
+            mainWindow.show();
+        }
+
+        if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+        }
+
+        // Known Electron/Chromium bug (electron/electron#19977, #40212):
+        // after a native alert()/confirm()/prompt() closes, calling
+        // mainWindow.focus() alone is a no-op because Electron already
+        // considers the window focused, so Chromium never re-syncs
+        // keyboard routing to the DOM's active element. Only a genuine
+        // blur -> focus transition (what Alt+Tab does) forces that
+        // re-sync. This is only ever called right after a dialog closes
+        // (see "restore-focus-after-dialog" below) rather than on every
+        // generic window focus, so it no longer fires on ordinary
+        // Alt+Tab-back and doesn't cause visible flicker there.
+        mainWindow.blur();
+        mainWindow.focus();
+        mainWindow.webContents.focus();
+    }, 50);
+}
 
 function createWindow() {
     // Create the main desktop window and keep the existing web UI intact.
@@ -201,13 +230,16 @@ function createWindow() {
             });
 
             if (choice === 1) {
-                app.isQuitting = true;
-                app.exit(0);
-            } else {
-                app.isQuitting = false;
-            }
-            return;
-        }
+    app.isQuitting = true;
+    app.exit(0);
+} else {
+    app.isQuitting = false;
+}
+
+restoreWindowFocus();
+
+return;
+}
 
         if (!isRealQuit) {
             event.preventDefault();
@@ -221,7 +253,19 @@ function createWindow() {
             tray.setToolTip("ESM - Running");
         }
     });
+
 }
+
+// Native JS dialogs triggered from the renderer (alert()/confirm()/
+// prompt() — used all over admin.js, admin-extras.js, login/logout,
+// etc.) don't go through main.js at all; they're shown by Chromium
+// itself. preload.js wraps all three centrally and pings this the
+// instant one closes, so the corrective blur/focus cycle only ever runs
+// right after a dialog — not on every ordinary window focus/Alt+Tab,
+// which was causing visible flicker.
+ipcMain.on("restore-focus-after-dialog", () => {
+    restoreWindowFocus();
+});
 
 // Settings feature: General > "Minimize To Tray". Creates or destroys the
 // tray icon to match the current setting; called once at startup with the
@@ -276,7 +320,7 @@ function createTray() {
     tray.on("click", () => {
         if (mainWindow) {
             mainWindow.show();
-            mainWindow.focus();
+            restoreWindowFocus();
         }
     });
 }
@@ -652,7 +696,7 @@ ipcMain.on("focus-app", () => {
             mainWindow.restore();
         }
         mainWindow.show();
-        mainWindow.focus();
+        restoreWindowFocus();
     }
 });
 

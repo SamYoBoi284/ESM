@@ -11,6 +11,60 @@
     <link rel="icon" type="image/png" href="favicon2.png">
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="mobile.css">
+
+    <!-- Native dialog focus/inert fix -->
+    <!-- Chromium marks the whole page inert while window.alert()/
+         confirm()/prompt() is showing, and on some Electron builds that
+         inert state (and keyboard focus) doesn't fully clear once the
+         dialog closes -- inputs stop responding to clicks AND typing
+         until something else forces a real focus change (this is why
+         logging out or dismissing any native popup triggers it too, not
+         just Edit Employee). Wrapping the three dialog functions so they
+         force a focus/inert reset right after they return fixes it
+         without touching any of the alert()/confirm()/prompt() call
+         sites throughout the app. Runs before anything else on the page.
+    -->
+    <script>
+        (function () {
+            function repairFocus() {
+                document.documentElement.inert = false;
+                if (document.body) document.body.inert = false;
+
+                // In the Electron shell, a renderer-side window.focus()
+                // is frequently a no-op -- Chromium/the OS won't let a
+                // background-ish process force real OS focus that way.
+                // electronAPI.focusApp() goes through the main process
+                // (BrowserWindow.focus() + webContents.focus()), which
+                // uses real OS focus APIs -- the same effective result
+                // as alt-tabbing away and back. Falls back to the
+                // in-page focus dance for the web/PWA build, where
+                // there's no Electron main process to ask.
+                if (window.electronAPI?.focusApp) {
+                    window.electronAPI.focusApp();
+                } else {
+                    window.focus();
+                }
+
+                if (document.body) {
+                    document.body.focus();
+                    document.body.blur();
+                }
+            }
+
+            ["alert", "confirm", "prompt"].forEach(function (name) {
+                const native = window[name];
+                if (typeof native !== "function") return;
+
+                window[name] = function () {
+                    const result = native.apply(window, arguments);
+                    setTimeout(repairFocus, 0);
+                    requestAnimationFrame(repairFocus);
+                    return result;
+                };
+            });
+        })();
+    </script>
 
     <!-- Firebase -->
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
@@ -19,11 +73,13 @@
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- RelayDesk -->
+    <script defer src="responsive.js"></script>
     <script defer src="firebase.js"></script>
     <script defer src="utils.js"></script>
     <script defer src="drivers.js"></script>
     <script defer src="i18n.js"></script>
     <script defer src="notificationmanager.js"></script>
+    <script defer src="notificationcenter.js"></script>
     <script defer src="queue.js"></script>
     <script defer src="permissions.js"></script>
     <script defer src="shifts.js"></script>
@@ -45,12 +101,15 @@
     <script defer src="workspace.js"></script>
     <script defer src="loadhistory.js"></script>
     <script defer src="myhistory.js"></script>
+    <script defer src="activitytimeline.js"></script>
+    <script defer src="employeeprofile.js"></script>
     <script defer src="chat.js"></script>
     <script defer src="overtime.js"></script>
     <script defer src="disputes.js"></script>
     <script defer src="feedback.js"></script>
     <script defer src="userguide.js"></script>
     <script defer src="adminguide.js"></script>
+    <script defer src="dashboardlayout.js"></script>
     <script defer src="settings.js"></script>
     <script defer src="devpanel.js"></script>
     <script defer src="app.js"></script>
@@ -67,6 +126,10 @@
 
     <button id="topBarSettingsBtn" class="topBarSettingsBtn" type="button" title="Settings (Ctrl + ,)">
         ⚙️
+    </button>
+
+    <button id="notificationCenterBtn" class="topBarSettingsBtn notificationCenterBtn" type="button" title="Notifications">
+        🔔<span id="notificationCenterBadge" class="notifBadge hidden">0</span>
     </button>
 
     <div id="damascusClock" title="Damascus, Syria (UTC+3)">🇸🇾 --:--:--</div>
@@ -300,13 +363,32 @@
 
     <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
 
+    <div id="dashboardTabsNav" class="dashboardTabsNav hidden">
+        <button type="button" class="dashboardTabBtn active" data-dashboard-tab="workspace">📝 Workspace</button>
+        <button type="button" class="dashboardTabBtn" data-dashboard-tab="team">👥 Team</button>
+        <button type="button" class="dashboardTabBtn" data-dashboard-tab="stats">📊 Stats &amp; Reports</button>
+    </div>
+
+    <div id="dashboardSidebarArea" class="dashboardSidebarArea">
+
+        <nav id="dashboardSidebarNav" class="dashboardSidebarNav hidden">
+            <button type="button" id="dashboardSidebarHomeBtn" class="dashboardSidebarBtn">🏠 Dashboard</button>
+            <button type="button" class="dashboardSidebarBtn active" data-dashboard-tab="workspace">📝 Workspace</button>
+            <button type="button" class="dashboardSidebarBtn" data-dashboard-tab="team">👥 Team</button>
+            <button type="button" id="dashboardSidebarChatBtn" class="dashboardSidebarBtn">💬 Team Chat</button>
+            <button type="button" class="dashboardSidebarBtn" data-dashboard-tab="stats">📊 Stats &amp; Reports</button>
+            <hr class="dashboardSidebarDivider">
+            <button type="button" id="dashboardSidebarSettingsBtn" class="dashboardSidebarBtn">⚙️ Settings</button>
+            <button type="button" id="dashboardSidebarAdminBtn" class="dashboardSidebarBtn hidden">🛡️ Admin</button>
+        </nav>
+
     <div class="dashboardLayout">
 
         <!-- ================================= -->
         <!-- REPORT FORMATTER (moved here, Phase 5) -->
         <!-- ================================= -->
 
-        <div class="reportFormatterColumn">
+        <div class="reportFormatterColumn" data-tab-panel="stats">
             <!-- Static placeholder for the Report Formatter panel (workspace.js's
                  reportFormatter.mount() looks for this exact ID first, and fills
                  it in, instead of falling back to its dynamic-anchor logic).
@@ -327,12 +409,6 @@
             </p>
 
             <p id="roleLabel" class="roleLabel"></p>
-
-            <select id="roleSelect">
-                <option value="Dispatch" data-en="Dispatch" data-ar="الإرسال">Dispatch</option>
-                <option value="Safety Employee" data-en="Safety Employee" data-ar="موظف السلامة">Safety Employee</option>
-                <option value="Dispatch + Safety" data-en="Dispatch + Safety" data-ar="الإرسال + السلامة">Dispatch + Safety</option>
-            </select>
 
             <hr>
 
@@ -370,7 +446,7 @@
 
             <hr>
 
-            <div id="todaysTimersDropdown" class="todaysTimersDropdown hidden">
+            <div id="todaysTimersDropdown" class="todaysTimersDropdown hidden" data-tab-panel="workspace">
 
             <h2 class="sectionTitle" id="todaysTimersDragHandle" data-en="🖐️ Today's Timers" data-ar="🖐️ مؤقتات اليوم">
 
@@ -432,7 +508,7 @@
 
             </div> <!-- /todaysTimersDropdown -->
 
-            <div id="monthlyStatsDropdown" class="todaysTimersDropdown monthlyStatsDropdown hidden">
+            <div id="monthlyStatsDropdown" class="todaysTimersDropdown monthlyStatsDropdown hidden" data-tab-panel="stats">
 
             <h2 class="sectionTitle" id="monthlyStatsDragHandle">
 
@@ -476,7 +552,7 @@
 
             </div> <!-- closes .card (pre-existing structural quirk, kept as-is) -->
 
-        <aside class="workspacePanel">
+        <aside class="workspacePanel" data-tab-panel="workspace">
 
             <div class="workspaceCard">
 
@@ -495,8 +571,8 @@
                         <div id="shiftEndedAt"></div>
                     </div>
 
-                    <div class="workspaceGridItem">
-                        <div class="workspaceHeader" data-badge-category="chat">
+                    <div class="workspaceGridItem" id="teamChatGridItem">
+                            <div class="workspaceHeader" data-badge-category="chat">
                             <h3><span data-en="💬 Team Chat" data-ar="💬 دردشة الفريق">💬 Team Chat</span> <span id="chatUnreadBadge" class="notifBadge hidden" data-badge-display="chat">0</span></h3>
                             <button id="newChatBtn" class="smallButton" data-en="+ New" data-ar="+ جديد">+ New</button>
                         </div>
@@ -609,6 +685,8 @@
 
         <div id="performanceCard" class="performanceCard">
 
+                <div data-tab-panel="stats">
+
                 <h2 class="sectionTitle" data-en="📈 Personal Performance" data-ar="📈 الأداء الشخصي">
                     📈 Personal Performance
                 </h2>
@@ -654,7 +732,11 @@
                 📦 Loads Booked This Month: --
             </div>
 
+                </div>
+
             <hr>
+
+                <div data-tab-panel="team">
 
             <div class="panelCollapseHeader">
                 <h2 class="sectionTitle" data-en="STS Team" data-ar="فريق STS">STS Team</h2>
@@ -663,7 +745,11 @@
 
             <div id="colleaguesBox"></div>
 
+                </div>
+
         </div>
+
+    </div>
 
     </div>
 
@@ -687,6 +773,10 @@
 
         <button id="myHistoryBtn" class="smallButton quickActionsBarItem" type="button" data-en="📅 My Past Shifts" data-ar="📅 ورديّاتي السابقة">
             📅 My Past Shifts
+        </button>
+
+        <button id="activityTimelineBtn" class="smallButton quickActionsBarItem" type="button">
+            🕘 My Activity
         </button>
 
         <button id="openUserGuideDashboardBtn" class="smallButton quickActionsBarItem" type="button" data-en="📖 Help / User Guide" data-ar="📖 المساعدة / دليل المستخدم">
@@ -825,6 +915,15 @@
                     <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlMouseWheel"> <span data-en="Support Ctrl + Mouse Wheel zoom" data-ar="دعم التكبير بواسطة Ctrl + عجلة الفأرة">Support Ctrl + Mouse Wheel zoom</span></label>
                     <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="supportCtrlPlusMinusZero"> <span data-en="Support Ctrl + Plus / Minus / 0 shortcuts" data-ar="دعم اختصارات Ctrl + Plus / Minus / 0">Support Ctrl + Plus / Minus / 0 shortcuts</span></label>
                     <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="saveZoomLevel"> <span data-en="Save zoom level permanently" data-ar="حفظ مستوى التكبير بشكل دائم">Save zoom level permanently</span></label>
+
+                    <h3>Dashboard Layout</h3>
+                    <label class="settingsLabel" for="dashboardLayoutSelect">Layout</label>
+                    <select id="dashboardLayoutSelect" class="settingsInput settingsSelect" data-setting="dashboardLayout">
+                        <option value="classic">Classic Dashboard</option>
+                        <option value="tabs">Tabbed Workspace</option>
+                        <option value="sidebar">Sidebar Navigation</option>
+                    </select>
+                    <p class="settingsHint">Pick whichever layout feels most natural — you can switch back any time.</p>
 
                     <h3 data-en="24-Hour Time" data-ar="نظام 24 ساعة">24-Hour Time</h3>
                     <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="use24HourDamascus"> <span data-en="🇸🇾 Damascus Clock (top bar)" data-ar="🇸🇾 ساعة دمشق (الشريط العلوي)">🇸🇾 Damascus Clock (top bar)</span></label>
@@ -1597,6 +1696,10 @@
 
                     <br><br>
 
+                    <input id="newEmpName" type="text" placeholder="Full Name (optional)">
+
+                    <br><br>
+
                     <select id="newEmpRole">
                         <option value="Dispatch" data-en="Dispatch" data-ar="التوزيع">Dispatch</option>
                         <option value="Safety Employee" data-en="Safety Employee" data-ar="موظف السلامة">Safety Employee</option>
@@ -2157,6 +2260,78 @@
     </div>
 </div>
 
+<div id="activityTimelineModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+
+        <div class="drillHeader">
+            <h3>🕘 My Activity</h3>
+            <button id="activityTimelineCloseBtn">✖</button>
+        </div>
+
+        <hr>
+
+        <div id="activityTimelineList"></div>
+
+    </div>
+</div>
+
+<div id="notificationCenterModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+
+        <div class="drillHeader">
+            <h3>🔔 Notifications</h3>
+            <button id="notificationCenterCloseBtn">✖</button>
+        </div>
+
+        <hr>
+
+        <div id="notifCenterFilterBar" class="notifCenterFilterBar">
+            <button type="button" class="smallButton notifCenterFilterActive" data-notif-filter="all">All</button>
+            <button type="button" class="smallButton" data-notif-filter="System">System</button>
+            <button type="button" class="smallButton" data-notif-filter="Status">Status</button>
+            <button type="button" class="smallButton" data-notif-filter="Chat">Chat</button>
+            <button type="button" class="smallButton" data-notif-filter="Announcements">Announcements</button>
+            <button type="button" class="smallButton" data-notif-filter="Reports">Reports</button>
+            <button type="button" class="smallButton" data-notif-filter="Loads">Loads</button>
+        </div>
+
+        <div class="modalButtons">
+            <button id="notifCenterMarkAllReadBtn" class="smallButton">✅ Mark all read</button>
+            <button id="notifCenterClearReadBtn" class="smallButton">🧹 Clear read</button>
+            <button id="notifCenterClearAllBtn" class="smallButton">🗑️ Clear all</button>
+        </div>
+
+        <div id="notificationCenterList"></div>
+
+    </div>
+</div>
+
+<div id="employeeProfileModal" class="modalOverlay hidden">
+    <div class="modalBox wideModal">
+
+        <div class="drillHeader">
+            <h3>👤 Employee Profile</h3>
+            <button id="employeeProfileCloseBtn">✖</button>
+        </div>
+
+        <hr>
+
+        <div id="employeeProfileBody"></div>
+
+    </div>
+</div>
+
+<!-- Sidebar-mode "Team Chat" popup. Body is populated by reparenting
+     the existing #teamChatGridItem into it (dashboardlayout.js) —
+     no duplicated chat markup/logic, chat.js is untouched. -->
+<div id="teamChatPopup" class="teamChatPopup hidden">
+    <div class="teamChatPopupHeader" id="teamChatPopupHeader">
+        <span>💬 Team Chat</span>
+        <button type="button" id="teamChatPopupCloseBtn" title="Close">✖</button>
+    </div>
+    <div class="teamChatPopupBody" id="teamChatPopupBody"></div>
+</div>
+
 <!-- ================================= -->
 <!-- PERMISSIONS EDITOR MODAL -->
 <!-- ================================= -->
@@ -2164,7 +2339,7 @@
 <div id="permissionsModal" class="modalOverlay hidden">
     <div class="modalBox">
 
-        <h3>🔑 Permissions — <span id="permissionsModalUser"></span></h3>
+        <h3>✏️ Edit Employee — <span id="permissionsModalUser"></span></h3>
         <hr>
 
         <label for="permissionsLevelSelect">Permission Level:</label>
@@ -2184,6 +2359,24 @@
 
         <label>Weekly Off Days:</label>
         <div id="permissionsModalOffDays" class="offDaysGrid"></div>
+
+        <br><br>
+
+        <label for="permissionsModalName">Name:</label>
+        <input id="permissionsModalName" type="text" placeholder="Full Name (optional)">
+
+        <br><br>
+
+        <label for="permissionsModalRole">Role:</label>
+        <select id="permissionsModalRole">
+            <option value="Dispatch">Dispatch</option>
+            <option value="Safety Employee">Safety Employee</option>
+            <option value="Dispatch + Safety">Dispatch + Safety</option>
+        </select>
+
+        <br><br>
+
+        <button type="button" id="permissionsModalResetPinBtn">Reset PIN</button>
 
         <div class="modalButtons">
             <button id="permissionsSaveBtn">Save</button>
