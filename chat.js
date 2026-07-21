@@ -47,6 +47,10 @@
     const SEARCH_PER_CHAT_LIMIT = 200;
     const SEARCH_RESULT_LIMIT = 50;
 
+    // ---- image attachments (screenshots / drag-drop / file picker) ----
+    const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB — generous for a screenshot
+    const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
     const Chat = {
         chats: {},
         openChatId: null,
@@ -75,7 +79,11 @@
         selectedIds: new Set(),
 
         // ---- message edit state ----
-        editingMessage: null // { chatId, messageId }
+        editingMessage: null, // { chatId, messageId }
+
+        // ---- image attachment composer state ----
+        pendingImageFile: null,       // File awaiting Send/Cancel in the preview bar
+        pendingImagePreviewUrl: null  // local object URL shown in the preview + optimistic bubble
     };
 
     RelayDesk.chat = Chat;
@@ -117,6 +125,8 @@
             messages: document.getElementById("chatMessages"),
             input: document.getElementById("chatInput"),
             sendBtn: document.getElementById("chatSendBtn"),
+            attachBtn: document.getElementById("chatAttachBtn"),
+            imageFileInput: document.getElementById("chatImageFileInput"),
             closeBtn: document.getElementById("chatCloseBtn"),
             pickerModal: document.getElementById("chatPickerModal"),
             pickerList: document.getElementById("chatPickerList"),
@@ -201,6 +211,47 @@
             `;
 
             Chat.UI.input.parentElement?.insertBefore(editBar, Chat.UI.input);
+        }
+
+        // --- image preview bar, same slot as the reply/edit bars above.
+        // Shown after a screenshot paste / drag-drop / file-pick, before
+        // anything is uploaded. Cancel here uploads nothing. ---
+        if (Chat.UI.input && !document.getElementById("chatImagePreviewBar")) {
+
+            const imageBar = document.createElement("div");
+            imageBar.id = "chatImagePreviewBar";
+            imageBar.className = "chatImagePreviewBar hidden";
+            imageBar.innerHTML = `
+                <img id="chatImagePreviewThumb" class="chatImagePreviewThumb" alt="">
+                <div class="chatImagePreviewBody">
+                    <div class="chatImagePreviewLabel">🖼 Image ready to send</div>
+                    <input id="chatImageCaptionInput" type="text" class="chatImageCaptionInput"
+                        placeholder="Add a caption (optional)...">
+                </div>
+                <div class="chatImagePreviewActions">
+                    <button id="chatImageSendBtn" class="smallButton" type="button">Send</button>
+                    <button id="chatImageCancelBtn" class="chatReplyPreviewCancel" type="button">✕</button>
+                </div>
+            `;
+
+            Chat.UI.input.parentElement?.parentElement?.insertBefore(imageBar, Chat.UI.input.parentElement);
+        }
+
+        // --- image viewer (lightbox) modal — click any chat image to open it ---
+        if (!document.getElementById("chatImageViewerModal")) {
+
+            const viewerModal = document.createElement("div");
+            viewerModal.id = "chatImageViewerModal";
+            viewerModal.className = "chatModal chatImageViewerModal hidden";
+            viewerModal.innerHTML = `
+                <div class="chatImageViewerInner">
+                    <button id="chatImageViewerClose" class="chatReplyPreviewCancel chatImageViewerCloseBtn" type="button">✕</button>
+                    <img id="chatImageViewerImg" class="chatImageViewerImg" alt="">
+                    <a id="chatImageViewerDownload" class="smallButton chatImageViewerDownload" download target="_blank" rel="noopener">⬇ Download</a>
+                </div>
+            `;
+
+            document.body.appendChild(viewerModal);
         }
 
         // --- search button next to "new chat" ---
@@ -364,6 +415,17 @@
         Chat.UI.editPreview = document.getElementById("chatEditPreview");
         Chat.UI.editPreviewCancel = document.getElementById("chatEditPreviewCancel");
 
+        Chat.UI.imagePreviewBar = document.getElementById("chatImagePreviewBar");
+        Chat.UI.imagePreviewThumb = document.getElementById("chatImagePreviewThumb");
+        Chat.UI.imageCaptionInput = document.getElementById("chatImageCaptionInput");
+        Chat.UI.imageSendBtn = document.getElementById("chatImageSendBtn");
+        Chat.UI.imageCancelBtn = document.getElementById("chatImageCancelBtn");
+
+        Chat.UI.imageViewerModal = document.getElementById("chatImageViewerModal");
+        Chat.UI.imageViewerImg = document.getElementById("chatImageViewerImg");
+        Chat.UI.imageViewerDownload = document.getElementById("chatImageViewerDownload");
+        Chat.UI.imageViewerClose = document.getElementById("chatImageViewerClose");
+
         Chat.UI.searchBtn = document.getElementById("chatSearchBtn");
         Chat.UI.searchModal = document.getElementById("chatSearchModal");
         Chat.UI.searchInput = document.getElementById("chatSearchInput");
@@ -477,6 +539,46 @@
                 deleteChatForEveryone(chatId);
             }
         };
+
+        // ---- image attachments: file picker + clipboard paste ----
+        if (Chat.UI.attachBtn) Chat.UI.attachBtn.onclick = () => Chat.UI.imageFileInput?.click();
+
+        if (Chat.UI.imageFileInput) {
+            Chat.UI.imageFileInput.addEventListener("change", (e) => {
+                const file = e.target.files?.[0];
+                if (file) handleIncomingImageFile(file);
+            });
+        }
+
+        // Ctrl+V with a Windows Snipping Tool screenshot (or any image)
+        // on the clipboard while the message box is focused.
+        if (Chat.UI.input) {
+            Chat.UI.input.addEventListener("paste", handleChatImagePaste);
+        }
+
+        if (Chat.UI.imageSendBtn) Chat.UI.imageSendBtn.onclick = sendPendingImage;
+        if (Chat.UI.imageCancelBtn) Chat.UI.imageCancelBtn.onclick = cancelPendingImage;
+
+        // ---- image viewer (lightbox) ----
+        if (Chat.UI.imageViewerClose) Chat.UI.imageViewerClose.onclick = closeImageViewer;
+
+        if (Chat.UI.imageViewerModal) {
+            // clicking the dark backdrop (not the image/inner card) closes it
+            Chat.UI.imageViewerModal.addEventListener("click", (e) => {
+                if (e.target === Chat.UI.imageViewerModal) closeImageViewer();
+            });
+        }
+
+        if (Chat.UI.imageViewerImg) {
+            // simple click-to-zoom, no pan/drag — keeps this from turning
+            // into a full image-editor widget
+            Chat.UI.imageViewerImg.addEventListener("click", (e) => {
+                e.stopPropagation();
+                Chat.UI.imageViewerImg.classList.toggle("zoomed");
+            });
+        }
+
+        bindImageDragDrop();
     }
 
     // ===========================================
@@ -1172,6 +1274,12 @@
             </div>
         ` : "";
 
+        // Image attachment (optional — absent on every pre-existing text
+        // message, so this never affects old messages).
+        const imageBlock = m.imageUrl ? `
+            <img class="chatBubbleImage" src="${m.imageUrl}" alt="${escapeHtml(m.imageName || "image")}">
+        ` : "";
+
         const reactions = m.reactions || {};
         const reactionChips = Object.keys(reactions)
             .filter(emoji => (reactions[emoji] || []).length > 0)
@@ -1192,7 +1300,8 @@
             ` : ""}
             ${!mine ? `<div class="chatBubbleFrom">${escapeHtml(m.from)}</div>` : ""}
             ${replyBlock}
-            <div class="chatBubbleText">${escapeHtml(m.text)}</div>
+            ${imageBlock}
+            ${m.text ? `<div class="chatBubbleText">${escapeHtml(m.text)}</div>` : ""}
             <div class="chatBubbleFooter">
                 <span class="chatBubbleTime">${new Date(m.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                 ${m.edited ? `<span class="chatBubbleEditedTag">(edited)</span>` : ""}
@@ -1206,6 +1315,12 @@
                 ${mine ? `<button class="chatBubbleActionBtn chatDeleteBtn" type="button" title="Delete">🗑</button>` : ""}
             </div>
         `;
+
+        // click a chat image to open it larger in the viewer
+        const imageEl = bubble.querySelector(".chatBubbleImage");
+        if (imageEl) {
+            imageEl.addEventListener("click", () => openImageViewer(m.imageUrl, m.imageName));
+        }
 
         // reply
         bubble.querySelector(".chatReplyBtn").addEventListener("click", () => {
@@ -1228,7 +1343,7 @@
         const deleteBtn = bubble.querySelector(".chatDeleteBtn");
         if (deleteBtn) {
             deleteBtn.addEventListener("click", () => {
-                deleteMessage(chatId, doc.id);
+                deleteMessage(chatId, doc.id, m.imageUrl);
             });
         }
 
@@ -1455,7 +1570,7 @@
     // DELETE SINGLE MESSAGE (sender only)
     // ===========================================
 
-    function deleteMessage(chatId, messageId) {
+    function deleteMessage(chatId, messageId, imageUrl) {
 
         if (!confirm(window.I18N ? window.I18N.t("chat.confirmDeleteMessage") : "Delete this message? This can't be undone.")) return;
 
@@ -1464,7 +1579,10 @@
         Chat.UI.messages?.querySelector(`[data-msg-id="${messageId}"]`)?.remove();
         Chat.selectedIds.delete(messageId);
 
-        RelayDesk.queue.enqueue("DELETE_CHAT_MESSAGE", { chatId, messageId });
+        // imageUrl (only present on image messages) rides along so the
+        // queue handler can also clean up the Storage object — Firestore
+        // deletion alone would leave the uploaded file orphaned forever.
+        RelayDesk.queue.enqueue("DELETE_CHAT_MESSAGE", { chatId, messageId, imageUrl });
     }
 
     // ===========================================
@@ -1525,7 +1643,11 @@
 
         Chat.selectedIds.forEach(messageId => {
             Chat.UI.messages?.querySelector(`[data-msg-id="${messageId}"]`)?.remove();
-            RelayDesk.queue.enqueue("DELETE_CHAT_MESSAGE", { chatId, messageId });
+
+            const snapDoc = Chat.lastMessagesSnapshotDocs.find(d => d.id === messageId);
+            const imageUrl = snapDoc?.data()?.imageUrl;
+
+            RelayDesk.queue.enqueue("DELETE_CHAT_MESSAGE", { chatId, messageId, imageUrl });
         });
 
         Chat.selectedIds.clear();
@@ -1634,6 +1756,231 @@
     // SEND MESSAGE
     // ===========================================
 
+    // ===========================================
+    // IMAGE ATTACHMENTS (Telegram-style screenshot/image messages)
+    // ===========================================
+    //
+    // One shared pipeline, three entry points:
+    //   Ctrl+V paste (handleChatImagePaste) ─┐
+    //   Drag & drop (bindImageDragDrop)      ├─► handleIncomingImageFile()
+    //   File picker (attachBtn/imageFileInput) ┘        │
+    //                                                    ▼
+    //                                     preview bar (Send / Cancel)
+    //                                                    │ Send
+    //                                                    ▼
+    //                                            sendPendingImage()
+    //                                     uploadChatImage() -> Firebase
+    //                                     Storage, then the download URL
+    //                                     rides the exact same queued
+    //                                     CHAT_MESSAGE write text
+    //                                     messages already use.
+    //
+    // Firestore never sees image bytes — only { imageUrl, imageName }
+    // alongside the normal message fields. Old text-only messages have
+    // neither field, so every render path below treats them as optional.
+
+    function handleChatImagePaste(e) {
+
+        if (!Chat.openChatId) return;
+
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (const item of items) {
+            if (item.kind === "file" && item.type.startsWith("image/")) {
+                const file = item.getAsFile();
+                if (file) {
+                    // stop the browser from also pasting a filename/garbage
+                    // text into the textarea alongside the image
+                    e.preventDefault();
+                    handleIncomingImageFile(file);
+                }
+                break;
+            }
+        }
+    }
+
+    // Drag & drop anywhere on the open chat window. Mirrors the
+    // header-drag binding pattern in initChatWindowDrag() — bound once,
+    // guarded by a dataset flag so re-running init() never double-binds.
+    function bindImageDragDrop() {
+
+        const zone = Chat.UI.window;
+        if (!zone || zone.dataset.imgDropBound) return;
+        zone.dataset.imgDropBound = "1";
+
+        ["dragenter", "dragover"].forEach(evt => {
+            zone.addEventListener(evt, (e) => {
+                if (!Chat.openChatId || !e.dataTransfer?.types?.includes("Files")) return;
+                e.preventDefault();
+                zone.classList.add("chatDropActive");
+            });
+        });
+
+        ["dragleave", "dragend"].forEach(evt => {
+            zone.addEventListener(evt, () => zone.classList.remove("chatDropActive"));
+        });
+
+        zone.addEventListener("drop", (e) => {
+            if (!Chat.openChatId || !e.dataTransfer?.files?.length) return;
+            e.preventDefault();
+            zone.classList.remove("chatDropActive");
+
+            const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith("image/"));
+            if (file) handleIncomingImageFile(file);
+        });
+    }
+
+    // Shared entry point for all three sources above — validates the
+    // file and hands it to the preview bar. Nothing is uploaded yet.
+    function handleIncomingImageFile(file) {
+
+        if (!file || !Chat.openChatId) return;
+
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+            alert("Unsupported image type. Please use PNG, JPG, GIF or WEBP.");
+            return;
+        }
+
+        if (file.size > MAX_IMAGE_BYTES) {
+            alert("Image is too large (max 8MB).");
+            return;
+        }
+
+        // a reply or an in-progress edit doesn't make sense alongside
+        // attaching a fresh image — same mutual-exclusion the edit bar
+        // already applies to the reply bar
+        cancelReply();
+        cancelEditMessage();
+
+        if (Chat.pendingImagePreviewUrl) URL.revokeObjectURL(Chat.pendingImagePreviewUrl);
+
+        Chat.pendingImageFile = file;
+        Chat.pendingImagePreviewUrl = URL.createObjectURL(file);
+
+        if (Chat.UI.imagePreviewThumb) Chat.UI.imagePreviewThumb.src = Chat.pendingImagePreviewUrl;
+        Chat.UI.imagePreviewBar?.classList.remove("hidden");
+        Chat.UI.imageCaptionInput?.focus();
+    }
+
+    // Hides/resets the composer bar. Deliberately does NOT revoke
+    // pendingImagePreviewUrl — sendPendingImage() still needs it for the
+    // optimistic bubble and revokes it itself once the upload settles.
+    function hideImageComposer() {
+        Chat.pendingImageFile = null;
+        if (Chat.UI.imageCaptionInput) Chat.UI.imageCaptionInput.value = "";
+        Chat.UI.imagePreviewBar?.classList.add("hidden");
+        if (Chat.UI.imageFileInput) Chat.UI.imageFileInput.value = "";
+    }
+
+    // Cancel button — nothing gets uploaded.
+    function cancelPendingImage() {
+        if (Chat.pendingImagePreviewUrl) URL.revokeObjectURL(Chat.pendingImagePreviewUrl);
+        Chat.pendingImagePreviewUrl = null;
+        hideImageComposer();
+    }
+
+    // Uploads a File to Firebase Storage under a path keyed by the
+    // message's own (locally pre-generated) id, then resolves with its
+    // public download URL — the only thing that ever reaches Firestore.
+    function uploadChatImage(chatId, messageId, file) {
+
+        const nameExt = file.name && file.name.includes(".") ? file.name.split(".").pop() : null;
+        const ext = (nameExt || file.type.split("/")[1] || "png").toLowerCase();
+
+        const ref = window.storage.ref(`chatImages/${chatId}/${messageId}.${ext}`);
+
+        return ref.put(file).then(snapshot => snapshot.ref.getDownloadURL());
+    }
+
+    async function sendPendingImage() {
+
+        const file = Chat.pendingImageFile;
+        const chatId = Chat.openChatId;
+        if (!file || !chatId) return;
+
+        const caption = Chat.UI.imageCaptionInput?.value.trim() || "";
+        const localPreviewUrl = Chat.pendingImagePreviewUrl;
+
+        // clears the composer bar immediately; localPreviewUrl stays
+        // alive below for the optimistic bubble
+        hideImageComposer();
+
+        const now = Date.now();
+        const messagesRef = db.collection("chats").doc(chatId).collection("messages");
+        const messageId = RelayDesk.queue.newFirestoreId(messagesRef);
+
+        // Optimistic bubble, same idea as text's renderOptimisticMessage —
+        // shows the local (not-yet-uploaded) image right away so Send
+        // feels instant even on a slow connection.
+        renderOptimisticMessage(chatId, messageId, {
+            from: RelayDesk.currentUser,
+            text: caption,
+            time: now,
+            imageUrl: localPreviewUrl
+        });
+
+        try {
+
+            const downloadUrl = await uploadChatImage(chatId, messageId, file);
+
+            const message = {
+                from: RelayDesk.currentUser,
+                text: caption,
+                time: now,
+                deliveredTo: [],
+                readBy: [],
+                reactions: {},
+                replyTo: null,
+                imageUrl: downloadUrl,
+                imageName: file.name || null
+            };
+
+            // same offline-safe queued write text messages use — a retry
+            // re-writes this exact doc id instead of duplicating it
+            RelayDesk.queue.enqueue("CHAT_MESSAGE", {
+                chatId,
+                messageId,
+                message,
+                chatMeta: {
+                    lastMessage: caption ? `📷 ${caption}` : "📷 Photo",
+                    lastTime: now,
+                    lastFrom: RelayDesk.currentUser,
+                    lastMessageId: messageId
+                }
+            });
+
+        } catch (err) {
+            console.error("Chat image upload failed:", err);
+            alert("Image upload failed. Please try again.");
+            // drop the optimistic bubble so a failed upload doesn't leave
+            // a phantom message stuck on screen
+            Chat.UI.messages?.querySelector(`[data-msg-id="${messageId}"]`)?.remove();
+        } finally {
+            // give the real-time listener a moment to rebuild the message
+            // list with the uploaded URL before freeing the local blob
+            setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 15000);
+        }
+    }
+
+    function openImageViewer(url, name) {
+        if (!Chat.UI.imageViewerModal) return;
+        if (Chat.UI.imageViewerImg) {
+            Chat.UI.imageViewerImg.classList.remove("zoomed");
+            Chat.UI.imageViewerImg.src = url;
+        }
+        if (Chat.UI.imageViewerDownload) {
+            Chat.UI.imageViewerDownload.href = url;
+            Chat.UI.imageViewerDownload.download = name || "image";
+        }
+        Chat.UI.imageViewerModal.classList.remove("hidden");
+    }
+
+    function closeImageViewer() {
+        Chat.UI.imageViewerModal?.classList.add("hidden");
+        if (Chat.UI.imageViewerImg) Chat.UI.imageViewerImg.src = "";
+    }
+
     function sendCurrentMessage() {
 
         if (Chat.editingMessage) {
@@ -1716,9 +2063,14 @@
         const bubble = document.createElement("div");
         bubble.className = "chatBubble mine chatBubblePending";
         bubble.dataset.msgId = messageId;
+
+        const imageBlock = message.imageUrl ? `<img class="chatBubbleImage" src="${message.imageUrl}" alt="">` : "";
+        const textBlock = message.text ? `<div class="chatBubbleText">${escapeHtml(message.text)}</div>` : "";
+
         bubble.innerHTML = `
-            <div class="chatBubbleText">${escapeHtml(message.text)}</div>
-            <div class="chatBubbleFooter"><span class="chatTicks">⏳ sending…</span></div>
+            ${imageBlock}
+            ${textBlock}
+            <div class="chatBubbleFooter"><span class="chatTicks">⏳ ${message.imageUrl ? "uploading…" : "sending…"}</span></div>
         `;
 
         Chat.UI.messages.appendChild(bubble);

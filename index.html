@@ -69,6 +69,8 @@
     <!-- Firebase -->
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
+    <!-- Storage (chat image attachments) -->
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-storage-compat.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -446,7 +448,7 @@
 
             <hr>
 
-            <div id="todaysTimersDropdown" class="todaysTimersDropdown hidden" data-tab-panel="workspace">
+            <div id="todaysTimersDropdown" class="todaysTimersDropdown hidden">
 
             <h2 class="sectionTitle" id="todaysTimersDragHandle" data-en="🖐️ Today's Timers" data-ar="🖐️ مؤقتات اليوم">
 
@@ -508,7 +510,7 @@
 
             </div> <!-- /todaysTimersDropdown -->
 
-            <div id="monthlyStatsDropdown" class="todaysTimersDropdown monthlyStatsDropdown hidden" data-tab-panel="stats">
+            <div id="monthlyStatsDropdown" class="todaysTimersDropdown monthlyStatsDropdown hidden">
 
             <h2 class="sectionTitle" id="monthlyStatsDragHandle">
 
@@ -589,6 +591,8 @@
                             <div id="chatMessages" class="chatMessages"></div>
 
                             <div class="chatInputRow">
+                                <button id="chatAttachBtn" type="button" title="Attach image" data-en-title="Attach image" data-ar-title="إرفاق صورة">📎</button>
+                                <input type="file" id="chatImageFileInput" accept="image/*" class="hidden">
                                 <textarea id="chatInput" rows="1" placeholder="Type a message..." data-en-placeholder="Type a message..." data-ar-placeholder="اكتب رسالة..."></textarea>
                                 <button id="chatSendBtn" data-en="Send" data-ar="إرسال">Send</button>
                             </div>

@@ -30,7 +30,6 @@
 window.DRIVER_LISTS = {
 
     "STS": [
-        "Mahdi",
         "Ashraf",
         "Hany & Ibrahim",
         "Mohammad Omar",
@@ -52,8 +51,7 @@ window.DRIVER_LISTS = {
         "Shanard",
         "Raghdah",
         "Christopher",
-        "Shadi",
-        "Atif"
+        "Shadi"
     ],
 
     "iTour": [
@@ -61,14 +59,17 @@ window.DRIVER_LISTS = {
         "Abdulwahab Mohjazi",
         "Adam",
         "Housam",
-        "Taher"
+        "Taher",
+        "Atif",
+        "Mahid"
     ],
 
     "Alquaiti": [
         "Gamil",
         "Naser",
         "Hassan Roble",
-        "Omar Mohammad"
+        "Omar Mohammad",
+        "Bandar"
     ],
 
     "F&F": [

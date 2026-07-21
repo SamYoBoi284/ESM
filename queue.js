@@ -463,11 +463,24 @@
     // no-op, not an error, so this is safe to retry.
     Queue.registerHandler("DELETE_CHAT_MESSAGE", async (payload) => {
 
-        const { chatId, messageId } = payload;
+        const { chatId, messageId, imageUrl } = payload;
         if (!chatId || !messageId) return;
 
         const messagesRef = db.collection("chats").doc(chatId).collection("messages");
         await messagesRef.doc(messageId).delete();
+
+        // Image messages (chat.js image attachments feature) also own a
+        // file in Firebase Storage — clean it up too, or it's orphaned
+        // forever. Best-effort: a Storage failure (e.g. already deleted
+        // by a previous retry) shouldn't block/duplicate the Firestore
+        // delete above, which already succeeded by this point.
+        if (imageUrl && window.storage) {
+            try {
+                await window.storage.refFromURL(imageUrl).delete();
+            } catch (err) {
+                console.warn("Chat image Storage cleanup failed (non-fatal):", err);
+            }
+        }
 
         // If the message we just deleted was the one the chat list
         // preview points to (chatMeta.lastMessageId), that pointer is

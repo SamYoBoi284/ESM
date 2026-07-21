@@ -85,6 +85,12 @@ async function changeUserStatus(newStatus, opts = {}) {
     // don't cancel their own sequence.
     if (!opts.isAutomationStep) {
         window.ActivityDetection?.cancelIdleAuto();
+
+        // BUGFIX: auto-logout after "I'm Done for Today" — any genuine
+        // manual status change is proof the employee is still around,
+        // so cancel a pending countdown the same way idle detection's
+        // sequence gets cancelled just above.
+        window.clearPendingAutoLogout?.();
     }
 
     // clear stale "Shift Ended" text as soon as the user does anything
@@ -773,7 +779,17 @@ await db.collection("shiftHistory")
                 // employee themselves) so the Admin Panel can display it
                 // distinctly ("Break (Auto Idle)"). Cleared on any manual
                 // status change.
-                autoIdleStatus: opts.isIdleAuto ? newStatus : null
+                autoIdleStatus: opts.isIdleAuto ? newStatus : null,
+                // BUGFIX: idle detection persistence — timestamp for when
+                // auto-Break fired, so the auto-Break -> auto-Away sequence
+                // can be correctly resumed/caught-up on the next app launch
+                // (see activitydetection.js resumeIdleAutoFromPersistedState()).
+                // Only meaningful while sitting in the auto-Break state this
+                // sequence produced; any other status change (manual or
+                // automated) clears it.
+                idleAutoBreakFiredAt: (opts.isIdleAuto && newStatus === "Break")
+                    ? (opts.idleAutoBreakFiredAt || now)
+                    : null
             }, { merge: true });
 
         if (typeof window.logAudit === "function") {
@@ -844,6 +860,13 @@ async function startOvertimeSession(auditNote) {
 
     const now = Date.now();
     const forShiftId = RelayDesk.lastCompletedShiftId || null;
+
+    // Bug fix: "I'm Done for Today" auto-logout — if a pending grace-
+    // period logout was armed (declineOvertimeFromShiftEndPrompt()
+    // below) and the employee then starts overtime anyway (either from
+    // the prompt itself or the standalone button later), that's proof
+    // they're continuing to work, so the countdown no longer applies.
+    window.clearPendingAutoLogout?.();
 
     RelayDesk.currentStatus = "On Duty";
     RelayDesk.lastSwitchTime = now;
@@ -923,7 +946,65 @@ window.startOvertimeStandalone = function () {
 window.declineOvertimeFromShiftEndPrompt = function () {
     RelayDesk.overtimeStarted = false;
     RelayDesk.overtimeStartedAt = null;
+
+    // BUGFIX: automatic logout after "I'm Done for Today". Starts a
+    // 10-minute grace period; if the employee is still logged in once
+    // it elapses they're auto-logged-out. See schedulePendingAutoLogout()
+    // below for why this is timestamp-based rather than a setTimeout.
+    schedulePendingAutoLogout();
 };
+
+// ===========================================
+// BUGFIX: AUTO-LOGOUT AFTER "I'M DONE FOR TODAY"
+// ===========================================
+// Deliberately timestamp-based (an absolute "logout at" moment written
+// to the user's own Firestore doc) instead of a setTimeout/setInterval
+// countdown, because a setTimeout dies the instant the app, Electron,
+// or the whole PC closes — which is exactly the normal case here (the
+// employee is done for the day and may shut their computer down within
+// the 10 minutes). Using an absolute timestamp means "is it time yet?"
+// can be answered correctly from three different places without any of
+// them needing to have been running continuously:
+//   1. While the app stays open: activitydetection.js's existing 5s
+//      poll loop (tick() -> checkPendingAutoLogout()) compares Date.now()
+//      against the stored timestamp every tick.
+//   2. On the next app launch (auth.js startSession()): if the grace
+//      period already fully elapsed while the app/PC was closed, the
+//      employee is logged out immediately instead of a fresh countdown
+//      starting.
+//   3. On the next app launch, if the grace period *hasn't* elapsed yet,
+//      nothing special needs to happen — RelayDesk.pendingAutoLogoutAt
+//      is just restored from the doc and the same tick() check above
+//      naturally finishes counting down the remaining time, since it's
+//      comparing against an absolute moment, not a relative duration.
+// Reuses window.relayLogout() (auth.js) — the one existing logout path —
+// rather than any new/parallel logout mechanism.
+
+const AUTO_LOGOUT_GRACE_MS = 10 * 60 * 1000; // 10 minutes, per spec
+
+function schedulePendingAutoLogout() {
+    if (!RelayDesk.currentUser) return;
+
+    const logoutAt = Date.now() + AUTO_LOGOUT_GRACE_MS;
+    RelayDesk.pendingAutoLogoutAt = logoutAt;
+
+    db.collection("users").doc(RelayDesk.currentUser)
+        .set({ pendingAutoLogoutAt: logoutAt }, { merge: true })
+        .catch(err => console.error("Failed to persist pendingAutoLogoutAt:", err));
+}
+
+function clearPendingAutoLogout() {
+    if (!RelayDesk.pendingAutoLogoutAt) return;
+    RelayDesk.pendingAutoLogoutAt = null;
+
+    if (!RelayDesk.currentUser) return;
+
+    db.collection("users").doc(RelayDesk.currentUser)
+        .set({ pendingAutoLogoutAt: null }, { merge: true })
+        .catch(err => console.error("Failed to clear pendingAutoLogoutAt:", err));
+}
+
+window.clearPendingAutoLogout = clearPendingAutoLogout;
 
 
 // ===========================================

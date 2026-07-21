@@ -30,7 +30,7 @@
         en: {
             idleWarning: "No activity has been detected for a while. You will automatically be switched to Break in {minutes} minutes unless activity resumes.",
             autoBreak: "🟡 You've been automatically switched to Break due to inactivity.",
-            autoOffDuty: "🔴 You've been automatically switched to Off Duty after an extended period of inactivity.",
+            autoOffDuty: "🟣 You've been automatically switched to Away after an extended period of inactivity.",
             returnPrompt: "Activity detected. Would you like to return to On Duty?",
             returnBtn: "Return to On Duty",
             stayBtn: "Stay on Break",
@@ -39,7 +39,7 @@
         ar: {
             idleWarning: "لم يتم رصد أي نشاط لفترة. سيتم تحويلك تلقائيًا إلى استراحة خلال {minutes} دقيقة ما لم يُستأنف النشاط.",
             autoBreak: "🟡 تم تحويلك تلقائيًا إلى استراحة بسبب عدم النشاط.",
-            autoOffDuty: "🔴 تم تحويلك تلقائيًا إلى خارج الدوام بعد فترة طويلة من عدم النشاط.",
+            autoOffDuty: "🟣 تم تحويلك تلقائيًا إلى غير متواجد بعد فترة طويلة من عدم النشاط.",
             returnPrompt: "تم رصد نشاط. هل ترغب بالعودة إلى وضع الدوام؟",
             returnBtn: "العودة إلى الدوام",
             stayBtn: "البقاء في الاستراحة",
@@ -244,7 +244,12 @@
         // like any other status change, just flagged as automation so it
         // (a) doesn't cancel its own sequence and (b) gets tagged with
         // autoIdleStatus for Admin Panel visibility.
-        window.changeUserStatus("Break", { isAutomationStep: true, isIdleAuto: true, idleCreditMs: idleDurationMs });
+        // BUGFIX: idle detection persistence — idleAutoBreakFiredAt is
+        // written to the user's Firestore doc (see status.js's SAVE USER
+        // STATE block) so the auto-Break -> auto-Away sequence survives
+        // the app/Electron/PC closing. See resumeIdleAutoFromPersistedState()
+        // below for how it's picked back up on the next launch.
+        window.changeUserStatus("Break", { isAutomationStep: true, isIdleAuto: true, idleCreditMs: idleDurationMs, idleAutoBreakFiredAt: state.autoBreakFiredAt });
 
         if (typeof logAudit === "function") {
             logAudit(RelayDesk.currentUser, "AUTO_BREAK_IDLE", "Automatic Idle Detection");
@@ -282,11 +287,20 @@
         }, remainingMs);
     }
 
+    // BUGFIX: idle detection used to apply "Off Duty" here. Off Duty is
+    // now owned exclusively by the employee manually selecting it, the
+    // Shift End flow, or "I'm Done for Today" (see status.js) — idle
+    // detection should never place someone Off Duty anymore. Every
+    // timer/threshold/prompt above this point is unchanged; only the
+    // final status applied is different. Function/variable names below
+    // (autoSwitchToOffDuty, offDutyTimer, offDutyExtraMs, etc.) are kept
+    // as-is on purpose to minimize the diff — they now mean "the auto
+    // status that follows auto-Break", which is Away.
     function autoSwitchToOffDuty() {
-        window.changeUserStatus("Off Duty", { isAutomationStep: true, isIdleAuto: true });
+        window.changeUserStatus("Away", { isAutomationStep: true, isIdleAuto: true });
 
         if (typeof logAudit === "function") {
-            logAudit(RelayDesk.currentUser, "AUTO_OFFDUTY_IDLE", "Automatic Idle Detection");
+            logAudit(RelayDesk.currentUser, "AUTO_AWAY_IDLE", "Automatic Idle Detection");
         }
 
         if (typeof window.NotificationManager === "object") {
@@ -301,12 +315,26 @@
     }
 
     function resetIdleState() {
+        const wasActive = state.autoBreakActive || !!state.autoBreakFiredAt;
+
         state.autoBreakActive = false;
         state.autoBreakFiredAt = null;
         clearTimeout(state.offDutyTimer);
         state.offDutyTimer = null;
         removeReturnDialog();
         dismissWarning();
+
+        // BUGFIX: idle detection persistence — cover paths that stop the
+        // sequence WITHOUT a changeUserStatus() call happening as a side
+        // effect (e.g. "Stay on Break" below, or idle detection getting
+        // disabled mid-sequence in Settings). Without this, a stale
+        // idleAutoBreakFiredAt could wrongly auto-apply Away on the next
+        // app launch even though the employee explicitly chose to stay.
+        if (wasActive && RelayDesk.currentUser) {
+            db.collection("users").doc(RelayDesk.currentUser)
+                .set({ idleAutoBreakFiredAt: null }, { merge: true })
+                .catch(err => console.error("Failed to clear idleAutoBreakFiredAt:", err));
+        }
     }
 
     // ===========================================
@@ -487,12 +515,27 @@
     // MAIN POLL LOOP
     // ===========================================
 
+    // BUGFIX: auto-logout after "I'm Done for Today" (status.js
+    // schedulePendingAutoLogout()/clearPendingAutoLogout()). Reuses this
+    // existing 5s poll loop instead of a separate timer — see the big
+    // comment block in status.js for why this is timestamp-based.
+    function checkPendingAutoLogout() {
+        if (!RelayDesk.currentUser) return;
+        if (!RelayDesk.pendingAutoLogoutAt) return;
+        if (Date.now() < RelayDesk.pendingAutoLogoutAt) return;
+
+        RelayDesk.pendingAutoLogoutAt = null;
+        window.relayLogout?.();
+    }
+
     async function tick() {
 
-        // Step 4: independent of the idle-detection enabled setting
-        // below — an abandoned overtime session should still get
-        // cleared even if idle detection itself is turned off.
+        // Independent of the idle-detection enabled setting below —
+        // an abandoned overtime session, and a pending "I'm Done for
+        // Today" auto-logout, should still fire even if idle detection
+        // itself is turned off.
         checkAbandonedOvertime();
+        checkPendingAutoLogout();
 
         const cfg = getConfig();
         if (!cfg.enabled) return;
@@ -542,9 +585,48 @@
         }
     }
 
+    // BUGFIX: idle detection persistence — on every app launch, pick the
+    // auto-Break -> auto-Away sequence back up from the timestamp
+    // persisted on the user doc (RelayDesk.currentUserData, already
+    // populated by auth.js's startSession() by the time this runs).
+    // Timestamp-based rather than in-memory so this works correctly
+    // even after ESM/Electron/the PC was fully closed:
+    //   - if the employee is no longer sitting in the Break status this
+    //     sequence put them in (they were manually moved since), the
+    //     persisted timestamp is stale — clear it, don't resume.
+    //   - if the Away threshold already elapsed while closed, apply Away
+    //     immediately instead of restarting the wait.
+    //   - otherwise, resume counting down the remaining time from the
+    //     same absolute timestamp (scheduleAutoOffDuty() already computes
+    //     "remaining", it doesn't assume a fresh full interval).
+    function resumeIdleAutoFromPersistedState() {
+        const firedAt = RelayDesk.currentUserData?.idleAutoBreakFiredAt;
+        if (!firedAt) return;
+
+        if (RelayDesk.currentStatus !== "Break") {
+            db.collection("users").doc(RelayDesk.currentUser)
+                .set({ idleAutoBreakFiredAt: null }, { merge: true })
+                .catch(err => console.error("Failed to clear stale idleAutoBreakFiredAt:", err));
+            return;
+        }
+
+        state.autoBreakActive = true;
+        state.autoBreakFiredAt = firedAt;
+
+        const cfg = getConfig();
+        const elapsedSinceFired = Date.now() - firedAt;
+
+        if (cfg.offDutyExtraMs && elapsedSinceFired >= cfg.offDutyExtraMs) {
+            autoSwitchToOffDuty();
+        } else {
+            scheduleAutoOffDuty();
+        }
+    }
+
     window.initializeActivityDetection = function () {
         state.lastActivityAt = Date.now();
         applyEnabledState();
+        resumeIdleAutoFromPersistedState();
     };
 
     window.ActivityDetection = {

@@ -3309,6 +3309,115 @@ body {
 }
 .chatReactionPickerEmoji:hover { background: rgba(255,255,255,0.1); }
 
+/* ---------- image attachments ---------- */
+#chatAttachBtn {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    width: auto;
+    height: 38px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 8px;
+    padding: 0 12px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+}
+#chatAttachBtn:hover { opacity: 0.85; transform: none; }
+
+.chatDropActive {
+    outline: 2px dashed #4caf50;
+    outline-offset: -4px;
+}
+
+.chatImagePreviewBar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(76,175,80,0.1);
+    border-left: 3px solid #4caf50;
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+}
+.chatImagePreviewThumb {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex: 0 0 auto;
+}
+.chatImagePreviewBody { flex: 1 1 auto; min-width: 0; }
+.chatImagePreviewLabel { font-weight: 600; opacity: 0.85; font-size: 0.85em; margin-bottom: 4px; }
+.chatImageCaptionInput {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--panel-bg);
+    color: var(--text-color);
+    font-size: 0.85em;
+}
+.chatImagePreviewActions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chatBubbleImage {
+    display: block;
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 8px;
+    cursor: zoom-in;
+    margin-bottom: 4px;
+}
+
+.chatImageViewerModal {
+    align-items: center;
+    background: rgba(0,0,0,0.85);
+}
+.chatImageViewerInner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 92vw;
+    max-height: 88vh;
+}
+.chatImageViewerImg {
+    max-width: 92vw;
+    max-height: 78vh;
+    object-fit: contain;
+    border-radius: 6px;
+    cursor: zoom-in;
+    transition: transform 0.15s ease;
+}
+.chatImageViewerImg.zoomed {
+    max-width: none;
+    max-height: none;
+    transform: scale(1.6);
+    cursor: zoom-out;
+}
+.chatImageViewerCloseBtn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 1em;
+}
+.chatImageViewerDownload {
+    align-self: center;
+}
+
 /* ---------- reply preview bar above input ---------- */
 .chatReplyPreview {
     display: flex;

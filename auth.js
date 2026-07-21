@@ -152,6 +152,19 @@ async function restoreSession() {
             return;
         }
 
+        // BUGFIX: auto-logout after "I'm Done for Today". This is the
+        // "app reopened after the grace period already expired" case
+        // from the spec — pendingAutoLogoutAt is an absolute timestamp
+        // (status.js schedulePendingAutoLogout()), so if it's already in
+        // the past the 10 minutes fully elapsed while ESM/Electron/the
+        // PC was closed. Log out immediately instead of resuming the
+        // session and starting a fresh countdown.
+        const savedData = doc.data();
+        if (savedData?.pendingAutoLogoutAt && Date.now() >= savedData.pendingAutoLogoutAt) {
+            clearSession();
+            return;
+        }
+
         console.log("🔁 Resuming session for", savedCode);
 
         currentUser = savedCode;
@@ -280,6 +293,14 @@ async function login() {
 
         saveSession(code);
 
+        // BUGFIX: auto-logout after "I'm Done for Today" — a fresh
+        // manual login is itself proof of presence, so any stale
+        // pending countdown from a previous session no longer applies.
+        RelayDesk.pendingAutoLogoutAt = null;
+        ref.set({ pendingAutoLogoutAt: null }, { merge: true }).catch(err => {
+            console.error("Failed to clear pendingAutoLogoutAt on login:", err);
+        });
+
         await startSession();
         try {
             await window.NotificationManager?.requestPermission();
@@ -308,6 +329,14 @@ async function login() {
     RelayDesk.currentUser = code;
 
     saveSession(code);
+
+    // BUGFIX: auto-logout after "I'm Done for Today" — a fresh manual
+    // login is itself proof of presence, so any stale pending countdown
+    // from a previous session no longer applies.
+    RelayDesk.pendingAutoLogoutAt = null;
+    ref.set({ pendingAutoLogoutAt: null }, { merge: true }).catch(err => {
+        console.error("Failed to clear pendingAutoLogoutAt on login:", err);
+    });
 
     await startSession();
     bootWorkspace();
@@ -414,6 +443,16 @@ async function startSession() {
 
     const doc = await db.collection("users").doc(RelayDesk.currentUser).get();
     const data = doc.exists ? doc.data() : {};
+
+    // BUGFIX: auto-logout after "I'm Done for Today". Carry the pending
+    // absolute logout timestamp (status.js schedulePendingAutoLogout())
+    // into memory so activitydetection.js's poll loop can keep counting
+    // down toward it. The "already expired while closed" case is caught
+    // earlier, in restoreSession(), before this function is even called
+    // for an auto-resumed session — a fresh manual PIN login clears the
+    // flag entirely (see login()) since re-authenticating is itself
+    // proof of presence.
+    RelayDesk.pendingAutoLogoutAt = data.pendingAutoLogoutAt || null;
 
     // ===== PERMISSION SYSTEM =====
     // resolve this user's effective permissions (level preset +

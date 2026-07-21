@@ -45,6 +45,10 @@ function initFirebase() {
     // Firestore
     window.db = firebase.firestore();
 
+    // Storage (chat image attachments — Firestore only ever stores the
+    // resulting download URL, never the image bytes themselves)
+    window.storage = firebase.storage();
+
     lastChange: Date.now()
 
 }

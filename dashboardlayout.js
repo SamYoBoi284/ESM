@@ -13,11 +13,21 @@
 // into the same 3 sections by tagging them with a `data-tab-panel`
 // attribute (added directly in index.html, no elements moved):
 //
-//   workspace -> Today's Timers dropdown + the Workspace aside
-//                (chat, announcements, notes, overtime reason, loads)
+//   workspace -> the Workspace aside (chat, announcements, notes,
+//                overtime reason, loads)
 //   team      -> STS Team section (inside #performanceCard)
-//   stats     -> Monthly Stats dropdown + Personal Performance
-//                (inside #performanceCard) + the Report Formatter column
+//   stats     -> Personal Performance (inside #performanceCard) + the
+//                Report Formatter column
+//
+// BUGFIX: Today's Timers and Monthly Statistics (their toggle buttons
+// AND their dropdown content) belong to the main ESM dashboard card,
+// not to any one tab/workspace section — they're deliberately left
+// untagged (no data-tab-panel) in index.html so setActiveTab() and
+// showDashboardOnly() below never touch them. Their visibility is
+// controlled exclusively by their own toggle buttons
+// (todaysTimersToggleBtn / monthlyStatsToggleBtn, via timers.js /
+// monthlystats.js's own "hidden" class toggling), independent of
+// which dashboard layout or tab/sidebar section is active.
 //
 // Tabbed mode shows a horizontal bar (#dashboardTabsNav) above the
 // grid. Sidebar mode shows a vertical nav (#dashboardSidebarNav) to

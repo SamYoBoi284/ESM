@@ -233,6 +233,19 @@ window.startMonthlyStatsListener = function () {
 
     attachMonthlyStatsListener();
     setInterval(checkForMonthRollover, 5 * 60 * 1000);
+
+    // Belt-and-suspenders: a long-lived onSnapshot can go quiet after a
+    // laptop sleep/wake, a network drop, or the Electron window sitting
+    // in the background for a long stretch — the SDK usually recovers on
+    // its own, but if it doesn't, the panel would silently stop updating
+    // with no visible error. Re-attaching (which always tears down the
+    // old listener first, see attachMonthlyStatsListener) on reconnect
+    // and on tab/window refocus costs one cheap re-query and guarantees
+    // the panel can't get stuck stale.
+    window.addEventListener("online", attachMonthlyStatsListener);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") attachMonthlyStatsListener();
+    });
 };
 
 
