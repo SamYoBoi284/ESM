@@ -32,7 +32,6 @@ window.DRIVER_LISTS = {
     "STS": [
         "Ashraf",
         "Hany & Ibrahim",
-        "Mohammad Omar",
         "Mohammad Farhat",
         "Timothy",
         "Ernest",
@@ -73,7 +72,8 @@ window.DRIVER_LISTS = {
     ],
 
     "F&F": [
-       "Hasan Aoun"
+       "Hasan Aoun",
+       "Mohammad Omar"
     ]
 
 };
