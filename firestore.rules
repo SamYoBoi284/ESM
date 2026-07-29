@@ -13,64 +13,52 @@ service cloud.firestore {
     // all client requests to your Firestore database will be denied until you Update
     // your rules
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 7, 30);
+      allow read, write: if request.time < timestamp.date(2027, 7, 30);
     }
 
     // ===========================================
     // FEEDBACK / FEATURE REQUEST SYSTEM (added with the Batch 1+2
-    // rollout). This app has no Firebase Auth layer of its own (login
-    // is a custom employee-code + PIN flow checked against the
-    // "users" collection), so there's no request.auth to key off of
-    // here — this rule is scoped identically to the catch-all above
-    // (open) so nothing changes in practice today, but it keeps this
-    // collection working once the catch-all's July 30, 2026 expiry
-    // hits. Tighten this alongside a real auth solution if/when one
-    // gets added.
+    // rollout). This app has a lightweight Firebase Auth session layered under the
+    // existing employee-code + PIN flow, so signed-in app sessions can
+    // use this collection without leaving it public.
     match /featureRequests/{requestId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     // ===========================================
     // VIOLATIONS LOG (violations.js) + shared "system" config docs
     // (also used by monthlystats.js's GitHub backup config). Same
-    // reasoning as featureRequests above — scoped identically to the
-    // catch-all (open) for now so nothing changes in practice today,
-    // but these keep working past the catch-all's July 30, 2026
-    // expiry. Tighten alongside a real auth solution if/when one
-    // gets added.
+    // reasoning as featureRequests above — require the lightweight
+    // Firebase Auth session created after employee-code + PIN login.
     // ===========================================
     match /violationLogs/{logId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     match /violationsArchive/{month} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     match /system/{docId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     // ===========================================
     // SHIFT MANAGEMENT (shiftmanagement.js) — the new configurable,
     // Firestore-backed shift system. Same reasoning as the other
-    // collections above: no Firebase Auth in this app (custom
-    // employee-code + PIN login checked against "users"), so this is
-    // scoped identically to the catch-all (open) for now, but keeps
-    // working past the catch-all's July 30, 2026 expiry. Tighten
-    // alongside a real auth solution if/when one gets added.
+    // collections above: require the lightweight Firebase Auth session
+    // created after employee-code + PIN login.
     // ===========================================
     match /shifts/{shiftId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     // ===========================================
     // NOTIFICATION CENTER (notificationcenter.js, Phase 1) — persistent
     // per-user notification history. Same reasoning as the other
-    // collections above: no Firebase Auth in this app, so scoped
-    // identically to the catch-all (open) for now, but keeps working
-    // past the catch-all's July 30, 2026 expiry.
+    // collections above: require the lightweight Firebase Auth session
+    // created after employee-code + PIN login.
     // ===========================================
     match /notificationHistory/{entryId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
   }
 }

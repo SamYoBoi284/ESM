@@ -6,12 +6,10 @@ rules_version = '2';
 // Firebase Storage — chat image attachments
 // ===========================================
 //
-// Same reasoning as firestore.rules: this app has no Firebase Auth
-// layer of its own (login is a custom employee-code + PIN flow
-// checked against the "users" Firestore collection), so there's no
-// request.auth to key off of here. Scoped open, time-boxed the same
-// way as the Firestore catch-all, so it keeps working until a real
-// auth solution is added. Tighten alongside that when it lands.
+// Chat uploads now use the same lightweight Firebase Auth session that
+// auth.js creates after the existing employee-code + PIN/password login
+// succeeds. No Google/Gmail sign-in is required, but Storage no longer
+// has to stay public for signed-in app users.
 service firebase.storage {
   match /b/{bucket}/o {
 
@@ -19,7 +17,7 @@ service firebase.storage {
     // chatImages/{chatId}/{messageId}.{ext}. Firestore only ever
     // stores the resulting download URL; the bytes live here.
     match /chatImages/{chatId}/{fileName} {
-      allow read, write: if request.time < timestamp.date(2026, 7, 30);
+      allow read, write: if request.auth != null;
     }
   }
 }
