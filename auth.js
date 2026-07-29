@@ -82,6 +82,43 @@ const SESSION_KEY = "relaydesk_session_user";
 
 
 // ===========================================
+// LIGHTWEIGHT FIREBASE AUTH BRIDGE
+// ===========================================
+// The app still uses its existing employee-code + PIN/password login UX
+// as the real gate. After that check passes, we sign into Firebase Auth
+// anonymously so Firestore/Storage rules can require request.auth != null
+// without forcing Google/Gmail login or changing what employees type.
+async function ensureRelayDeskFirebaseAuth(code) {
+
+    if (!window.auth?.signInAnonymously) {
+        console.warn("Firebase Auth is not available; continuing with legacy session only.");
+        return null;
+    }
+
+    if (window.auth.currentUser) {
+        return window.auth.currentUser;
+    }
+
+    const credential = await window.auth.signInAnonymously();
+    const authUser = credential.user;
+
+    if (code && authUser?.uid && window.db) {
+        db.collection("users").doc(code).set({
+            firebaseAuthUid: authUser.uid,
+            firebaseAuthMode: "anonymous",
+            firebaseAuthLinkedAt: Date.now()
+        }, { merge: true }).catch(err => {
+            console.warn("Could not link Firebase Auth UID to employee record:", err);
+        });
+    }
+
+    return authUser;
+}
+
+window.ensureRelayDeskFirebaseAuth = ensureRelayDeskFirebaseAuth;
+
+
+// ===========================================
 // SESSION PERSISTENCE (STAY LOGGED IN)
 // ===========================================
 
@@ -109,8 +146,15 @@ window.clearRememberedLogin = clearSession;
 
 // Only the Logout button should ever call this — it clears the saved
 // session AND reloads, dropping back to the login screen.
-window.relayLogout = function () {
+window.relayLogout = async function () {
     clearSession();
+
+    try {
+        await window.auth?.signOut?.();
+    } catch (err) {
+        console.warn("Firebase Auth sign-out failed:", err);
+    }
+
     location.reload();
 };
 
@@ -170,6 +214,8 @@ async function restoreSession() {
         currentUser = savedCode;
         RelayDesk.currentUser = savedCode;
         RelayDesk.shiftEnded = false;
+
+        await ensureRelayDeskFirebaseAuth(savedCode);
 
         startSession();
 
@@ -269,6 +315,8 @@ async function login() {
         // intentionally-empty PIN), and future logins for this account
         // skip the PIN/password check entirely (see the wrong-PIN
         // check below).
+        await ensureRelayDeskFirebaseAuth(code);
+
         await ref.update({
             pin,
             pinWasReset: false,
@@ -327,6 +375,8 @@ async function login() {
     // SUCCESS LOGIN
     currentUser = code;
     RelayDesk.currentUser = code;
+
+    await ensureRelayDeskFirebaseAuth(code);
 
     saveSession(code);
 

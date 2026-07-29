@@ -45,6 +45,11 @@ function initFirebase() {
     // Firestore
     window.db = firebase.firestore();
 
+    // Firebase Auth (anonymous auth is used as a lightweight
+    // server-recognized session after the existing employee code +
+    // PIN/password check succeeds).
+    window.auth = firebase.auth();
+
     // Storage (chat image attachments — Firestore only ever stores the
     // resulting download URL, never the image bytes themselves)
     window.storage = firebase.storage();

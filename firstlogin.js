@@ -141,6 +141,8 @@
             }
 
             try {
+                await window.ensureRelayDeskFirebaseAuth?.(wizardCode);
+
                 await db.collection("users").doc(wizardCode).update({
                     pin,
                     preferredLanguage: chosenLanguage,
@@ -173,6 +175,8 @@
             RelayDesk.currentUser = wizardCode;
             RelayDesk.currentUserRole = null;
             RelayDesk.shiftEnded = false;
+
+            await window.ensureRelayDeskFirebaseAuth?.(wizardCode);
 
             saveSession(wizardCode);
 
