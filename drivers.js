@@ -31,49 +31,40 @@ window.DRIVER_LISTS = {
 
     "STS": [
         "Ashraf",
-        "Hany & Ibrahim",
         "Mohammad Farhat",
         "Timothy",
-        "Ernest",
-        "Verrell",
         "Mario",
         "Sari",
         "Abdi",
         "Mustafa",
         "Kareem",
         "Amirah",
-        "Vitali",
         "Faisal",
         "Mahmoud",
         "Kalid",
         "Yasir",
         "Shanard",
-        "Raghdah",
-        "Christopher",
-        "Shadi"
+        "Shadi",
+        "Fredrick",
+        "Timothy Harris",
+        "Thomas Ayinde",
+        "Ahmad Qwayder",
+        ""
     ],
 
     "iTour": [
         "Abdallah Yousef",
         "Abdulwahab Mohjazi",
-        "Adam",
         "Housam",
         "Taher",
         "Atif",
-        "Mahid"
-    ],
-
-    "Alquaiti": [
-        "Gamil",
-        "Naser",
-        "Hassan Roble",
-        "Omar Mohammad",
-        "Bandar"
+        "Mahdi"
     ],
 
     "F&F": [
        "Hasan Aoun",
-       "Mohammad Omar"
+       "Mohammad Omar",
+       "Haytham"
     ]
 
 };

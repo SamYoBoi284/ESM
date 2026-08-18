@@ -6,6 +6,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <meta http-equiv="Content-Security-Policy"
+content="default-src 'self';
+script-src 'self' https://www.gstatic.com https://cdnjs.cloudflare.com;
+connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com;
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob:;
+font-src 'self';
+media-src 'self';">
+
     <title>HoS || STS ESM</title>
 
     <link rel="icon" type="image/png" href="favicon2.png">
@@ -2501,7 +2510,6 @@
             <option value="" data-en="Select department..." data-ar="اختر القسم...">Select department...</option>
             <option value="STS">STS</option>
             <option value="iTour">iTour</option>
-            <option value="Alquaiti">Alquaiti</option>
             <option value="F&amp;F">F&amp;F</option>
         </select>
         <div class="fieldErrorMsg" id="loadModalDepartmentError"></div>
