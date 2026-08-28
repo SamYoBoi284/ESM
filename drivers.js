@@ -48,8 +48,7 @@ window.DRIVER_LISTS = {
         "Fredrick",
         "Timothy Harris",
         "Thomas Ayinde",
-        "Ahmad Qwayder",
-        ""
+        "Ahmad Qwayder"
     ],
 
     "iTour": [
@@ -64,7 +63,18 @@ window.DRIVER_LISTS = {
     "F&F": [
        "Hasan Aoun",
        "Mohammad Omar",
-       "Haytham"
+       "Haytham",
+       "Hamed Milhem"
+    ],
+
+    "JB Hunt": [
+        "Faisal",
+        "Mahmoud",
+        "Layth",
+        "Timothy Walker",
+        "Mario",
+        "Mustafa",
+        "Mohammad Farhat"
     ]
 
 };
