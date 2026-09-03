@@ -32,7 +32,7 @@ window.DRIVER_LISTS = {
     "STS": [
         "Ashraf",
         "Mohammad Farhat",
-        "Timothy",
+        "Timothy Walker",
         "Mario",
         "Sari",
         "Abdi",
@@ -40,8 +40,10 @@ window.DRIVER_LISTS = {
         "Kareem",
         "Amirah",
         "Faisal",
-        "Mahmoud",
-        "Kalid",
+        "Mahmoud Chaker",
+        "Mahmoud Hasan",
+        "Mike Alsayed",
+        "Layth Ayyad",
         "Yasir",
         "Shanard",
         "Shadi",
@@ -55,13 +57,11 @@ window.DRIVER_LISTS = {
         "Abdallah Yousef",
         "Abdulwahab Mohjazi",
         "Housam",
-        "Taher",
         "Atif",
         "Mahdi"
     ],
 
     "F&F": [
-       "Hasan Aoun",
        "Mohammad Omar",
        "Haytham",
        "Hamed Milhem"
@@ -69,11 +69,13 @@ window.DRIVER_LISTS = {
 
     "JB Hunt": [
         "Faisal",
-        "Mahmoud",
-        "Layth",
+        "Mahmoud Chaker",
+        "Mahmoud Hasan",
+        "Layth Ayyad",
         "Timothy Walker",
         "Mario",
         "Mustafa",
+        "Shanard",
         "Mohammad Farhat"
     ]
 
