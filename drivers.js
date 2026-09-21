@@ -58,7 +58,8 @@ window.DRIVER_LISTS = {
         "Abdulwahab Mohjazi",
         "Housam",
         "Atif",
-        "Mahdi"
+        "Mahdi",
+        "Adel"
     ],
 
     "F&F": [
@@ -77,6 +78,11 @@ window.DRIVER_LISTS = {
         "Mustafa",
         "Shanard",
         "Mohammad Farhat"
-    ]
+    ],
 
+    "MSL": [
+        "Jehad",
+        "Diah"
+    ]
+    
 };
