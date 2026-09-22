@@ -1,149 +1,103 @@
-# ESM v5.0.2 — Major Overhaul Update 🚀
+# ESM v5.1.7 — Dispatch + Safety Dashboard Update 🚀
 
-## ✨ ESM Dashboard Overhaul
+This release continues the operational work that started after v5.0.9 and folds the recent STS workflow changes into a cleaner dashboard experience.
 
-This update introduces a complete dashboard experience overhaul, improving navigation, personalization, and visibility across the application.
+## 🆕 v5.1.7 — Dispatch + Safety Dashboard
 
-### 🖥️ Redesigned Dashboard Layouts
-- Added multiple dashboard layouts to give employees more flexibility in how they use ESM.
-- Improved workspace organization with cleaner separation between:
-  - Status controls
-  - Workspace tools
-  - Employee information
-  - Quick actions
-  - Communication features
-- Layout preferences are now respected to provide a more personalized experience.
+### 🚚 One Dashboard, Two Real-Time Views
+- Reworked the Safety Dashboard so it is no longer a separate dashboard mode.
+- Added horizontal **Dispatch Dashboard** / **Safety Dashboard** tabs above the main dashboard.
+- Tabs switch instantly without leaving the dashboard.
+- The last selected dashboard view is remembered locally.
+- Safety Dashboard can be disabled completely from Settings.
+- Replaced the old Classic Dashboard Type choices with:
+  - **Dispatch Dashboard**
+  - **Dispatch + Safety Dashboard**
+- Kept the existing Classic / Tabbed / Sidebar layout system separate from the Dispatch/Safety content choice.
 
-### 💬 Improved Chat Experience
-- Chat has been redesigned to better fit different dashboard layouts.
-- When using the sidebar layout, chats now open as a dedicated popup window instead of replacing the main workspace.
-- This allows employees to keep their dashboard visible while communicating.
+### 🛡️ Admin Panel Fixes
+- Restored the **Edit Employee** action so it actually performs an employee edit.
+- Employee editing now updates the employee name and permission level.
+- Preserved the existing PIN-reset action and permission checks.
+- Reduced Admin Panel lag by avoiding a full employee-card rebuild for ordinary live status/timer updates.
+- Admin status and timers now update locally in real time while Firestore structural changes trigger a proper re-render.
+- PIN/name reveal state remains immediate and survives necessary list rebuilds.
 
----
-
-# 🆕 New Employee Experience Features
-
-## 🕘 Activity Timeline (New)
-A completely new personal activity history system.
-
-Employees can now:
-- View their recent activity timeline.
-- See important actions and status changes in a cleaner visual format.
-- Track their daily activity history with improved readability.
-
-Improvements:
-- Added activity icons for easier recognition.
-- Added consistent status indicators matching ESM's existing status colors.
-- Added automatic fallback icons for future activity types.
+### 📋 What's New Fix
+- Made the updater's **What's New** modal close reliably from its Close/Okay button.
+- Added a direct backdrop-close path.
+- Added reliable Escape-key closing.
+- Closing no longer depends on clicking the app first to restore focus.
 
 ---
 
-## 🔔 Notification Center (New)
-Introduced a centralized notification history system.
+# 📚 ESM Change History Since v5.0.9
 
-Features:
-- View previous notifications even after they disappear.
-- Notification history is saved separately from temporary popups.
-- Added unread notification tracking.
-- Added notification badge counter.
-- Added filtering by category:
-  - System
-  - Status
-  - Chat
-  - Announcements
-  - Reports
-  - Loads
+## v5.0.9 → J.B. Hunt
+- Added the J.B. Hunt department/driver support.
+- Updated the Add Load workflow to recognize the new department.
 
-Actions:
-- Mark notifications as read.
-- Mark all as read.
-- Clear read notifications.
-- Clear notification history.
+## Driver Expansion → v5.1.0
+- Expanded and corrected the driver lists used by ESM.
+- Continued aligning Add Load department/driver selection with the operational driver roster.
 
----
+## v5.1.1
+- Maintenance release / version update following the driver expansion work.
 
-## 👤 Employee Profiles (New)
-Employees can now view detailed profiles directly from employee lists.
+## v5.1.2
+- Maintenance release / version update preparing the next department and roster changes.
 
-Added profile access from:
-- Live Employee Board
-- Admin employee list
+## v5.1.3 — MSL
+- Added the MSL department.
+- Added MSL drivers and connected the department to the Add Load workflow.
+- Continued driver roster corrections.
 
-Profile information includes:
-- Name
-- Employee code
-- Role
-- Permission level
-- Assigned shift
-- Current status
-- Status duration
-- Today's activity timeline
+## v5.1.4 — Department & Driver Cleanup
+- Expanded the driver roster for the newer departments.
+- Added the **Other** department and its driver pool.
+- Added the newer departments to the Add Load selector.
+- Fixed the visual/department handling around the expanded driver lists.
 
-Design:
-- Uses the same visual language as existing ESM modals.
-- Reuses existing activity and status systems instead of creating duplicates.
+## v5.1.5 — J.B. Hunt Fix
+- Corrected the J.B. Hunt department handling after the department expansion.
 
----
+## v5.1.6 — Other Drivers, Permissions & Safety Foundation
+### 👤 Other Driver Management
+- Added a Firestore-backed **Other Drivers** editor.
+- Existing Other drivers are seeded from the original driver list the first time the editor is used.
+- Add Load now reads the editable Other driver list live.
+- Added permission-gated add/rename/remove/save controls.
 
-# 🛠️ Desktop & Stability Improvements
+### 🦺 Safety Dashboard Foundation
+- Added the first Safety Dashboard implementation.
+- Added per-department driver cards.
+- Added PTI status.
+- Added Current Load, BOL, Trailer, and Truck fields.
+- Added Firestore-backed daily Safety Dashboard data.
+- Allowed Safety-role users to update Safety Dashboard data.
 
-## 🖥️ Electron Focus Bug Fix (Major)
-Fixed a major issue where buttons, modals, text fields and textareas could become unusable after interacting with native OS dialogs.
+### 🛡️ Permission/Admin Fixes
+- Preserved elevated legacy Admin/Supervisor/Owner roles when older records still carried the default Employee permission level.
+- Fixed Admin PIN/name reveal controls so they toggle the displayed value directly.
 
-Previously:
-- Closing alerts, confirmations, and native dialogs could cause ESM inputs to stop accepting keyboard input.
-- Textareas appeared focused but would not receive typing.
-- The issue could happen anywhere, including:
-  - Login screen
-  - Logout flow
-  - Admin actions
-  - Confirmation dialogs
-  - Load additions
-  - Load edits through Load History
-  - etc.
-
-Fixed:
-- Added a centralized Electron window focus recovery system.
-- ESM now correctly restores renderer keyboard focus after dialogs close.
-- No more need to:
-  - Alt+Tab away and back
-  - Click the window title bar
-  - Refocus manually before typing again
-
-This fix improves reliability across the entire application.
+### 🎨 Dashboard Integration Foundation
+- Added the dashboard layout integration needed for the Safety Dashboard.
+- Added the supporting Safety Dashboard styling and Settings hooks.
 
 ---
 
-# 🔧 Technical Improvements
-
-- Continued additive architecture approach:
-  - Existing systems reused instead of duplicated.
-  - No unnecessary rewrites.
-  - Existing permission and status systems preserved.
-- Improved module separation for new features.
-- Maintained compatibility with existing employee workflows.
+## 👷 STS Operational Changes Across v5.0.9–v5.1.6
+- Driver rosters were repeatedly updated to reflect the live STS operation.
+- J.B. Hunt, MSL, and Other were added/adjusted as operational departments.
+- Add Load department/driver selection was updated alongside those roster changes.
+- Admin permissions and employee management were tightened while keeping legacy elevated accounts functional.
+- The first Safety Dashboard and editable Other-driver system were introduced as the foundation for the v5.1.7 integrated dashboard.
 
 ---
 
-# 📦 Updated Files & Systems
+## ❤️ Built With the STS Team
 
-Major additions:
-- Activity Timeline system
-- Notification Center system
-- Employee Profile system
-- Dashboard layout improvements
+ESM has grown through repeated real-world fixes, driver roster changes, workflow adjustments, and feedback from the people actually using it.
 
-Electron:
-- Improved window focus handling.
-- Improved application stability after native dialogs.
-
----
-
-# 🎯 What's Next
-
-Future improvements will continue expanding ESM's productivity tools, employee experience, and workflow automation.
-
----
-
-**ESM v5.0.2**
-A major step toward making ESM a complete employee operations platform.
+**ESM v5.1.7**
+Built for the team. Improved by the team.

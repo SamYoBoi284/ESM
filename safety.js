@@ -1,15 +1,11 @@
-// ===========================================
-// ESM — Safety Dashboard
-// ===========================================
-
+// ESM Safety Dashboard with integrated Dispatch/Safety dashboard switching
 (function () {
     const COLLECTION = "safetyDashboard";
+    const ACTIVE_VIEW_KEY = "esm_active_dashboard_view";
     let initialized = false;
     let activeDate = "";
 
-    function todayKey() {
-        return new Date().toISOString().split("T")[0];
-    }
+    const todayKey = () => new Date().toISOString().split("T")[0];
 
     function escapeHtml(value) {
         const div = document.createElement("div");
@@ -35,13 +31,66 @@
 
     function ensureEntries(existing) {
         const out = { ...(existing || {}) };
-        departments().forEach(function (dept) {
-            driverList(dept).forEach(function (driver) {
+        departments().forEach(dept => {
+            driverList(dept).forEach(driver => {
                 const key = makeKey(dept, driver);
                 out[key] = { ...defaultEntry(), ...(out[key] || {}) };
             });
         });
         return out;
+    }
+
+    function getSavedView() {
+        try {
+            return localStorage.getItem(ACTIVE_VIEW_KEY) === "safety" ? "safety" : "dispatch";
+        } catch (e) {
+            return "dispatch";
+        }
+    }
+
+    function saveView(view) {
+        try { localStorage.setItem(ACTIVE_VIEW_KEY, view); } catch (e) {}
+    }
+
+    function isCombined() {
+        return window.ESMSettings?.get?.("classicDashboardType") === "combined";
+    }
+
+    function setDashboardView(view) {
+        view = view === "safety" ? "safety" : "dispatch";
+
+        const dispatch = document.getElementById("dashboardDispatchArea");
+        const safety = document.getElementById("safetyDashboardArea");
+        const tabs = document.getElementById("dashboardModeTabs");
+        if (!dispatch || !safety) return;
+
+        if (!isCombined()) view = "dispatch";
+        saveView(view);
+
+        dispatch.classList.toggle("hidden", view !== "dispatch");
+        safety.classList.toggle("hidden", view !== "safety");
+
+        tabs?.querySelectorAll("[data-dashboard-view]").forEach(btn => {
+            const active = btn.dataset.dashboardView === view;
+            btn.classList.toggle("active", active);
+            btn.setAttribute("aria-selected", active ? "true" : "false");
+        });
+
+        if (view === "safety") initialize();
+    }
+
+    function renderDashboardModeTabs() {
+        const tabs = document.getElementById("dashboardModeTabs");
+        if (!tabs) return;
+
+        const combined = isCombined();
+        tabs.classList.toggle("hidden", !combined);
+
+        tabs.querySelectorAll("[data-dashboard-view]").forEach(btn => {
+            btn.onclick = () => setDashboardView(btn.dataset.dashboardView);
+        });
+
+        setDashboardView(combined ? getSavedView() : "dispatch");
     }
 
     async function load() {
@@ -53,8 +102,7 @@
 
     function canEditSafety() {
         const role = String(window.RelayDesk?.currentUserData?.role || "").toLowerCase();
-        return !!window.hasPermission?.("canManageEmployees") ||
-            role.includes("safety");
+        return !!window.hasPermission?.("canManageEmployees") || role.includes("safety");
     }
 
     async function saveEntry(key, patch) {
@@ -67,6 +115,7 @@
         const snap = await ref.get();
         const data = snap.exists ? (snap.data() || {}) : {};
         const entries = ensureEntries(data.entries || {});
+
         entries[key] = {
             ...entries[key],
             ...patch,
@@ -76,7 +125,7 @@
 
         await ref.set({
             date: activeDate || todayKey(),
-            entries: entries
+            entries
         }, { merge: true });
 
         render(entries);
@@ -86,10 +135,10 @@
         const root = document.getElementById("safetyDashboardBody");
         if (!root) return;
 
-        root.innerHTML = departments().map(function (dept) {
+        root.innerHTML = departments().map(dept => {
             const drivers = driverList(dept);
 
-            const rows = drivers.map(function (driver) {
+            const rows = drivers.map(driver => {
                 const key = makeKey(dept, driver);
                 const e = entries[key] || defaultEntry();
 
@@ -114,22 +163,18 @@
                 '</section>';
         }).join("");
 
-        root.querySelectorAll(".safetyDriverCard").forEach(function (card) {
+        root.querySelectorAll(".safetyDriverCard").forEach(card => {
             const key = card.dataset.safetyKey;
 
-            card.querySelector(".safetyPti")?.addEventListener("change", function (e) {
-                saveEntry(key, { pti: e.target.checked }).catch(function (err) {
-                    console.error("Safety PTI save failed:", err);
-                });
+            card.querySelector(".safetyPti")?.addEventListener("change", e => {
+                saveEntry(key, { pti: e.target.checked }).catch(err => console.error("Safety PTI save failed:", err));
             });
 
-            card.querySelectorAll(".safetyField").forEach(function (input) {
-                input.addEventListener("change", function () {
+            card.querySelectorAll(".safetyField").forEach(input => {
+                input.addEventListener("change", () => {
                     const patch = {};
                     patch[input.dataset.field] = input.value.trim();
-                    saveEntry(key, patch).catch(function (err) {
-                        console.error("Safety field save failed:", err);
-                    });
+                    saveEntry(key, patch).catch(err => console.error("Safety field save failed:", err));
                 });
             });
         });
@@ -140,8 +185,7 @@
         initialized = true;
 
         try {
-            const entries = await load();
-            render(entries);
+            render(await load());
         } catch (err) {
             console.error("Safety Dashboard initialization failed:", err);
             const root = document.getElementById("safetyDashboardBody");
@@ -149,22 +193,16 @@
         }
     }
 
-    window.applySafetyDashboard = async function (enabled) {
-        const dispatch = document.getElementById("dashboardDispatchArea");
-        const safety = document.getElementById("safetyDashboardArea");
-        if (!dispatch || !safety) return;
-
-        if (enabled) {
-            dispatch.classList.add("hidden");
-            safety.classList.remove("hidden");
-            await initialize();
-        } else {
-            dispatch.classList.remove("hidden");
-            safety.classList.add("hidden");
-        }
+    window.applyDashboardComposition = function (mode) {
+        renderDashboardModeTabs();
+        if (mode !== "combined") setDashboardView("dispatch");
     };
 
-    document.addEventListener("otherDriversChanged", function () {
+    window.applySafetyDashboard = function (enabled) {
+        window.applyDashboardComposition?.(enabled ? "combined" : "dispatch");
+    };
+
+    document.addEventListener("otherDriversChanged", () => {
         if (!document.getElementById("safetyDashboardArea")?.classList.contains("hidden")) {
             initialized = false;
             initialize();
