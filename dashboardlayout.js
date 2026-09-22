@@ -68,6 +68,74 @@
 
     const TABS = ["workspace", "team", "stats"];
     const ACTIVE_TAB_KEY = "esm_active_dashboard_tab";
+    const ACTIVE_DASHBOARD_VIEW_KEY = "esm_active_dashboard_view";
+
+    // ===========================================
+    // CLASSIC DASHBOARD CONTENT SWITCHER
+    // ===========================================
+    // "Dispatch + Safety Dashboard" is a persisted Settings choice.
+    // Keep the actual Dispatch/Safety tab UI driven from that same setting
+    // so a restart cannot fall back to the HTML default ("hidden" + Dispatch)
+    // just because the renderer loaded before Settings finished restoring.
+    function applyDashboardComposition(type) {
+        const mode = type === "combined" ? "combined" : "dispatch";
+        const tabs = document.getElementById("dashboardModeTabs");
+        const dispatch = document.getElementById("dashboardDispatchArea");
+        const safety = document.getElementById("safetyDashboardArea");
+
+        if (!tabs || !dispatch || !safety) return;
+
+        const combined = mode === "combined";
+
+        tabs.classList.toggle("hidden", !combined);
+        dispatch.classList.toggle("hidden", false);
+
+        if (!combined) {
+            safety.classList.add("hidden");
+            setActiveDashboardView("dispatch", { persist: false });
+            return;
+        }
+
+        // Combined mode always opens on Dispatch after a fresh launch,
+        // while still exposing the persisted Dispatch + Safety choice.
+        let savedView = "dispatch";
+        try {
+            savedView = localStorage.getItem(ACTIVE_DASHBOARD_VIEW_KEY) || "dispatch";
+        } catch (e) {}
+
+        setActiveDashboardView(savedView === "safety" ? "safety" : "dispatch", { persist: false });
+    }
+
+    function setActiveDashboardView(view, { persist = true } = {}) {
+        const normalized = view === "safety" ? "safety" : "dispatch";
+        const tabs = document.getElementById("dashboardModeTabs");
+        const dispatch = document.getElementById("dashboardDispatchArea");
+        const safety = document.getElementById("safetyDashboardArea");
+
+        if (!tabs || !dispatch || !safety) return;
+
+        const combined = !tabs.classList.contains("hidden");
+
+        // Never allow the Safety view to be selected while the dashboard
+        // content setting is Dispatch-only.
+        const active = combined ? normalized : "dispatch";
+
+        dispatch.classList.toggle("hidden", active !== "dispatch");
+        safety.classList.toggle("hidden", active !== "safety");
+
+        tabs.querySelectorAll("[data-dashboard-view]").forEach(btn => {
+            const isActive = btn.dataset.dashboardView === active;
+            btn.classList.toggle("active", isActive);
+            btn.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        if (persist) {
+            try { localStorage.setItem(ACTIVE_DASHBOARD_VIEW_KEY, active); } catch (e) {}
+        }
+    }
+
+    window.applyDashboardComposition = applyDashboardComposition;
+    window.setActiveDashboardView = setActiveDashboardView;
 
     function panelsFor(tab) {
         return document.querySelectorAll(`#dashboardScreen [data-tab-panel="${tab}"]`);
@@ -297,6 +365,18 @@
         );
     };
 
+    function bindDashboardModeTabs() {
+        const tabs = document.getElementById("dashboardModeTabs");
+        if (!tabs || tabs.dataset.bound === "true") return;
+
+        tabs.dataset.bound = "true";
+        tabs.querySelectorAll("[data-dashboard-view]").forEach(btn => {
+            btn.addEventListener("click", () => {
+                setActiveDashboardView(btn.dataset.dashboardView);
+            });
+        });
+    }
+
     function bindNav() {
         allNavButtons().forEach(btn => {
             btn.addEventListener("click", () => setActiveTab(btn.dataset.dashboardTab));
@@ -323,9 +403,20 @@
     }
 
     if (document.readyState === "loading") {
-        window.addEventListener("DOMContentLoaded", bindNav);
+        window.addEventListener("DOMContentLoaded", () => {
+            bindDashboardModeTabs();
+            bindNav();
+            // Settings normally applies the composition after it restores
+            // localStorage. This fallback keeps the persisted choice correct
+            // even if the Settings module is delayed or reordered.
+            const savedType = window.ESMSettings?.get?.("classicDashboardType");
+            if (savedType) applyDashboardComposition(savedType);
+        });
     } else {
+        bindDashboardModeTabs();
         bindNav();
+        const savedType = window.ESMSettings?.get?.("classicDashboardType");
+        if (savedType) applyDashboardComposition(savedType);
     }
 
 })();
