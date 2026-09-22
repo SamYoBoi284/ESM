@@ -5,7 +5,7 @@ This release brings the Admin Panel permission model in line with the current ES
 ## 🆕 v5.2.4 — Roles, Permissions & Dashboard Reliability
 
 ### 🛡️ Admin Panel & Permission System
-- Added a legacy-account migration bridge for **A009**, resolving it as an **Admin** account when an older Firestore record is still missing the new permission level.
+- Added a legacy-account migration bridge for **A009**, resolving it as an **Owner** account when an older Firestore record is still missing the new permission level.
 - Kept the newer permission system as the source of truth while preserving elevated legacy Admin/Supervisor/Owner access.
 - Added a single effective-permission-level resolver so legacy roles and explicit permission levels are handled consistently.
 - Fixed the Owner-tier check to use the **effective** permission level instead of only the raw Firestore `permissionLevel` field.
@@ -65,7 +65,7 @@ This release brings the Admin Panel permission model in line with the current ES
 - Fixed the workspace boot failure that prevented the Report Formatter and Add Load modal from initializing.
 - Fixed desktop formatter stacking and restored the intended left-side placement beside the status card.
 - Fixed legacy/effective permission resolution for Admin Panel access.
-- Restored A009's intended Admin-level access through the new permission model.
+- Restored A009's intended Owner-level access through the new permission model.
 - Aligned Admin employee cards and the Permissions editor with effective permission levels.
 
 ---
