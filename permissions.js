@@ -139,7 +139,9 @@ window.getUserPermissions = function (userData, userId = null) {
         legacyRole === "supervisor" ? "Supervisor" :
         null;
 
-    const level = storedLevel || legacyLevel || "Employee";
+    const level = (legacyLevel && (!storedLevel || storedLevel === "Employee"))
+        ? legacyLevel
+        : (storedLevel || legacyLevel || "Employee");
     const preset = window.PERMISSION_PRESETS[level] || window.PERMISSION_PRESETS.Employee;
 
     // explicit per-user overrides always win over the level preset
