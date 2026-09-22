@@ -1768,6 +1768,7 @@ function bindLoadModal() {
         driver: document.getElementById("loadModalDriver"),
         driverInput: document.getElementById("loadModalDriverSearch"),
         driverList: document.getElementById("loadModalDriverListbox"),
+        otherDriversBtn: document.getElementById("loadModalOtherDriversBtn"),
         note: document.getElementById("loadModalNote"),
         dateError: document.getElementById("loadModalDateError"),
         priceError: document.getElementById("loadModalPriceError"),
@@ -1784,6 +1785,17 @@ function bindLoadModal() {
     loadModalUI.cancelBtn?.addEventListener("click", closeLoadModal);
     loadModalUI.department?.addEventListener("change", onLoadModalDepartmentChange);
     bindDriverCombobox();
+
+    loadModalUI.otherDriversBtn?.addEventListener("click", () => {
+        window.openOtherDriversEditor?.();
+    });
+
+    document.addEventListener("otherDriversChanged", () => {
+        if (driverComboState.department === "Other") {
+            reloadDriverOptionsForDepartment("Other");
+        }
+    });
+
     bindLoadModalVridAutoDetect();
     bindLoadModalPricePaste();
     bindLoadModalFromToSplit();
@@ -1823,6 +1835,7 @@ let driverComboState = {
 
 function getDriverListForDepartment(dept) {
     if (!dept || !window.DRIVER_LISTS) return [];
+    if (dept === "Other" && window.OtherDrivers) return window.OtherDrivers.get();
     return window.DRIVER_LISTS[dept] || [];
 }
 
@@ -1908,6 +1921,11 @@ function reloadDriverOptionsForDepartment(dept) {
     if (loadModalUI.driverInput) {
         loadModalUI.driverInput.disabled = !dept;
         loadModalUI.driverInput.placeholder = dept ? "Select driver..." : "Select department first...";
+    }
+
+    if (loadModalUI.otherDriversBtn) {
+        const canEdit = dept === "Other" && !!window.OtherDrivers?.canEdit?.();
+        loadModalUI.otherDriversBtn.classList.toggle("hidden", !canEdit);
     }
 }
 
