@@ -73,6 +73,10 @@
         return document.querySelectorAll(`#dashboardScreen [data-tab-panel="${tab}"]`);
     }
 
+    function reportFormatterPanel() {
+        return document.querySelector("#dashboardScreen > .reportFormatterColumn");
+    }
+
     function allNavButtons() {
         return document.querySelectorAll(
             "#dashboardTabsNav [data-dashboard-tab], #dashboardSidebarNav [data-dashboard-tab]"
@@ -86,6 +90,11 @@
         TABS.forEach(t => {
             panelsFor(t).forEach(el => { el.style.display = "none"; });
         });
+
+        // The formatter is shared outside dashboardLayout, so handle it
+        // explicitly alongside the tab panels.
+        const formatter = reportFormatterPanel();
+        if (formatter) formatter.style.display = "none";
 
         allNavButtons().forEach(btn => btn.classList.remove("active"));
     }
@@ -203,6 +212,10 @@
             });
         });
 
+        // Shared formatter belongs to the Stats & Reports tab.
+        const formatter = reportFormatterPanel();
+        if (formatter) formatter.style.display = tab === "stats" ? "" : "none";
+
         allNavButtons().forEach(btn => {
             btn.classList.toggle("active", btn.dataset.dashboardTab === tab);
         });
@@ -218,6 +231,10 @@
         TABS.forEach(t => {
             panelsFor(t).forEach(el => { el.style.display = ""; });
         });
+
+        // Classic mode always shows the shared formatter.
+        const formatter = reportFormatterPanel();
+        if (formatter) formatter.style.display = "";
     }
 
     // Sidebar's Admin button proxies #adminPanelAccessBtn — same
