@@ -162,11 +162,23 @@ Notes:
         // (Phase 4 item 6) to auto-detect whether a pasted Custom
         // template is usable at all.
         KNOWN_TOKENS: [
-            "{{date}}", "{{user}}", "{{shiftStart}}", "{{shiftEnd}}",
+            "{{date}}", "{{user}}", "{{reportSubmitters}}", "{{shiftStart}}", "{{shiftEnd}}",
             "{{loadCount}}", "{{loads}}", "{{notes}}"
         ],
 
-        TEMPLATE_SLOTS: ["template1", "custom1", "custom2"],
+        TEMPLATE_SLOTS: ["template1", "template4", "custom1", "custom2"],
+
+        IMPORTED_TEMPLATE:
+`📍 End of Shift Report — {{date}} 📍
+                Report Submitted By:
+                 {{reportSubmitters}}
+               Shift: {{shiftStart}} - {{shiftEnd}}
+
+                  Loads Booked ({{loadCount}}):
+━━━━━━━━━━━━━━━━━━━━
+{{loads}}
+
+-_   All loads have been booked in collaboration of all shift members, and all calls have been answered and acted upon accordingly.   _-`,
 
         // Phase 4 items 5+6: which template is active, plus the raw
         // pasted text for the two Custom slots. Template 1 itself is
@@ -259,6 +271,7 @@ Notes:
                     <div class="reportFormatterRow">
                         <select id="reportTemplateSelect" class="reportTemplateSelect">
                             <option value="template1">Template 1 (Default)</option>
+                            <option value="template4">📍 Imported Team Report Format</option>
                             <option value="custom1">Custom Template 1</option>
                             <option value="custom2">Custom Template 2</option>
                         </select>
@@ -446,12 +459,16 @@ Notes:
 
                 const isDefault = this.templateState.active === "template1";
 
+                const isImported = this.templateState.active === "template4";
+
                 this.UI.template.value = isDefault
                     ? this.DEFAULT_TEMPLATE
-                    : (this.templateState[this.templateState.active] || "");
+                    : isImported
+                        ? this.IMPORTED_TEMPLATE
+                        : (this.templateState[this.templateState.active] || "");
 
-                this.UI.template.readOnly = isDefault;
-                this.UI.template.classList.toggle("reportTemplateReadOnly", isDefault);
+                this.UI.template.readOnly = isDefault || isImported;
+                this.UI.template.classList.toggle("reportTemplateReadOnly", isDefault || isImported);
             }
         },
 
@@ -603,6 +620,7 @@ Notes:
                 return `• ${owner}${l.date} | $${l.price}${perMileTag}${routeTag}${vridTag}${l.note ? " | " + l.note : ""}`;
             };
 
+            const showOwner = selectedIds.length > 1;
             const grouped = window.groupLoadsHierarchy(loads);
             const groupedMap = new Map(grouped.map(g => [g.department, g]));
 
@@ -753,6 +771,10 @@ Notes:
                 return { text: this.DEFAULT_TEMPLATE, fellBack: false };
             }
 
+            if (this.templateState.active === "template4") {
+                return { text: this.IMPORTED_TEMPLATE, fellBack: false };
+            }
+
             const custom = this.templateState[this.templateState.active] || "";
             const hasKnownToken = this.KNOWN_TOKENS.some(t => custom.includes(t));
 
@@ -761,6 +783,54 @@ Notes:
             }
 
             return { text: custom, fellBack: false };
+        },
+
+        formatImportedReportLoads(loads, opts = {}) {
+            const selectedIds = opts.selectedIds?.length ? opts.selectedIds : [RelayDesk.currentUser];
+            const DIVIDER = "━━━━━━━━━━━━━━━━━━━━";
+            const icons = {"STS":"🚛","iTour":"✈️","F&F":"⚡️","JB Hunt":"🚚","MSL":"🚚","Other":"📦"};
+            const grouped = window.groupLoadsHierarchy(loads);
+
+            const sections = grouped.map(group => {
+                const icon = icons[group.department] || "📦";
+                const count = group.drivers.reduce((sum, d) => sum + d.vridGroups.reduce((n, vg) => n + vg.loads.length, 0), 0);
+                const driverBlocks = group.drivers.map(driverGroup => {
+                    const vridBlocks = driverGroup.vridGroups.map(vg => {
+                        const lines = vg.loads.map(l => {
+                            const perMile = l.pricePerMile ? ` (${l.pricePerMile}/mi)` : "";
+                            const hasStops = Array.isArray(l.stops) && l.stops.length;
+                            const route = l.includeStopsInReport && hasStops ? ` | 🛑 ${l.stops.join(" → ")}` : (l.from || l.to) ? ` | ${l.from || "?"} → ${l.to || "?"}` : "";
+                            const vrid = l.vrid ? ` | VRID: ${l.vrid}` : "";
+                            const owner = showOwner && l.bookedByCode ? `${l.bookedByCode} | ` : "";
+                            return `• ${owner}${l.date} | ${l.price}${perMile}${route}${vrid}${l.note ? " | " + l.note : ""}`;
+                        }).join("\n");
+                        return `  ${vg.vridType} (${vg.loads.length})\n${lines}`;
+                    }).join("\n");
+                    return ` Driver: ${driverGroup.driver}\n${vridBlocks}`;
+                }).join("\n\n");
+                const header = group.department === "MSL"
+                    ? `${" ".repeat(27)}${icon} ${group.department} ${icon}`
+                    : `${" ".repeat(group.department === "STS" ? 26 : 27)}${icon} ${group.department} (${count}) ${icon}`;
+                return `${header}\n${driverBlocks}`;
+            });
+
+            const notesByDept = selectedIds.map(id => this.getTeamMemberShiftData(id).deptNotes || {});
+            const noteSections = [];
+            window.LOAD_DEPARTMENTS.forEach(dept => {
+                if (grouped.some(g => g.department === dept)) return;
+                const notes = notesByDept.map((n,i) => {
+                    const text = (n[dept] || "").trim();
+                    return text ? `• ${selectedIds[i]} | ${text}` : "";
+                }).filter(Boolean);
+                if (!notes.length) return;
+                const icon = icons[dept] || "📦";
+                const header = `${" ".repeat(dept === "STS" ? 26 : 27)}${icon} ${dept} ${icon}`;
+                noteSections.push(`${header}\n\n${notes.join("\n\n")}`);
+            });
+            const allSections = [...sections, ...noteSections];
+            return allSections.length
+                ? allSections.join(`\n\n${DIVIDER}\n`)
+                : "No booked loads recorded.";
         },
 
         buildReport() {
@@ -774,14 +844,14 @@ Notes:
 
             const isCombined = selectedIds.length > 1;
 
-            let loads, userToken, notesToken;
+            let loads, userToken, notesToken, reportSubmitters;
 
             if (isCombined) {
 
                 loads = [];
                 selectedIds.forEach(id => {
                     const entry = this.getTeamMemberShiftData(id);
-                    entry.bookedLoads.forEach(l => loads.push({ ...l, bookedByCode: id }));
+                    entry.bookedLoads.forEach(l => loads.push({ ...l, bookedByCode: l.bookedBy || id }));
                 });
 
                 userToken = "Report Submitted By:\n" + (RelayDesk.currentUser || "") +
@@ -792,7 +862,7 @@ Notes:
 
             } else {
 
-                loads = RelayDesk.bookedLoads || [];
+                loads = (RelayDesk.bookedLoads || []).map(l => ({ ...l, bookedByCode: l.bookedBy || RelayDesk.currentUser }));
                 userToken = RelayDesk.currentUser || "";
                 // General ("green box") notes are read live, same as the
                 // current-user branch of getTeamMemberShiftData — the
@@ -803,17 +873,23 @@ Notes:
 
             const shiftTimes = this.getAssignedShiftTimes();
 
+            const reportIds = selectedIds.length ? selectedIds : [RelayDesk.currentUser];
+            reportSubmitters = reportIds.map(id => `• ${id} •`).join(" ");
+
             const tokens = {
                 "{{date}}": new Date().toLocaleDateString(),
                 "{{user}}": userToken,
+                "{{reportSubmitters}}": reportSubmitters,
                 "{{shiftStart}}": shiftTimes.start,
                 "{{shiftEnd}}": shiftTimes.end,
                 "{{loadCount}}": String(loads.length),
-                "{{loads}}": this.formatLoadsForTemplate(loads, {
-                    showOwner: isCombined,
-                    forceAllDivisions: isCombined,
-                    selectedIds
-                }),
+                "{{loads}}": this.templateState.active === "template4"
+                    ? this.formatImportedReportLoads(loads, { selectedIds })
+                    : this.formatLoadsForTemplate(loads, {
+                        showOwner: isCombined,
+                        forceAllDivisions: isCombined,
+                        selectedIds
+                    }),
                 "{{notes}}": notesToken
             };
 
@@ -1770,6 +1846,8 @@ function bindLoadModal() {
         driverInput: document.getElementById("loadModalDriverSearch"),
         driverList: document.getElementById("loadModalDriverListbox"),
         otherDriversBtn: document.getElementById("loadModalOtherDriversBtn"),
+        bookedBy: document.getElementById("loadModalBookedBy"),
+        bookedByError: document.getElementById("loadModalBookedByError"),
         note: document.getElementById("loadModalNote"),
         dateError: document.getElementById("loadModalDateError"),
         priceError: document.getElementById("loadModalPriceError"),
@@ -2244,80 +2322,30 @@ function bindLoadModalFromToSplit() {
 // what it needs by matching each field's shape (currency, "/mi",
 // " to " route separator) rather than assuming a position.
 function parseRelayClipboard(text) {
-    if (!text) return null;
-
-    // Strip chat-app timestamp/sender stamps, e.g. "[7/12/2026 07:43]
-    // STS Damascus: " — some copy modes (Telegram-style multi-select)
-    // glue several stamped messages onto a single physical line instead
-    // of one per line, so a simple per-line prefix strip isn't enough.
-    // This runs a global replace across the raw text BEFORE splitting
-    // into lines, turning every stamp into a line break so each
-    // original message becomes its own line again.
-    text = text.replace(/\[[^\]\n]+\]\s*[^:\n]+:\s*/g, "\n");
-
-    let lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-
-    // Drop the leading "BOOKED" marker, if present.
-    lines = lines.filter(l => !/^booked$/i.test(l));
-
-    // Drop the NOTE section: the "NOTE:" label line, plus a
-    // directly-following quoted note line, if present. The note's
-    // content is never needed here.
-    const noteIdx = lines.findIndex(l => /^note:?$/i.test(l));
-    if (noteIdx !== -1) {
-        const hasQuotedLine = /^".*"$/.test(lines[noteIdx + 1] || "");
-        lines.splice(noteIdx, hasQuotedLine ? 2 : 1);
-    }
-
-    // Drop the sender employee code line, e.g. "#A005".
-    lines = lines.filter(l => !/^#\w+$/.test(l));
-
-    // Route: the first remaining line with a standalone "to"
-    // separator. Reuses parseFromToSplit()'s whitespace-bounded match
-    // so "Toronto Warehouse"-style lines are never mistaken for a
-    // route.
-    let from = null, to = null;
-    const routeIdx = lines.findIndex(l => /\s+to\s+/i.test(l));
-    if (routeIdx !== -1) {
-        const split = parseFromToSplit(lines[routeIdx]);
-        if (split) {
-            from = split.from;
-            to = split.to;
-        }
-        lines.splice(routeIdx, 1);
-    }
-
-    // Price per mile ("$3.77/mi") — found and removed before the
-    // plain price search below, so the same number/line can't get
-    // matched twice.
+    const lines = stripRelayNoise(normalizeRelayClipboardLines(text));
+    if (!lines.length) return null;
+    const routeParts = collectRelayRoutes(lines);
+    const route = routeParts[0] || [];
+    const from = route[0] || null;
+    const to = route.length > 1 ? route.slice(1).join(" → ") : null;
     let pricePerMile = null;
     const pmIdx = lines.findIndex(l => /\$?\s*[\d,]+(?:\.\d+)?\s*\/\s*mi\b/i.test(l));
     if (pmIdx !== -1) {
-        const pmMatch = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
-        pricePerMile = pmMatch ? pmMatch[1].replace(/,/g, "") : null;
-        lines.splice(pmIdx, 1);
+        const m = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
+        pricePerMile = m ? m[1].replace(/,/g,"") : null; lines.splice(pmIdx,1);
     }
-
-    // Plain price ("$624.72").
     let price = null;
     const priceIdx = lines.findIndex(l => /\$\s*[\d,]+(?:\.\d{2})?/.test(l));
     if (priceIdx !== -1) {
-        const priceMatch = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
-        price = priceMatch ? priceMatch[1].replace(/,/g, "") : null;
-        lines.splice(priceIdx, 1);
+        const m = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
+        price = m ? m[1].replace(/,/g,"") : null; lines.splice(priceIdx,1);
     }
-
-    // Whatever's left (Load ID, and optionally Trailer/Pickup numbers
-    // that are deliberately ignored) keeps its original relative
-    // order. The Load ID is always the first of what remains, since
-    // in the source message sequence nothing but BOOKED comes before
-    // it.
-    const loadId = lines[0] || null;
-
+    const loadId = lines.find(l => !/\s+to\s+/i.test(l) && !/^t-[a-z0-9]+$/i.test(l) && !/^\$/.test(l)) || null;
+    const stops = route.length > 2 ? route : [];
     if (!loadId && !from && !to && !price && !pricePerMile) return null;
-
-    return { loadId, from, to, price, pricePerMile };
+    return { loadId, from, to, stops, price, pricePerMile };
 }
+
 
 // ===========================================
 // RELAY TRIP CLIPBOARD IMPORTER (Trip ID -> Sub Load IDs -> Stops)
@@ -2354,63 +2382,59 @@ function parseRelayClipboard(text) {
 // are 2+ route ("X to Y") lines — a single-load blob always has
 // exactly one, so this never misfires on the existing format and the
 // caller can safely try this parser first.
+function normalizeRelayClipboardLines(text) {
+    if (!text) return [];
+    const normalized = String(text).replace(/\r/g, "").replace(/\[[^\]\n]+\]\s*[^:\n]+:\s*/g, "\n");
+    return normalized.split("\n").map(line => line.replace(/^[\u200B-\u200D\uFEFF]+/, "").trim()).filter(Boolean)
+        .filter(line => !/^booked$/i.test(line)).filter(line => !/^#\w+$/.test(line));
+}
+
+function stripRelayNoise(lines) {
+    const out = [...lines];
+    for (let i = out.length - 1; i >= 0; i--) if (/^note:?$/i.test(out[i])) out.splice(i);
+    return out;
+}
+
+function extractRelayRouteStops(routeLine) {
+    return String(routeLine || "").split(/\s+to\s+/i).map(s => s.trim()).filter(Boolean);
+}
+
+function collectRelayRoutes(lines) {
+    return lines.filter(line => /\s+to\s+/i.test(line)).map(extractRelayRouteStops).filter(parts => parts.length >= 2);
+}
+
+function flattenRelayStops(routeParts) {
+    const stops = [];
+    routeParts.forEach(parts => parts.forEach(point => {
+        const last = stops[stops.length - 1];
+        if (!last || last.toLowerCase() !== point.toLowerCase()) stops.push(point);
+    }));
+    return stops;
+}
+
 function parseRelayClipboardTrip(text) {
-    if (!text) return null;
-
-    text = text.replace(/\[[^\]\n]+\]\s*[^:\n]+:\s*/g, "\n");
-
-    let lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    lines = lines.filter(l => !/^booked$/i.test(l));
-
-    const noteIdx = lines.findIndex(l => /^note:?$/i.test(l));
-    if (noteIdx !== -1) {
-        const hasQuotedLine = /^".*"$/.test(lines[noteIdx + 1] || "");
-        lines.splice(noteIdx, hasQuotedLine ? 2 : 1);
-    }
-
-    lines = lines.filter(l => !/^#\w+$/.test(l));
-
-    const routeLineCount = lines.filter(l => /\s+to\s+/i.test(l)).length;
-    if (routeLineCount < 2) return null;
-
+    const lines = stripRelayNoise(normalizeRelayClipboardLines(text));
+    if (!lines.length) return null;
     let pricePerMile = null;
     const pmIdx = lines.findIndex(l => /\$?\s*[\d,]+(?:\.\d+)?\s*\/\s*mi\b/i.test(l));
     if (pmIdx !== -1) {
-        const pmMatch = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
-        pricePerMile = pmMatch ? pmMatch[1].replace(/,/g, "") : null;
-        lines.splice(pmIdx, 1);
+        const m = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
+        pricePerMile = m ? m[1].replace(/,/g, "") : null; lines.splice(pmIdx,1);
     }
-
     let price = null;
     const priceIdx = lines.findIndex(l => /\$\s*[\d,]+(?:\.\d{2})?/.test(l));
     if (priceIdx !== -1) {
-        const priceMatch = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
-        price = priceMatch ? priceMatch[1].replace(/,/g, "") : null;
-        lines.splice(priceIdx, 1);
+        const m = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
+        price = m ? m[1].replace(/,/g, "") : null; lines.splice(priceIdx,1);
     }
-
-    // Whatever's left: Trip ID first, then Sub Load ID / route lines
-    // interleaved in original order. Only the route lines matter from
-    // here — a Sub Load ID line is just skipped over.
-    const tripId = lines[0] || null;
-    const rest = lines.slice(1);
-
-    const stops = [];
-    rest.forEach(line => {
-        if (!/\s+to\s+/i.test(line)) return; // Sub Load ID line, not a route
-        const split = parseFromToSplit(line);
-        if (!split) return;
-        const lastStop = stops[stops.length - 1];
-        if (!lastStop || lastStop.toLowerCase() !== split.from.toLowerCase()) {
-            stops.push(split.from);
-        }
-        stops.push(split.to);
-    });
-
+    const routeParts = collectRelayRoutes(lines);
+    if (routeParts.length < 2) return null;
+    const tripId = lines.find(l => /^t-[a-z0-9]+$/i.test(l)) || null;
+    const stops = flattenRelayStops(routeParts);
     if (!tripId && !stops.length && !price && !pricePerMile) return null;
-
     return { tripId, stops, price, pricePerMile };
 }
+
 
 function bindLoadModalRelayImport() {
     loadModalUI.importRelayBtn?.addEventListener("click", async () => {
@@ -2483,6 +2507,15 @@ function bindLoadModalRelayImport() {
         }
         if (parsed.from && loadModalUI.from) loadModalUI.from.value = parsed.from;
         if (parsed.to && loadModalUI.to) loadModalUI.to.value = parsed.to;
+        if (parsed.stops?.length) {
+            loadModalStops = parsed.stops.slice();
+            if (loadModalUI.vridType?.value !== "Trip") {
+                loadModalUI.vridType.value = "Trip";
+                onLoadModalVridTypeChange();
+            }
+            renderLoadModalStops();
+            if (loadModalUI.includeStopsToggle) loadModalUI.includeStopsToggle.checked = true;
+        }
         if (parsed.price && loadModalUI.price) loadModalUI.price.value = parsed.price;
         if (parsed.pricePerMile && loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = parsed.pricePerMile;
     });
@@ -2532,6 +2565,9 @@ function openLoadModal(load) {
     if (loadModalUI.vridType) loadModalUI.vridType.value = load?.vridType || "";
     if (loadModalUI.vridNumber) loadModalUI.vridNumber.value = load?.vrid || "";
     if (loadModalUI.note) loadModalUI.note.value = load?.note || "";
+    if (loadModalUI.bookedBy) {
+        loadModalUI.bookedBy.value = load?.bookedBy || "";
+    }
 
     // Auto-detect only kicks in for a brand-new load with nothing typed
     // yet — an existing load already has a deliberate VRID Type saved,
@@ -2545,6 +2581,7 @@ function openLoadModal(load) {
     onLoadModalVridTypeChange();
 
     clearLoadModalErrors();
+    refreshBookedByOptions();
 
     loadModalOpen = true;
     loadModalUI.overlay.classList.remove("hidden");
@@ -2577,8 +2614,32 @@ function clearLoadModalErrors() {
     [loadModalUI.date, loadModalUI.price, loadModalUI.department, loadModalUI.vridNumber, loadModalUI.driverInput].forEach(el =>
         el?.classList.remove("fieldError"));
 
-    [loadModalUI.dateError, loadModalUI.priceError, loadModalUI.departmentError, loadModalUI.vridNumberError, loadModalUI.driverError].forEach(el => {
+    [loadModalUI.dateError, loadModalUI.priceError, loadModalUI.departmentError, loadModalUI.vridNumberError, loadModalUI.driverError, loadModalUI.bookedByError].forEach(el => {
         if (el) el.textContent = "";
+    });
+}
+
+async function getAvailableBookedByUsers() {
+    try {
+        const snapshot = await db.collection("users").get();
+        return snapshot.docs
+            .map(doc => doc.id)
+            .filter(id => id && id !== "A000")
+            .sort((a,b) => a.localeCompare(b));
+    } catch (err) {
+        console.error("Booked By user lookup failed:", err);
+        return [];
+    }
+}
+
+function refreshBookedByOptions(preferredUser = "") {
+    const select = loadModalUI.bookedBy;
+    if (!select) return;
+    getAvailableBookedByUsers().then(ids => {
+        const current = preferredUser || select.value || "";
+        select.innerHTML = `<option value="">Me (${RelayDesk.currentUser || "current user"})</option>` +
+            ids.map(id => `<option value="${escapeHtmlAttr(id)}">${escapeHtmlAttr(id)}</option>`).join("");
+        select.value = current && ids.includes(current) ? current : "";
     });
 }
 
@@ -2650,6 +2711,16 @@ function validateLoadModal() {
         valid = false;
     }
 
+    const bookedBy = loadModalUI.bookedBy?.value?.trim() || "";
+    if (bookedBy) {
+        const validUsers = await getAvailableBookedByUsers();
+        if (!validUsers.includes(bookedBy)) {
+            loadModalUI.bookedBy?.classList.add("fieldError");
+            if (loadModalUI.bookedByError) loadModalUI.bookedByError.textContent = "Select a valid ESM user.";
+            valid = false;
+        }
+    }
+
     return valid;
 }
 
@@ -2681,6 +2752,7 @@ async function saveLoadModal() {
     }
 
     const note = loadModalUI.note?.value?.trim() || "";
+    const bookedBy = loadModalUI.bookedBy?.value?.trim() || RelayDesk.currentUser;
     // V52: loadModalUI.driver (hidden) already holds the exact,
     // department-validated driver name confirmed by the combobox — see
     // validateLoadModal() above and bindDriverCombobox() — so no more
@@ -2690,11 +2762,10 @@ async function saveLoadModal() {
     // Multi-stop list only makes sense for Trip-type VRIDs — empty
     // entries dropped so a stray "+ Add Stop" click with nothing typed
     // never gets saved as a blank stop.
-    const stops = vridType === "Trip" ? loadModalStops.map(s => s.trim()).filter(Boolean) : [];
-    // Optional per-load toggle: pulls this load's stops into the
-    // End-of-Shift Report as an extra line (see formatLoadsForTemplate
-    // above). Only meaningful for a Trip load that actually has stops.
-    const includeStopsInReport = vridType === "Trip" && stops.length ? !!loadModalUI.includeStopsToggle?.checked : false;
+    const stops = loadModalStops.map(s => s.trim()).filter(Boolean);
+    // Optional per-load toggle: pulls imported/manual stops into the
+    // End-of-Shift Report as an extra route line.
+    const includeStopsInReport = stops.length ? !!loadModalUI.includeStopsToggle?.checked : false;
 
     // Load History feature: VRID doubles as the permanent, searchable
     // Load ID, so it must be unique across every load ever booked.
@@ -2748,7 +2819,7 @@ async function saveLoadModal() {
 
     if (loadModalEditingId) {
 
-        editLoad(loadModalEditingId, { date, price, pricePerMile, division, from, to, note, driver, vridType, vrid, stops, includeStopsInReport, editedAt: Date.now() });
+        editLoad(loadModalEditingId, { date, price, pricePerMile, division, from, to, note, driver, vridType, vrid, stops, includeStopsInReport, bookedBy, editedAt: Date.now() });
 
     } else {
 
@@ -2765,7 +2836,7 @@ async function saveLoadModal() {
             vrid,
             stops,
             includeStopsInReport,
-            bookedBy: RelayDesk.currentUser,
+            bookedBy,
             note
         });
     }
