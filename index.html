@@ -783,6 +783,20 @@ media-src 'self';">
                     <p class="subtitle">Driver PTI and active vehicle/load information.</p>
                 </div>
             </div>
+
+            <div class="mobileSafetyTools">
+                <div class="mobileSafetySearch">
+                    <span>🔎</span>
+                    <input id="safetyDriverSearchInput" type="search" placeholder="Find a driver..." autocomplete="off">
+                    <button type="button" id="safetyDriverSearchClear" class="smallButton" aria-label="Clear driver search">✕</button>
+                </div>
+                <div class="mobileSafetyQuickActions">
+                    <button type="button" class="smallButton" id="mobileSafetyAnnouncementsBtn">📢 Announcements</button>
+                    <button type="button" class="smallButton" id="mobileSafetyChatBtn">💬 Team Chat</button>
+                </div>
+                <p class="mobileSafetyHint">Search a driver to jump straight to HOS, PTI, load, BOL, trailer and truck details.</p>
+            </div>
+
             <div id="safetyDashboardBody">
                 <div class="workspaceEmpty">Loading Safety Dashboard...</div>
             </div>
@@ -1872,6 +1886,26 @@ media-src 'self';">
             </div>
 
             <p class="settingsHint">Changes here go live for every signed-in user as soon as you hit Save — no app rebuild required.</p>
+
+            <hr>
+
+            <section class="devDiagnosticsSection">
+                <div class="devDiagnosticsHeader">
+                    <div>
+                        <h3>🩺 ESM Diagnostics</h3>
+                        <p class="settingsHint">Read-only health checks for the renderer, Firebase, permissions, settings, Safety/HOS, workspace, and Electron runtime.</p>
+                    </div>
+                    <button type="button" id="devDiagnosticsRunBtn" class="settingsActionButton">🧪 Run Diagnostics</button>
+                </div>
+
+                <div id="devDiagnosticsSummary" class="devDiagnosticsSummary">
+                    <span class="permBadge">Not run yet</span>
+                </div>
+                <div id="devDiagnosticsList" class="devDiagnosticsList">
+                    <div class="workspaceEmpty">Run diagnostics to check the current ESM runtime.</div>
+                </div>
+                <p id="devDiagnosticsTimestamp" class="settingsHint"></p>
+            </section>
 
             <hr>
 
