@@ -6094,6 +6094,11 @@ label.settingsLabel[for] {
     box-shadow: none;
 }
 
+.safetyHosInputGrid input.safetyHosFieldUnconfirmed:focus {
+    border-color: rgba(0, 0, 0, .98);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, .18);
+}
+
 .safetyHosInputGrid input.safetyHosFieldShift:focus {
     border-color: #4696ff;
     box-shadow: 0 0 0 2px rgba(70, 150, 255, .18);
