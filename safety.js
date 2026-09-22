@@ -160,7 +160,7 @@
                     '<label class="safetyPtiToggle"><input type="checkbox" class="safetyPti" ' + (e.pti ? "checked" : "") + '><span>PTI Checked</span></label>',
                     '</div>',
                     '<div class="safetyHos" aria-label="Driver HOS"></div>',
-                    '<div class="safetyFields">'
+                    '<div class="safetyFields">' +
                     '<label>Current Load<input class="safetyField" data-field="load" value="' + escapeHtml(e.load) + '" placeholder="VRID / load"></label>',
                     '<label>BOL<input class="safetyField" data-field="bol" value="' + escapeHtml(e.bol) + '" placeholder="BOL"></label>',
                     '<label>Trailer<input class="safetyField" data-field="trailer" value="' + escapeHtml(e.trailer) + '" placeholder="Trailer"></label>',
