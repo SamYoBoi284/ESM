@@ -132,6 +132,10 @@
         if (persist) {
             try { localStorage.setItem(ACTIVE_DASHBOARD_VIEW_KEY, active); } catch (e) {}
         }
+
+        if (active === "safety") {
+            window.SafetyDashboard?.initialize?.();
+        }
     }
 
     window.applyDashboardComposition = applyDashboardComposition;
