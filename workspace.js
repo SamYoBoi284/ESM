@@ -611,12 +611,13 @@ Notes:
             // report — always shows all 4), or it has a non-empty note
             // (so a note typed for a department nobody booked loads in
             // still surfaces on the solo report instead of being dropped).
+            // "Other" is already part of LOAD_DEPARTMENTS, so do not
+            // append it a second time when it has booked loads.
             const departmentsToShow = forceAllDivisions
-                ? [...window.LOAD_DEPARTMENTS, ...(groupedMap.has("Other") ? ["Other"] : [])]
-                : [
-                    ...window.LOAD_DEPARTMENTS.filter(d => groupedMap.has(d) || this.formatDeptNoteBlock(d, selectedIds)),
-                    ...(groupedMap.has("Other") ? ["Other"] : [])
-                ];
+                ? [...window.LOAD_DEPARTMENTS]
+                : window.LOAD_DEPARTMENTS.filter(
+                    d => groupedMap.has(d) || this.formatDeptNoteBlock(d, selectedIds)
+                );
 
             if (!loads.length && !departmentsToShow.length) return "No booked loads recorded.";
 
