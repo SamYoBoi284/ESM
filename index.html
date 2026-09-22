@@ -380,15 +380,6 @@ media-src 'self';">
         <button type="button" class="dashboardModeTab" data-dashboard-view="safety" role="tab" aria-selected="false">🦺 Safety Dashboard</button>
     </nav>
 
-    <div id="dashboardDispatchArea">
-    <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
-
-    <div id="dashboardTabsNav" class="dashboardTabsNav hidden">
-        <button type="button" class="dashboardTabBtn active" data-dashboard-tab="workspace">📝 Workspace</button>
-        <button type="button" class="dashboardTabBtn" data-dashboard-tab="team">👥 Team</button>
-        <button type="button" class="dashboardTabBtn" data-dashboard-tab="stats">📊 Stats &amp; Reports</button>
-    </div>
-
     <!-- ================================= -->
     <!-- SHARED END-OF-SHIFT REPORT FORMATTER -->
     <!-- Shared by Dispatch + Safety dashboard views -->
@@ -397,6 +388,15 @@ media-src 'self';">
     <div class="reportFormatterColumn" data-tab-panel="stats">
         <!-- workspace.js mounts the formatter into this stable placeholder. -->
         <div id="reportFormatterPanel"></div>
+    </div>
+
+    <div id="dashboardDispatchArea">
+    <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
+
+    <div id="dashboardTabsNav" class="dashboardTabsNav hidden">
+        <button type="button" class="dashboardTabBtn active" data-dashboard-tab="workspace">📝 Workspace</button>
+        <button type="button" class="dashboardTabBtn" data-dashboard-tab="team">👥 Team</button>
+        <button type="button" class="dashboardTabBtn" data-dashboard-tab="stats">📊 Stats &amp; Reports</button>
     </div>
 
     <div id="dashboardSidebarArea" class="dashboardSidebarArea">
