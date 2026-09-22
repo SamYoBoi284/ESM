@@ -43,6 +43,7 @@
         // yet and isn't selectable in the UI). Local-only, same as the
         // rest of Appearance, not Firestore-synced.
         dashboardLayout: "classic",
+        classicDashboardType: "dispatch",
 
         // NOTIFICATIONS — master switches
         enableDesktopNotifications: true,
@@ -194,10 +195,8 @@
                 break;
 
             case "dashboardLayout":
-                // Tabbed mode is implemented (dashboardlayout.js); Sidebar
-                // isn't yet — applyDashboardLayout() falls back to Classic
-                // safely for any value it doesn't recognize.
-                window.applyDashboardLayout?.(value);
+            case "classicDashboardType":
+                window.applyDashboardLayout?.(currentSettings.dashboardLayout);
                 break;
 
             case "uiScale":
