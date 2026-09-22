@@ -1716,6 +1716,25 @@
             }
         });
 
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+
+            const available = document.getElementById("updateAvailableNotesModal");
+            const welcome = document.getElementById("updateWelcomeModal");
+
+            if (available && !available.classList.contains("hidden")) {
+                event.preventDefault();
+                closeUpdateModalNow("updateAvailableNotesModal");
+                return;
+            }
+
+            if (welcome && !welcome.classList.contains("hidden")) {
+                event.preventDefault();
+                window.closeUpdateWelcomeModal?.();
+                closeUpdateModalNow("updateWelcomeModal");
+            }
+        }, true);
+
         // Phase 2: clicking the native "ESM Update Ready" OS notification
         // brings ESM to the foreground (handled in main.js) and tells us
         // to bring the in-app Restart Now / Remind Me Later toast back
