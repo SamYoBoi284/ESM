@@ -106,6 +106,13 @@ This release brings the Admin Panel permission model in line with the current ES
 - Added touch-friendly mobile Safety operations with driver lookup, HOS/PTI/load/BOL/trailer/truck visibility, and quick Announcements/Team Chat shortcuts.
 - Added the first integrated **ESM Diagnostics** system inside the Developer Panel with read-only runtime, Firebase, permissions, settings, Safety/HOS, workspace, and Electron health checks.
 - Expanded the Developer Panel diagnostics to verify Firestore reachability and the currently installed app version when the Electron bridge is available.
+- Fixed a Safety Dashboard render syntax error that could leave the Safety view permanently stuck on **“Loading Safety Dashboard…”**.
+- Fixed the Driver HOS editor so it opens as a viewport-centered modal instead of appearing at the bottom of the Safety page and requiring a scroll.
+- Made the HOS editor independent of **PTI Checked** state, so HOS can be opened and confirmed whether PTI is checked or unchecked.
+- Added visual HOS field-state tinting in the confirmation editor: **Shift** uses a blue border, **Driving** uses a green border, and **Break** uses a yellow/orange border after confirmation.
+- Added an explicit unconfirmed HOS field state with black borders so all three HOS inputs clearly show when the driver's HOS has not yet been confirmed.
+- Kept the centered HOS modal usable on narrow screens with the existing mobile modal/layout rules.
+- Preserved the existing HOS countdown and Firestore behavior while adding these UI/confirmation-state improvements.
 
 ---
 
