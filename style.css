@@ -5725,14 +5725,70 @@ label.settingsLabel[for] {
 .safetyPtiToggle {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 9px;
     margin: 0;
+    padding: 7px 10px;
+    border-radius: 10px;
+    color: var(--text-secondary);
     font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+
+.safetyPtiToggle:hover {
+    background: rgba(79, 140, 255, .10);
+    color: var(--text-color);
+}
+
+.safetyPtiToggle:active {
+    transform: scale(.98);
 }
 
 .safetyPtiToggle input {
-    width: auto;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 23px;
+    height: 23px;
+    flex: 0 0 23px;
     margin: 0;
+    border: 2px solid var(--text-muted);
+    border-radius: 7px;
+    background: var(--input-bg);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    cursor: pointer;
+    transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+
+.safetyPtiToggle input:hover {
+    border-color: var(--accent-soft);
+    box-shadow: 0 0 0 3px rgba(79, 140, 255, .10);
+}
+
+.safetyPtiToggle input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79, 140, 255, .20);
+}
+
+.safetyPtiToggle input:checked {
+    border-color: var(--accent);
+    background-color: var(--accent);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.2 4.2L19 7' fill='none' stroke='white' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 17px 17px;
+    box-shadow: 0 0 0 3px rgba(79, 140, 255, .12), 0 0 12px rgba(79, 140, 255, .22);
+}
+
+.safetyPtiToggle input:checked:hover {
+    background-color: var(--accent-hover);
+}
+
+.safetyPtiToggle:has(input:checked) {
+    color: var(--accent-soft);
+    background: rgba(79, 140, 255, .08);
 }
 
 .safetyFields {
