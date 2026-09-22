@@ -89,6 +89,7 @@ media-src 'self';">
     <script defer src="firebase.js"></script>
     <script defer src="utils.js"></script>
     <script defer src="drivers.js"></script>
+    <script defer src="otherdrivers.js"></script>
     <script defer src="i18n.js"></script>
     <script defer src="notificationmanager.js"></script>
     <script defer src="notificationcenter.js"></script>
@@ -122,6 +123,7 @@ media-src 'self';">
     <script defer src="userguide.js"></script>
     <script defer src="adminguide.js"></script>
     <script defer src="dashboardlayout.js"></script>
+    <script defer src="safety.js"></script>
     <script defer src="settings.js"></script>
     <script defer src="devpanel.js"></script>
     <script defer src="app.js"></script>
@@ -373,6 +375,7 @@ media-src 'self';">
 
 <section id="dashboardScreen" class="screen dashboard hidden">
 
+    <div id="dashboardDispatchArea">
     <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
 
     <div id="dashboardTabsNav" class="dashboardTabsNav hidden">
@@ -767,6 +770,26 @@ media-src 'self';">
 
     </div>
 
+    </div> <!-- /dashboardDispatchArea -->
+
+    <!-- ================================= -->
+    <!-- SAFETY DASHBOARD -->
+    <!-- ================================= -->
+
+    <div id="safetyDashboardArea" class="safetyDashboardArea hidden">
+        <div class="safetyDashboardCard">
+            <div class="safetyDashboardHeader">
+                <div>
+                    <h2>🦺 Safety Dashboard</h2>
+                    <p class="subtitle">Driver PTI and active vehicle/load information.</p>
+                </div>
+            </div>
+            <div id="safetyDashboardBody">
+                <div class="workspaceEmpty">Loading Safety Dashboard...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- ================================= -->
     <!-- QUICK ACTIONS BAR (cut out of Personal Performance card, Phase 6) -->
     <!-- ================================= -->
@@ -931,6 +954,12 @@ media-src 'self';">
                     <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="saveZoomLevel"> <span data-en="Save zoom level permanently" data-ar="حفظ مستوى التكبير بشكل دائم">Save zoom level permanently</span></label>
 
                     <h3>Dashboard Layout</h3>
+                    <label class="settingsLabel" for="classicDashboardTypeSelect">Classic Dashboard Type</label>
+                    <select id="classicDashboardTypeSelect" class="settingsInput settingsSelect" data-setting="classicDashboardType">
+                        <option value="dispatch">Dispatch Dashboard</option>
+                        <option value="safety">Safety Dashboard</option>
+                    </select>
+                    <p class="settingsHint">Choose which dashboard is shown when the layout is Classic.</p>
                     <label class="settingsLabel" for="dashboardLayoutSelect">Layout</label>
                     <select id="dashboardLayoutSelect" class="settingsInput settingsSelect" data-setting="dashboardLayout">
                         <option value="classic">Classic Dashboard</option>
@@ -2569,6 +2598,7 @@ media-src 'self';">
             <ul class="driverComboboxList hidden" id="loadModalDriverListbox" role="listbox" aria-label="Drivers"></ul>
         </div>
         <div class="fieldErrorMsg" id="loadModalDriverError"></div>
+        <button type="button" id="loadModalOtherDriversBtn" class="smallButton hidden" data-en="⚙️ Edit Other Drivers" data-ar="⚙️ تعديل سائقي Other">⚙️ Edit Other Drivers</button>
 
         <label for="loadModalNote" data-en="📝 Notes" data-ar="📝 ملاحظات">📝 Notes</label>
         <textarea id="loadModalNote" class="workspaceNotes" placeholder="Optional notes..." data-en-placeholder="Optional notes..." data-ar-placeholder="ملاحظات اختيارية..."></textarea>
@@ -2578,6 +2608,24 @@ media-src 'self';">
             <button id="loadModalCancelBtn" data-en="Cancel" data-ar="إلغاء">Cancel</button>
         </div>
 
+    </div>
+</div>
+
+<!-- ================================= -->
+<!-- OTHER DEPARTMENT DRIVER EDITOR -->
+<!-- ================================= -->
+
+<div id="otherDriversModal" class="modalOverlay hidden">
+    <div class="modalBox">
+        <h3>🚚 Edit Other Department Drivers</h3>
+        <p class="settingsHint">These names are shared across ESM. Add, rename, or remove drivers without updating the app.</p>
+        <hr>
+        <div id="otherDriversEditorList"></div>
+        <div class="modalButtons">
+            <button type="button" id="otherDriversAddBtn">➕ Add Driver</button>
+            <button type="button" id="otherDriversSaveBtn">💾 Save Drivers</button>
+            <button type="button" id="otherDriversCancelBtn">Cancel</button>
+        </div>
     </div>
 </div>
 
