@@ -1857,6 +1857,13 @@
         document.documentElement.dataset.accent = currentSettings.accentColor;
         applyZoom(currentSettings.uiScale);
         window.applyDashboardLayout?.(currentSettings.dashboardLayout);
+
+        // dashboardlayout.js can run before the public ESMSettings API is
+        // assigned at the bottom of this module. Re-apply the persisted
+        // dashboard content choice here so "Dispatch + Safety Dashboard"
+        // survives a restart and the Dispatch/Safety tabs are restored.
+        window.applyDashboardComposition?.(currentSettings.classicDashboardType);
+
         pushCloseBehavior();
         pushAutoDownloadPref();
         pushUpdateDesktopNotificationsPref();
