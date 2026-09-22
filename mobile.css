@@ -46,6 +46,92 @@
    =========================================== */
 @media (max-width: 768px) {
 
+    /* ---- Mobile Safety Operations view ---- */
+    .mobileSafetyTools {
+        display: block;
+        margin: 0 0 12px;
+    }
+
+    .safetyDashboardHeader {
+        margin-bottom: 12px;
+    }
+
+    .safetyDashboardCard {
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+    .safetyDepartment {
+        padding: 10px;
+        margin-bottom: 12px;
+    }
+
+    .safetyDriverCard {
+        padding: 10px;
+        border-radius: 12px;
+    }
+
+    .safetyDriverHeader {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .safetyHosTimers {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .safetyHosTimer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 9px 10px;
+    }
+
+    .safetyHosTimer span {
+        margin: 0;
+    }
+
+    .safetyHosTimer strong {
+        margin: 0;
+        font-size: 16px;
+    }
+
+    .safetyFields {
+        grid-template-columns: 1fr;
+    }
+
+    .safetyHosModalBox {
+        width: calc(100vw - 24px);
+        max-height: 88vh;
+        overflow-y: auto;
+    }
+
+    .safetyHosInputGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .safetyHosModalActions {
+        flex-direction: column-reverse;
+    }
+
+    .safetyHosModalActions button {
+        width: 100%;
+        margin: 0;
+    }
+
+    /* ---- Developer diagnostics ---- */
+    .devDiagnosticsHeader {
+        flex-direction: column;
+    }
+
+    .devDiagnosticsHeader .settingsActionButton {
+        width: 100%;
+    }
+
+
+
     /* ---- Prevent page-level horizontal scrolling ---- */
     html, body {
         overflow-x: hidden;
