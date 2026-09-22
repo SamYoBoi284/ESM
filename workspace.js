@@ -620,7 +620,6 @@ Notes:
                 return `• ${owner}${l.date} | $${l.price}${perMileTag}${routeTag}${vridTag}${l.note ? " | " + l.note : ""}`;
             };
 
-            const showOwner = selectedIds.length > 1;
             const grouped = window.groupLoadsHierarchy(loads);
             const groupedMap = new Map(grouped.map(g => [g.department, g]));
 
@@ -787,6 +786,7 @@ Notes:
 
         formatImportedReportLoads(loads, opts = {}) {
             const selectedIds = opts.selectedIds?.length ? opts.selectedIds : [RelayDesk.currentUser];
+            const showOwner = selectedIds.length > 1;
             const DIVIDER = "━━━━━━━━━━━━━━━━━━━━";
             const icons = {"STS":"🚛","iTour":"✈️","F&F":"⚡️","JB Hunt":"🚚","MSL":"🚚","Other":"📦"};
             const grouped = window.groupLoadsHierarchy(loads);
