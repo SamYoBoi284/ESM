@@ -255,12 +255,11 @@
         document.getElementById("dashboardSidebarArea")?.classList.remove("sidebarModeActive");
         closeTeamChatPopup(); // sidebar-only feature — don't leave it orphaned
 
-        // Classic mode: clear any inline display this module may have
-        // set, then let the Classic Dashboard Type setting choose
-        // between the normal dispatch dashboard and the Safety Dashboard.
+        // Classic mode keeps the existing dashboard layout intact.
         clearPanelOverrides();
-        const safetyType = window.ESMSettings?.get?.("classicDashboardType") === "safety";
-        window.applySafetyDashboard?.(safetyType);
+        window.applyDashboardComposition?.(
+            window.ESMSettings?.get?.("classicDashboardType") || "dispatch"
+        );
     }
 
     // Public API — called by settings.js on startup and whenever the
@@ -271,9 +270,13 @@
         } else if (mode === "sidebar") {
             enableSidebarMode();
         } else {
-            // "classic" or anything unrecognized.
             disableAllLayoutModes();
         }
+
+        // Dispatch/Safety is a dashboard content choice, not a layout mode.
+        window.applyDashboardComposition?.(
+            window.ESMSettings?.get?.("classicDashboardType") || "dispatch"
+        );
     };
 
     function bindNav() {
