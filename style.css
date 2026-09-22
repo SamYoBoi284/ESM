@@ -4786,6 +4786,160 @@ label.settingsLabel[for] {
 }
 
 /* ===========================================
+   DEVELOPER DIAGNOSTICS
+=========================================== */
+
+.devDiagnosticsSection {
+    padding: 14px 0 4px;
+}
+
+.devDiagnosticsHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.devDiagnosticsHeader h3 {
+    margin: 0 0 4px;
+}
+
+.devDiagnosticsHeader .settingsActionButton {
+    width: auto;
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.devDiagnosticsSummary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0;
+}
+
+.devDiagnosticsList {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.devDiagnosticRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--panel-bg);
+}
+
+.devDiagnosticIcon {
+    width: 22px;
+    flex: 0 0 22px;
+    text-align: center;
+}
+
+.devDiagnosticContent {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.devDiagnosticContent strong {
+    font-size: 13px;
+}
+
+.devDiagnosticContent span {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.devDiagnostic-pass {
+    border-color: rgba(72, 180, 105, .35);
+}
+
+.devDiagnostic-warn {
+    border-color: rgba(210, 170, 60, .4);
+}
+
+.devDiagnostic-fail {
+    border-color: rgba(190, 70, 70, .45);
+}
+
+/* ===========================================
+   MOBILE SAFETY OPERATIONS TOOLS
+=========================================== */
+
+.mobileSafetyTools {
+    display: none;
+}
+
+.mobileSafetySearch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--input-bg);
+}
+
+.mobileSafetySearch > span {
+    color: var(--text-muted);
+}
+
+.mobileSafetySearch input {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 7px 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.mobileSafetySearch input:focus {
+    box-shadow: none;
+}
+
+.mobileSafetySearch button {
+    width: auto;
+    margin: 0;
+    padding: 5px 8px;
+}
+
+.mobileSafetyQuickActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.mobileSafetyQuickActions button {
+    width: 100%;
+    margin: 0;
+}
+
+.mobileSafetyHint {
+    margin: 8px 2px 0;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.mobileDriverFiltered {
+    display: none !important;
+}
+
+.mobileDepartmentFiltered {
+    display: none !important;
+}
+
+/* ===========================================
    DEVELOPER PANEL (Phase 8) + shared Release Notes display
    =========================================== */
 
