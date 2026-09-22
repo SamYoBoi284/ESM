@@ -375,6 +375,11 @@ media-src 'self';">
 
 <section id="dashboardScreen" class="screen dashboard hidden">
 
+    <nav id="dashboardModeTabs" class="dashboardModeTabs hidden" role="tablist" aria-label="Dashboard">
+        <button type="button" class="dashboardModeTab active" data-dashboard-view="dispatch" role="tab" aria-selected="true">🚚 Dispatch Dashboard</button>
+        <button type="button" class="dashboardModeTab" data-dashboard-view="safety" role="tab" aria-selected="false">🦺 Safety Dashboard</button>
+    </nav>
+
     <div id="dashboardDispatchArea">
     <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
 
@@ -954,12 +959,12 @@ media-src 'self';">
                     <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="saveZoomLevel"> <span data-en="Save zoom level permanently" data-ar="حفظ مستوى التكبير بشكل دائم">Save zoom level permanently</span></label>
 
                     <h3>Dashboard Layout</h3>
-                    <label class="settingsLabel" for="classicDashboardTypeSelect">Classic Dashboard Type</label>
+                    <label class="settingsLabel" for="classicDashboardTypeSelect">Dashboard Content</label>
                     <select id="classicDashboardTypeSelect" class="settingsInput settingsSelect" data-setting="classicDashboardType">
                         <option value="dispatch">Dispatch Dashboard</option>
-                        <option value="safety">Safety Dashboard</option>
+                        <option value="combined">Dispatch + Safety Dashboard</option>
                     </select>
-                    <p class="settingsHint">Choose which dashboard is shown when the layout is Classic.</p>
+                    <p class="settingsHint">Choose whether ESM shows only Dispatch or lets you switch between Dispatch and Safety from the dashboard tabs.</p>
                     <label class="settingsLabel" for="dashboardLayoutSelect">Layout</label>
                     <select id="dashboardLayoutSelect" class="settingsInput settingsSelect" data-setting="dashboardLayout">
                         <option value="classic">Classic Dashboard</option>
