@@ -13,6 +13,37 @@ This release brings the Admin Panel permission model in line with the current ES
 - The Edit Employee / Permissions editor now opens with the employee's effective permission level, keeping the editor aligned with the permissions actually in effect.
 - Existing permission gates for employee management, statistics, audit access, load management, and Owner-only account creation/deletion remain intact.
 
+### 📱 Mobile Safety Operations
+- Added a mobile-first Safety operations layer for smaller screens without replacing the existing desktop dashboard.
+- Added a driver search box so Safety staff can quickly find a driver instead of scrolling through the full board.
+- Search results narrow the department sections and driver cards in real time.
+- Mobile driver cards keep the operational details together: HOS countdowns, PTI state, current load, BOL, trailer, and truck.
+- Optimized the HOS timer cards and HOS confirmation modal for touch-sized controls and narrow phone screens.
+- Added quick mobile shortcuts from Safety to **Announcements** and **Team Chat**, returning to the Dispatch view and scrolling directly to the requested workspace area.
+
+### ⏱️ Driver HOS Layer
+- Added the first implementation of the original Driver HOS concept directly on the Safety Dashboard.
+- Added Shift, Driving (DR), and Break countdowns with live one-second updates.
+- Added explicit HOS confirmation timestamps so timers do not silently start at the daily reset.
+- Each driver keeps an independent confirmation timestamp and countdown state.
+- Added OFF / ON / DR / SB duty status display and low-time / expired visual states.
+- Added a dedicated HOS editor for authorized Safety/Admin users.
+- Added live Firestore synchronization for Safety/HOS data.
+
+### 🩺 Developer Diagnostics
+- Integrated **ESM Diagnostics** into the existing Developer Panel instead of creating a separate diagnostics screen.
+- Added read-only health checks for the renderer, core UI, Firebase/Firestore, Firebase Auth, permissions, settings, Safety/HOS modules, workspace/load booking, and Electron bridge.
+- Added an installed-version check through the Electron runtime when available.
+- Added a safe Firestore connectivity/read test against `appConfig/main`.
+- Diagnostics report pass, warning, and failure counts with a timestamped run result.
+- Diagnostics do not modify operational data or write test records.
+
+### 🧭 Dashboard Startup & Navigation Reliability
+- Fixed persistence of the **Dispatch + Safety Dashboard** composition across application restarts.
+- Restored the Dispatch / Safety dashboard tabs when the combined dashboard setting is enabled.
+- Preserved the user's last selected Dispatch/Safety view in local storage while still forcing Dispatch when the dashboard is configured as Dispatch-only.
+- Added a shared dashboard composition API so Settings and dashboard startup use the same source of truth.
+
 ### 📋 Report Formatter & Dashboard Layout
 - Restored the End-of-Shift Report Formatter after the workspace boot syntax failure.
 - Fixed the formatter's placement so it stays beside the main status card instead of stacking above the dashboard.
@@ -64,9 +95,17 @@ This release brings the Admin Panel permission model in line with the current ES
 ## v5.2.4 — Current Release
 - Fixed the workspace boot failure that prevented the Report Formatter and Add Load modal from initializing.
 - Fixed desktop formatter stacking and restored the intended left-side placement beside the status card.
+- Fixed the desktop dashboard breakpoint so normal desktop widths no longer switch into the narrow stacked layout prematurely.
+- Fixed persistence of the **Dispatch + Safety Dashboard** setting and restored the Dispatch/Safety tab controller during startup.
+- Preserved the last selected Dispatch/Safety view in combined mode while keeping Dispatch-only mode locked to Dispatch.
 - Fixed legacy/effective permission resolution for Admin Panel access.
 - Restored A009's intended Owner-level access through the new permission model.
 - Aligned Admin employee cards and the Permissions editor with effective permission levels.
+- Restored Admin Panel action buttons/employee-card controls by allowing the existing inline handlers to run under the Electron renderer CSP.
+- Added the original Driver HOS concept as an additive Safety Dashboard layer: independent confirmation-based timers, duty status, live countdowns, attention/expired states, and Firestore synchronization.
+- Added touch-friendly mobile Safety operations with driver lookup, HOS/PTI/load/BOL/trailer/truck visibility, and quick Announcements/Team Chat shortcuts.
+- Added the first integrated **ESM Diagnostics** system inside the Developer Panel with read-only runtime, Firebase, permissions, settings, Safety/HOS, workspace, and Electron health checks.
+- Expanded the Developer Panel diagnostics to verify Firestore reachability and the currently installed app version when the Electron bridge is available.
 
 ---
 
