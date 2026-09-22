@@ -62,6 +62,43 @@ window.PERMISSION_LABELS = {
 
 window.PERMISSION_LEVELS = ["Employee", "Trainer", "Supervisor", "Admin", "Owner"];
 
+// ===========================================
+// LEGACY ACCOUNT MIGRATION BRIDGE
+// ===========================================
+// Some older employee documents predate the permissionLevel field.
+// Keep their intended elevated access alive while the new permission
+// system is used. Explicitly stored permission levels still win.
+//
+// A009 is a known legacy admin account. Treating it as Admin here
+// keeps the account aligned with the current permission model without
+// requiring a one-time manual Firestore migration.
+window.LEGACY_PERMISSION_LEVELS = {
+    A009: "Admin"
+};
+
+function getEffectivePermissionLevel(userData = {}, userId = null) {
+
+    const id = String(userId || "").trim().toUpperCase();
+    const storedLevel = userData?.permissionLevel;
+    const legacyRole = String(userData?.role || "").trim().toLowerCase();
+
+    const legacyRoleLevel =
+        legacyRole === "owner" ? "Owner" :
+        legacyRole === "admin" ? "Admin" :
+        legacyRole === "supervisor" ? "Supervisor" :
+        null;
+
+    if (legacyRoleLevel && (!storedLevel || storedLevel === "Employee")) {
+        return legacyRoleLevel;
+    }
+
+    if ((!storedLevel || storedLevel === "Employee") && window.LEGACY_PERMISSION_LEVELS[id]) {
+        return window.LEGACY_PERMISSION_LEVELS[id];
+    }
+
+    return storedLevel || legacyRoleLevel || "Employee";
+}
+
 function buildPermissionSet(defaultValue) {
     return window.PERMISSION_KEYS.reduce((acc, key) => {
         acc[key] = defaultValue;
@@ -122,6 +159,8 @@ window.PERMISSION_PRESETS = {
 // RESOLVE A USER'S EFFECTIVE PERMISSIONS
 // ===========================================
 
+window.getEffectivePermissionLevel = getEffectivePermissionLevel;
+
 window.getUserPermissions = function (userData, userId = null) {
 
     if (userId === "A000") {
@@ -131,17 +170,7 @@ window.getUserPermissions = function (userData, userId = null) {
     // Legacy employee records may have an elevated work role but no
     // permissionLevel yet. Preserve the newer permission system while
     // safely deriving the old records' effective level from role.
-    const storedLevel = userData?.permissionLevel;
-    const legacyRole = String(userData?.role || "").trim().toLowerCase();
-    const legacyLevel =
-        legacyRole === "owner" ? "Owner" :
-        legacyRole === "admin" ? "Admin" :
-        legacyRole === "supervisor" ? "Supervisor" :
-        null;
-
-    const level = (legacyLevel && (!storedLevel || storedLevel === "Employee"))
-        ? legacyLevel
-        : (storedLevel || legacyLevel || "Employee");
+    const level = getEffectivePermissionLevel(userData, userId);
     const preset = window.PERMISSION_PRESETS[level] || window.PERMISSION_PRESETS.Employee;
 
     // explicit per-user overrides always win over the level preset
@@ -191,7 +220,7 @@ window.isOwnerOrAbove = function (userId = null) {
     if (id === "A000") return true;
 
     const data = window.RelayDesk?.currentUserData || {};
-    return data.permissionLevel === "Owner";
+    return getEffectivePermissionLevel(data, id) === "Owner";
 };
 
 // ===========================================
