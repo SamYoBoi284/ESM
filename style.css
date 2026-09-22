@@ -6041,6 +6041,74 @@ label.settingsLabel[for] {
     font-size: 10px;
 }
 
+/* Driver HOS editor: behave like the Add Load modal.
+   Keep it viewport-centered/fixed so it never opens at the document's
+   scroll position or gets stranded at the bottom of the Safety page. */
+#safetyHosModal {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, .68);
+    z-index: 50000;
+}
+
+#safetyHosModal.hidden {
+    display: none !important;
+}
+
+#safetyHosModal .safetyHosModalBox {
+    position: relative;
+    margin: 0;
+    max-height: min(760px, calc(100vh - 32px));
+    overflow-y: auto;
+}
+
+.safetyHosInputGrid input {
+    border: 1px solid rgba(0, 0, 0, .88);
+    transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.safetyHosInputGrid input.safetyHosFieldShift {
+    border-color: rgba(70, 150, 255, .9);
+    box-shadow: 0 0 0 1px rgba(70, 150, 255, .16);
+}
+
+.safetyHosInputGrid input.safetyHosFieldDrive {
+    border-color: rgba(65, 190, 105, .9);
+    box-shadow: 0 0 0 1px rgba(65, 190, 105, .14);
+}
+
+.safetyHosInputGrid input.safetyHosFieldBreak {
+    border-color: rgba(230, 165, 55, .92);
+    box-shadow: 0 0 0 1px rgba(230, 165, 55, .14);
+}
+
+.safetyHosInputGrid input.safetyHosFieldUnconfirmed {
+    border-color: rgba(0, 0, 0, .92);
+    box-shadow: none;
+}
+
+.safetyHosInputGrid input.safetyHosFieldShift:focus {
+    border-color: #4696ff;
+    box-shadow: 0 0 0 2px rgba(70, 150, 255, .18);
+}
+
+.safetyHosInputGrid input.safetyHosFieldDrive:focus {
+    border-color: #41be69;
+    box-shadow: 0 0 0 2px rgba(65, 190, 105, .18);
+}
+
+.safetyHosInputGrid input.safetyHosFieldBreak:focus {
+    border-color: #e6a537;
+    box-shadow: 0 0 0 2px rgba(230, 165, 55, .18);
+}
+
 .safetyHosModalBox {
     width: min(560px, calc(100vw - 32px));
 }
