@@ -483,7 +483,7 @@ setInterval(loadStatisticsPanel, 10000);
             card.innerHTML = `
                 <div class="adminHeader">
                     <b>${id}</b>
-                    <span>${u.status || "Off Duty"}${(u.autoIdleStatus && u.autoIdleStatus === u.status) ? ' <span class="autoIdleBadge">Auto Idle</span>' : ""}</span>
+                    <span id="adminStatus-${id}">${u.status || "Off Duty"}${(u.autoIdleStatus && u.autoIdleStatus === u.status) ? ' <span class="autoIdleBadge">Auto Idle</span>' : ""}</span>
                 </div>
 
                 ${window.isOffDayToday?.(u) ? `<div class="offTodayBadge">📴 Off Today</div>` : ""}
@@ -545,8 +545,34 @@ setInterval(loadStatisticsPanel, 10000);
         }
     }
 
+    let lastAdminRenderSignature = "";
+
     db.collection("users").onSnapshot(snapshot => {
         window._lastAdminUsersSnapshot = snapshot;
+
+        const structural = [];
+        snapshot.forEach(doc => {
+            const u = doc.data() || {};
+            window.adminLiveUsers[doc.id] = u;
+            structural.push({
+                id: doc.id,
+                name: u.name || "",
+                pin: u.pin || "",
+                role: u.role || "",
+                permissionLevel: u.permissionLevel || "",
+                permissions: u.permissions || {},
+                pinResetRequested: !!u.pinResetRequested,
+                autoIdleStatus: u.autoIdleStatus || "",
+                assignedShiftId: u.assignedShiftId || "",
+                assignedShift: u.assignedShift || ""
+            });
+        });
+
+        structural.sort((a, b) => a.id.localeCompare(b.id));
+        const signature = JSON.stringify(structural);
+        if (signature === lastAdminRenderSignature) return;
+
+        lastAdminRenderSignature = signature;
         renderAdminUserList(snapshot);
     });
 
@@ -615,6 +641,14 @@ function startAdminLiveTimers() {
                 Break: ${formatTime(breakT)}<br>
                 Away: ${formatTime(away)}
             `;
+
+            const statusEl = document.getElementById(`adminStatus-${id}`);
+            if (statusEl) {
+                const badge = (u.autoIdleStatus && u.autoIdleStatus === u.status)
+                    ? ' <span class="autoIdleBadge">Auto Idle</span>'
+                    : "";
+                statusEl.innerHTML = (u.status || "Off Duty") + badge;
+            }
         });
 
     }, 1000);
@@ -852,6 +886,60 @@ window.toggleAdminNameVisibility = function (id) {
         span.classList.toggle("revealed", nowRevealed);
     }
     if (btn) btn.textContent = nowRevealed ? "🙈" : "👁️";
+};
+
+window.openPermissionsEditor = async (id) => {
+    if (!window.hasPermission?.("canManageEmployees")) {
+        alert("You don't have permission to edit employees.");
+        return;
+    }
+
+    try {
+        const ref = db.collection("users").doc(id);
+        const snap = await ref.get();
+        if (!snap.exists) {
+            alert("Employee " + id + " was not found.");
+            return;
+        }
+
+        const current = snap.data() || {};
+        const name = prompt("Employee name for " + id + ":", current.name || "");
+        if (name === null) return;
+
+        const levels = window.PERMISSION_LEVELS || ["Employee", "Trainer", "Supervisor", "Admin", "Owner"];
+        const currentLevel = current.permissionLevel || "Employee";
+        const levelInput = prompt(
+            "Permission level for " + id + ":\n\n" +
+            levels.join(", ") +
+            "\n\nCurrent: " + currentLevel,
+            currentLevel
+        );
+        if (levelInput === null) return;
+
+        const level = String(levelInput).trim();
+        if (!levels.includes(level)) {
+            alert("Invalid permission level. Use one of: " + levels.join(", "));
+            return;
+        }
+
+        await ref.set({
+            name: String(name).trim(),
+            permissionLevel: level,
+            updatedAt: Date.now(),
+            updatedBy: RelayDesk.currentUser || "A000"
+        }, { merge: true });
+
+        await logAudit(
+            id,
+            "Employee Edited",
+            "Name/permission level updated by " + (RelayDesk.currentUser || "A000")
+        );
+
+        alert("Employee " + id + " updated ✔");
+    } catch (err) {
+        console.error("Edit employee failed:", err);
+        alert("Failed to update employee.");
+    }
 };
 
 window.resetUserPin = async (id) => {
