@@ -534,7 +534,7 @@ setInterval(loadStatisticsPanel, 10000);
 
                 </div>
 
-                <div class="permBadge">${u.permissionLevel || "Employee"}</div>
+                <div class="permBadge">${window.getEffectivePermissionLevel?.(u, id) || u.permissionLevel || "Employee"}</div>
             `;
 
             adminList.appendChild(card);

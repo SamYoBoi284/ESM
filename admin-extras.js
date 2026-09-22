@@ -925,7 +925,7 @@ window.openPermissionsEditor = async function (userId) {
             ownerOption.hidden = RelayDesk.currentUser !== "A000";
         }
 
-        const level = u.permissionLevel || "Employee";
+        const level = window.getEffectivePermissionLevel?.(u, userId) || u.permissionLevel || "Employee";
         levelSelect.value = level;
 
         // show the user's ACTUAL effective permissions (preset + their
