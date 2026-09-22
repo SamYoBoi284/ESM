@@ -500,6 +500,179 @@
         });
     }
 
+    // ===========================================
+    // ESM DIAGNOSTICS — read-only developer health checks
+    // ===========================================
+
+    function diagnosticRow(label, status, detail) {
+        const icon = status === "pass" ? "✅" : status === "warn" ? "⚠️" : "❌";
+        return `
+            <div class="devDiagnosticRow devDiagnostic-${status}">
+                <div class="devDiagnosticIcon">${icon}</div>
+                <div class="devDiagnosticContent">
+                    <strong>${escapeHtml(label)}</strong>
+                    <span>${escapeHtml(detail)}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    async function runDevDiagnostics() {
+        if (!window.isDeveloperAccount()) return;
+
+        const list = document.getElementById("devDiagnosticsList");
+        const summary = document.getElementById("devDiagnosticsSummary");
+        const stamp = document.getElementById("devDiagnosticsTimestamp");
+        const btn = document.getElementById("devDiagnosticsRunBtn");
+
+        if (!list || !summary) return;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = "⏳ Running...";
+        }
+
+        const results = [];
+
+        function check(label, ok, detail, warn = false) {
+            results.push({
+                label,
+                status: ok ? "pass" : (warn ? "warn" : "fail"),
+                detail
+            });
+        }
+
+        check(
+            "Renderer",
+            document.readyState === "complete" || document.readyState === "interactive",
+            `DOM is ${document.readyState}.`
+        );
+
+        const requiredIds = [
+            "dashboardScreen",
+            "dashboardDispatchArea",
+            "safetyDashboardArea",
+            "safetyDashboardBody",
+            "devPanelScreen",
+            "devPanelSaveBtn",
+            "adminPanelAccessBtn"
+        ];
+        const missingIds = requiredIds.filter(id => !document.getElementById(id));
+        check(
+            "Core UI",
+            missingIds.length === 0,
+            missingIds.length ? `Missing: ${missingIds.join(", ")}` : "Required dashboard/admin/developer elements are present."
+        );
+
+        check(
+            "Firebase / Firestore",
+            typeof window.db !== "undefined" && !!window.db,
+            typeof window.db !== "undefined" && !!window.db ? "Firestore client is initialized." : "Firestore client is not initialized."
+        );
+
+        check(
+            "Firebase Auth",
+            typeof firebase !== "undefined" && !!firebase.auth,
+            typeof firebase !== "undefined" && !!firebase.auth ? "Firebase Auth API is loaded." : "Firebase Auth API is unavailable."
+        );
+
+        check(
+            "Permissions API",
+            typeof window.hasPermission === "function" && typeof window.getEffectivePermissionLevel === "function",
+            typeof window.hasPermission === "function" && typeof window.getEffectivePermissionLevel === "function"
+                ? "Permission resolver and permission checks are available."
+                : "One or more permission APIs are missing."
+        );
+
+        check(
+            "Settings API",
+            !!window.ESMSettings?.get && !!window.ESMSettings?.set,
+            window.ESMSettings?.get && window.ESMSettings?.set
+                ? "Persistent settings API is available."
+                : "ESMSettings API is unavailable."
+        );
+
+        check(
+            "Safety / HOS",
+            !!window.SafetyDashboard && !!window.SafetyHOS,
+            window.SafetyDashboard && window.SafetyHOS
+                ? "Safety Dashboard and Driver HOS modules are loaded."
+                : "Safety Dashboard or Driver HOS module is missing."
+        );
+
+        const workspaceScript = !!document.querySelector('script[src="workspace.js"]');
+        const loadButton = !!document.getElementById("addLoadBtn");
+        check(
+            "Workspace / Load Booking",
+            workspaceScript && loadButton,
+            workspaceScript && loadButton
+                ? "Workspace script and Add Load entry point are present."
+                : "Workspace script or Add Load entry point is missing."
+        );
+
+        const electronApi = !!window.electronAPI;
+        check(
+            "Electron Runtime",
+            electronApi,
+            electronApi ? "Electron bridge is available." : "Electron bridge is unavailable (web/PWA mode or preload issue).",
+            !electronApi
+        );
+
+        if (electronApi && typeof window.electronAPI.getAppInfo === "function") {
+            try {
+                const info = await window.electronAPI.getAppInfo();
+                check(
+                    "Installed Version",
+                    !!info?.version,
+                    info?.version ? `Running ESM v${info.version}.` : "Electron returned no app version."
+                );
+            } catch (err) {
+                check("Installed Version", false, "Could not read Electron app metadata.", true);
+            }
+        } else {
+            check("Installed Version", false, "getAppInfo() is unavailable.", true);
+        }
+
+        if (window.db?.collection) {
+            try {
+                const snap = await db.collection("appConfig").doc("main").get();
+                check(
+                    "Firestore Read",
+                    true,
+                    snap.exists ? "appConfig/main is readable." : "Firestore is reachable; appConfig/main does not exist yet.",
+                    !snap.exists
+                );
+            } catch (err) {
+                check("Firestore Read", false, err?.message || "Firestore read failed.");
+            }
+        } else {
+            check("Firestore Read", false, "Skipped because Firestore is unavailable.");
+        }
+
+        const passCount = results.filter(r => r.status === "pass").length;
+        const warnCount = results.filter(r => r.status === "warn").length;
+        const failCount = results.filter(r => r.status === "fail").length;
+
+        list.innerHTML = results.map(r => diagnosticRow(r.label, r.status, r.detail)).join("");
+
+        const summaryStatus = failCount ? "fail" : warnCount ? "warn" : "pass";
+        const summaryIcon = summaryStatus === "pass" ? "🟢" : summaryStatus === "warn" ? "🟡" : "🔴";
+        summary.innerHTML = `
+            <span class="permBadge">${summaryIcon} ${passCount} passed</span>
+            <span class="permBadge">⚠️ ${warnCount} warnings</span>
+            <span class="permBadge">❌ ${failCount} failed</span>
+        `;
+
+        if (stamp) stamp.textContent = `Last run: ${formatWhen(Date.now())}`;
+
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "🧪 Run Diagnostics";
+        }
+
+        return { results, passCount, warnCount, failCount };
+    }
+
     // --- Save / reload ---------------------------------------------
 
     async function saveDevPanelConfig() {
@@ -560,6 +733,8 @@
     function bindStaticUI() {
         if (DevPanel.formInitialized) return;
         DevPanel.formInitialized = true;
+
+        document.getElementById("devDiagnosticsRunBtn")?.addEventListener("click", runDevDiagnostics);
 
         document.getElementById("devPanelBackBtn")?.addEventListener("click", closeDevPanel);
         document.getElementById("devPanelSaveBtn")?.addEventListener("click", saveDevPanelConfig);
