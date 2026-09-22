@@ -218,10 +218,29 @@
         const h = calculateStored(active.raw);
         document.getElementById("safetyHosModalTitle").textContent = "⏱ HOS — " + driver;
         document.getElementById("safetyHosModalSubtitle").textContent = "Confirm the driver's current HOS values. Confirmation starts the timer.";
+        const shiftInput = document.getElementById("safetyHosShift");
+        const driveInput = document.getElementById("safetyHosDrive");
+        const breakInput = document.getElementById("safetyHosBreak");
+
         document.getElementById("safetyHosStatus").value = h.status;
-        document.getElementById("safetyHosShift").value = minutesToInput(h.shiftRemaining / 60000);
-        document.getElementById("safetyHosDrive").value = minutesToInput(h.driveRemaining / 60000);
-        document.getElementById("safetyHosBreak").value = minutesToInput(h.breakRemaining / 60000);
+        shiftInput.value = minutesToInput(h.shiftRemaining / 60000);
+        driveInput.value = minutesToInput(h.driveRemaining / 60000);
+        breakInput.value = minutesToInput(h.breakRemaining / 60000);
+
+        // Keep HOS editing independent from PTI. The HOS editor is always
+        // available from the driver card, whether PTI is checked or not.
+        [shiftInput, driveInput, breakInput].forEach(input => {
+            input.classList.remove("safetyHosFieldShift", "safetyHosFieldDrive", "safetyHosFieldBreak", "safetyHosFieldUnconfirmed");
+        });
+
+        if (h.confirmedAt) {
+            shiftInput.classList.add("safetyHosFieldShift");
+            driveInput.classList.add("safetyHosFieldDrive");
+            breakInput.classList.add("safetyHosFieldBreak");
+        } else {
+            [shiftInput, driveInput, breakInput].forEach(input => input.classList.add("safetyHosFieldUnconfirmed"));
+        }
+
         document.getElementById("safetyHosModal").classList.remove("hidden");
         document.getElementById("safetyHosShift")?.focus();
     }
