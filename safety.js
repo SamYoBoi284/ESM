@@ -51,8 +51,14 @@
         return ensureEntries(data.entries || {});
     }
 
+    function canEditSafety() {
+        const role = String(window.RelayDesk?.currentUserData?.role || "").toLowerCase();
+        return !!window.hasPermission?.("canManageEmployees") ||
+            role.includes("safety");
+    }
+
     async function saveEntry(key, patch) {
-        if (!window.hasPermission?.("canManageEmployees")) {
+        if (!canEditSafety()) {
             alert("You don't have permission to update the Safety Dashboard.");
             return;
         }
