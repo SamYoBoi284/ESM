@@ -74,7 +74,7 @@
     }
 
     function reportFormatterPanel() {
-        return document.querySelector("#dashboardScreen > .reportFormatterColumn");
+        return document.querySelector("#dashboardScreen .reportFormatterColumn");
     }
 
     function allNavButtons() {
@@ -212,7 +212,8 @@
             });
         });
 
-        // Shared formatter belongs to the Stats & Reports tab.
+        // Shared formatter belongs to the Stats & Reports tab, even though
+        // Classic mode places it as the leftmost column beside the status card.
         const formatter = reportFormatterPanel();
         if (formatter) formatter.style.display = tab === "stats" ? "" : "none";
 
