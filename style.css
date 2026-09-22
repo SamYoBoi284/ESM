@@ -1017,17 +1017,13 @@ select option{
     margin: 6px 0;
 }
 
-/* Shared Report Formatter — visible in both Dispatch and Safety views.
-   It used to be the leftmost child of the four-column dashboard row, whose
-   combined fixed widths exceeded common desktop widths and pushed this
-   column off the left edge. Keep it independent of that row. */
-#dashboardScreen > .reportFormatterColumn {
-    width: min(640px, calc(100% - 32px));
+/* Report Formatter — leftmost column beside the main status card. */
+#dashboardScreen .reportFormatterColumn {
+    width: 340px;
     flex-shrink: 0;
-    margin: 0 auto 20px;
 }
 
-#dashboardScreen > .reportFormatterColumn .reportFormatterPanel {
+#dashboardScreen .reportFormatterColumn .reportFormatterPanel {
     margin-top: 0;
 }
 
