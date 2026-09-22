@@ -256,9 +256,11 @@
         closeTeamChatPopup(); // sidebar-only feature — don't leave it orphaned
 
         // Classic mode: clear any inline display this module may have
-        // set, so every panel renders exactly as it did before this
-        // feature existed. Nothing else about Classic mode changes.
+        // set, then let the Classic Dashboard Type setting choose
+        // between the normal dispatch dashboard and the Safety Dashboard.
         clearPanelOverrides();
+        const safetyType = window.ESMSettings?.get?.("classicDashboardType") === "safety";
+        window.applySafetyDashboard?.(safetyType);
     }
 
     // Public API — called by settings.js on startup and whenever the

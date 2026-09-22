@@ -821,8 +821,12 @@ window.toggleAdminPinVisibility = function (id) {
 
     const span = document.getElementById(`adminPinValue-${id}`);
     const btn = document.getElementById(`adminPinToggleBtn-${id}`);
+    const value = window.adminLiveUsers?.[id]?.pin || "Not Set";
 
-    if (span) span.classList.toggle("revealed", nowRevealed);
+    if (span) {
+        span.textContent = nowRevealed ? value : "••••••";
+        span.classList.toggle("revealed", nowRevealed);
+    }
     if (btn) btn.textContent = nowRevealed ? "🙈" : "👁️";
 };
 
@@ -841,8 +845,12 @@ window.toggleAdminNameVisibility = function (id) {
 
     const span = document.getElementById(`adminNameValue-${id}`);
     const btn = document.getElementById(`adminNameToggleBtn-${id}`);
+    const value = window.adminLiveUsers?.[id]?.name || "Not Set";
 
-    if (span) span.classList.toggle("revealed", nowRevealed);
+    if (span) {
+        span.textContent = nowRevealed ? value : "••••••";
+        span.classList.toggle("revealed", nowRevealed);
+    }
     if (btn) btn.textContent = nowRevealed ? "🙈" : "👁️";
 };
 

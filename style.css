@@ -5580,3 +5580,134 @@ label.settingsLabel[for] {
 .shiftEndPromptDeclineBtn:hover {
     background: rgba(255,255,255,.06);
 }
+
+/* ===========================================
+   OTHER DRIVER EDITOR + SAFETY DASHBOARD
+=========================================== */
+
+.otherDriverEditorRow {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.otherDriverEditorInput {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.otherDriverRemoveBtn {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 8px 12px;
+}
+
+.safetyDashboardArea {
+    width: min(1500px, 100%);
+}
+
+.safetyDashboardCard {
+    width: 100%;
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 20px 40px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.03);
+}
+
+.safetyDashboardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.safetyDashboardHeader h2 {
+    margin: 0 0 4px;
+}
+
+.safetyDepartment {
+    margin-bottom: 20px;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+}
+
+.safetyDepartmentHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.safetyDepartmentHeader h3 {
+    margin: 0;
+}
+
+.safetyDepartmentHeader span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.safetyDriverCard {
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--input-bg);
+    margin-top: 8px;
+}
+
+.safetyDriverHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.safetyPtiToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 12px;
+}
+
+.safetyPtiToggle input {
+    width: auto;
+    margin: 0;
+}
+
+.safetyFields {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.safetyFields label {
+    margin: 0;
+    font-size: 12px;
+}
+
+.safetyFields input {
+    margin: 5px 0 0;
+    padding: 9px;
+}
+
+@media (max-width: 900px) {
+    .safetyFields {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .safetyFields {
+        grid-template-columns: 1fr;
+    }
+
+    .safetyDriverHeader {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
