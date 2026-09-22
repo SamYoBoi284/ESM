@@ -154,7 +154,7 @@
                 const e = entries[key] || defaultEntry();
 
                 return [
-                    '<div class="safetyDriverCard" data-safety-key="' + escapeHtml(key) + '">',
+                    '<div class="safetyDriverCard" data-safety-key="' + escapeHtml(key) + '" data-safety-driver="' + escapeHtml(driver) + '">',
                     '<div class="safetyDriverHeader">',
                     '<strong>🚚 ' + escapeHtml(driver) + '</strong>',
                     '<label class="safetyPtiToggle"><input type="checkbox" class="safetyPti" ' + (e.pti ? "checked" : "") + '><span>PTI Checked</span></label>',
@@ -175,13 +175,16 @@
                 '</section>';
         }).join("");
 
+        bindMobileSafetyTools();
+        applyMobileDriverFilter(document.getElementById("safetyDriverSearchInput")?.value || "");
+
         root.querySelectorAll(".safetyDriverCard").forEach(card => {
             const key = card.dataset.safetyKey;
 
             const hos = card.querySelector(".safetyHos");
             window.SafetyHOS?.renderSummary(hos, entries[key]?.hos || {});
             card.querySelector(".safetyHosEditBtn")?.addEventListener("click", () => {
-                const driver = driverList(dept).find(name => makeKey(dept, name) === key) || key;
+                const driver = card.dataset.safetyDriver || key;
                 window.SafetyHOS?.open(key, driver, entries[key]?.hos || {}, patch => saveEntry(key, { hos: patch }));
             });
 
@@ -199,6 +202,60 @@
         });
     }
 
+    function applyMobileDriverFilter(query = "") {
+        const q = String(query || "").trim().toLowerCase();
+        document.querySelectorAll("#safetyDashboardBody .safetyDriverCard").forEach(card => {
+            const driver = String(card.dataset.safetyDriver || "").toLowerCase();
+            const key = String(card.dataset.safetyKey || "").toLowerCase();
+            const haystack = driver + " " + key;
+            card.classList.toggle("mobileDriverFiltered", !!q && !haystack.includes(q));
+        });
+
+        document.querySelectorAll("#safetyDashboardBody .safetyDepartment").forEach(section => {
+            const visible = section.querySelectorAll(".safetyDriverCard:not(.mobileDriverFiltered)").length;
+            section.classList.toggle("mobileDepartmentFiltered", !!q && visible === 0);
+        });
+    }
+
+    function bindMobileSafetyTools() {
+        const input = document.getElementById("safetyDriverSearchInput");
+        const clear = document.getElementById("safetyDriverSearchClear");
+
+        if (input && !input.dataset.bound) {
+            input.dataset.bound = "true";
+            input.addEventListener("input", () => applyMobileDriverFilter(input.value));
+        }
+
+        if (clear && !clear.dataset.bound) {
+            clear.dataset.bound = "true";
+            clear.addEventListener("click", () => {
+                if (input) {
+                    input.value = "";
+                    input.focus();
+                }
+                applyMobileDriverFilter("");
+            });
+        }
+
+        const announcements = document.getElementById("mobileSafetyAnnouncementsBtn");
+        if (announcements && !announcements.dataset.bound) {
+            announcements.dataset.bound = "true";
+            announcements.addEventListener("click", () => {
+                window.setActiveDashboardView?.("dispatch");
+                setTimeout(() => document.getElementById("announcementList")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+            });
+        }
+
+        const chat = document.getElementById("mobileSafetyChatBtn");
+        if (chat && !chat.dataset.bound) {
+            chat.dataset.bound = "true";
+            chat.addEventListener("click", () => {
+                window.setActiveDashboardView?.("dispatch");
+                setTimeout(() => document.getElementById("teamChatGridItem")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+            });
+        }
+    }
+
     async function initialize() {
         if (initialized) return;
         initialized = true;
@@ -206,6 +263,7 @@
         try {
             const entries = await load();
             render(entries);
+            bindMobileSafetyTools();
             window.SafetyHOS?.bind?.();
             window.SafetyHOS?.startTicker?.();
 
@@ -222,6 +280,11 @@
             if (root) root.innerHTML = '<div class="workspaceEmpty">Could not load Safety Dashboard data.</div>';
         }
     }
+
+    window.SafetyDashboard = {
+        getEntries: () => window.__SAFETY_ENTRIES__ || {},
+        refreshMobileFilter: applyMobileDriverFilter
+    };
 
     window.applyDashboardComposition = function (mode) {
         renderDashboardModeTabs();
