@@ -195,8 +195,11 @@
                 break;
 
             case "dashboardLayout":
-            case "classicDashboardType":
                 window.applyDashboardLayout?.(currentSettings.dashboardLayout);
+                break;
+
+            case "classicDashboardType":
+                window.applyDashboardComposition?.(value);
                 break;
 
             case "uiScale":
@@ -1666,8 +1669,51 @@
             });
         });
 
-        document.getElementById("viewUpdateWhatsNewBtn")?.addEventListener("click", () => {
+        document.getElementById("viewUpdateWhatsNewBtn")?.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             window.openUpdateAvailableNotesModal();
+        });
+
+        // Robust modal controls: the updater modal must close immediately
+        // from its own buttons/backdrop, without relying on renderer focus.
+        const closeUpdateModalNow = (id) => {
+            const overlay = document.getElementById(id);
+            if (!overlay) return;
+            overlay.classList.add("hidden");
+            overlay.style.display = "none";
+            overlay.setAttribute("aria-hidden", "true");
+            overlay.blur?.();
+        };
+
+        document.querySelector("#updateAvailableNotesModal button[onclick*='closeUpdateAvailableNotesModal']")
+            ?.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                closeUpdateModalNow("updateAvailableNotesModal");
+            });
+
+        document.querySelector("#updateWelcomeModal button[onclick*='closeUpdateWelcomeModal']")
+            ?.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.closeUpdateWelcomeModal?.();
+                closeUpdateModalNow("updateWelcomeModal");
+            });
+
+        document.getElementById("updateAvailableNotesModal")?.addEventListener("click", (event) => {
+            if (event.target === event.currentTarget) {
+                event.preventDefault();
+                closeUpdateModalNow("updateAvailableNotesModal");
+            }
+        });
+
+        document.getElementById("updateWelcomeModal")?.addEventListener("click", (event) => {
+            if (event.target === event.currentTarget) {
+                event.preventDefault();
+                window.closeUpdateWelcomeModal?.();
+                closeUpdateModalNow("updateWelcomeModal");
+            }
         });
 
         // Phase 2: clicking the native "ESM Update Ready" OS notification
