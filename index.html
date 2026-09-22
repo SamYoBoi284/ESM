@@ -389,6 +389,16 @@ media-src 'self';">
         <button type="button" class="dashboardTabBtn" data-dashboard-tab="stats">📊 Stats &amp; Reports</button>
     </div>
 
+    <!-- ================================= -->
+    <!-- SHARED END-OF-SHIFT REPORT FORMATTER -->
+    <!-- Shared by Dispatch + Safety dashboard views -->
+    <!-- ================================= -->
+
+    <div class="reportFormatterColumn" data-tab-panel="stats">
+        <!-- workspace.js mounts the formatter into this stable placeholder. -->
+        <div id="reportFormatterPanel"></div>
+    </div>
+
     <div id="dashboardSidebarArea" class="dashboardSidebarArea">
 
         <nav id="dashboardSidebarNav" class="dashboardSidebarNav hidden">
@@ -403,19 +413,6 @@ media-src 'self';">
         </nav>
 
     <div class="dashboardLayout">
-
-        <!-- ================================= -->
-        <!-- REPORT FORMATTER (moved here, Phase 5) -->
-        <!-- ================================= -->
-
-        <div class="reportFormatterColumn" data-tab-panel="stats">
-            <!-- Static placeholder for the Report Formatter panel (workspace.js's
-                 reportFormatter.mount() looks for this exact ID first, and fills
-                 it in, instead of falling back to its dynamic-anchor logic).
-                 Kept here so wrapping the sections above into a grid doesn't
-                 change where mount() decides to inject the panel. -->
-            <div id="reportFormatterPanel"></div>
-        </div>
 
         <!-- MAIN DASHBOARD -->
         <!-- ================================= -->
