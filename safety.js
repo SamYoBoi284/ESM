@@ -283,12 +283,8 @@
 
     window.SafetyDashboard = {
         getEntries: () => window.__SAFETY_ENTRIES__ || {},
-        refreshMobileFilter: applyMobileDriverFilter
-    };
-
-    window.applyDashboardComposition = function (mode) {
-        renderDashboardModeTabs();
-        if (mode !== "combined") setDashboardView("dispatch");
+        refreshMobileFilter: applyMobileDriverFilter,
+        initialize
     };
 
     window.applySafetyDashboard = function (enabled) {
