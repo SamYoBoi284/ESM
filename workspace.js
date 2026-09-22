@@ -2643,7 +2643,7 @@ function refreshBookedByOptions(preferredUser = "") {
     });
 }
 
-function validateLoadModal() {
+async function validateLoadModal() {
 
     clearLoadModalErrors();
 
@@ -2726,7 +2726,7 @@ function validateLoadModal() {
 
 async function saveLoadModal() {
 
-    if (!validateLoadModal()) return;
+    if (!(await validateLoadModal())) return;
 
     const date = loadModalUI.date.value.trim();
     const price = loadModalUI.price.value;
