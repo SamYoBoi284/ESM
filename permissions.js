@@ -29,10 +29,10 @@
 // keys on top of it. Anything actually stored in `permissions` always
 // wins over the preset.
 //
-// A000 is the one permanent super-admin account: it's always treated
-// as "Owner" with every permission granted, no matter what (or
-// whether anything) is stored on its doc, so it can never be locked
-// out of its own system.
+// A000 and A009 are the permanent Owner-tier accounts: both are always
+// treated as "Owner" with every permission granted, no matter what is
+// stored on their user documents. This keeps the operational admin
+// account usable when A000 is unavailable.
 
 // ===========================================
 // PERMISSION KEYS
@@ -69,17 +69,32 @@ window.PERMISSION_LEVELS = ["Employee", "Trainer", "Supervisor", "Admin", "Owner
 // Keep their intended elevated access alive while the new permission
 // system is used. Explicitly stored permission levels still win.
 //
-// A009 is a known legacy admin account. Treating it as Admin here
-// keeps the account aligned with the current permission model without
-// requiring a one-time manual Firestore migration.
+// A009 is a known legacy operational-owner account. Treat it as Owner
+// here so the account does not depend on a one-time Firestore migration
+// or on stale permission fields from the older system.
 window.LEGACY_PERMISSION_LEVELS = {
-    A009: "Admin"
+    A009: "Owner"
 };
 
 function getEffectivePermissionLevel(userData = {}, userId = null) {
 
     const id = String(userId || "").trim().toUpperCase();
-    const storedLevel = userData?.permissionLevel;
+
+    // These accounts are authoritative Owner-tier identities. Their
+    // effective level must not be downgraded by stale Firestore data.
+    if (id === "A000" || id === "A009") {
+        return "Owner";
+    }
+
+    const rawStoredLevel = String(userData?.permissionLevel || "").trim().toLowerCase();
+    const storedLevelMap = {
+        employee: "Employee",
+        trainer: "Trainer",
+        supervisor: "Supervisor",
+        admin: "Admin",
+        owner: "Owner"
+    };
+    const storedLevel = storedLevelMap[rawStoredLevel] || null;
     const legacyRole = String(userData?.role || "").trim().toLowerCase();
 
     const legacyRoleLevel =
@@ -150,8 +165,7 @@ window.PERMISSION_PRESETS = {
         canAccessAdminPanel: true
     },
 
-    // Owner is reserved for A000, but exposed here too in case an
-    // admin ever wants to promote someone to full trust.
+    // Owner is the full-trust permission tier.
     Owner: { ...ALL_GRANTED }
 };
 
@@ -163,7 +177,9 @@ window.getEffectivePermissionLevel = getEffectivePermissionLevel;
 
 window.getUserPermissions = function (userData, userId = null) {
 
-    if (userId === "A000") {
+    const id = String(userId || "").trim().toUpperCase();
+
+    if (id === "A000" || id === "A009") {
         return { ...ALL_GRANTED };
     }
 
@@ -173,7 +189,13 @@ window.getUserPermissions = function (userData, userId = null) {
     const level = getEffectivePermissionLevel(userData, userId);
     const preset = window.PERMISSION_PRESETS[level] || window.PERMISSION_PRESETS.Employee;
 
-    // explicit per-user overrides always win over the level preset
+    // Owner is authoritative. It cannot be accidentally downgraded by
+    // stale per-user overrides left behind by the previous permission model.
+    if (level === "Owner") {
+        return { ...ALL_GRANTED };
+    }
+
+    // For non-Owner levels, explicit per-user overrides remain supported.
     const overrides = userData?.permissions || {};
 
     return { ...preset, ...overrides };
@@ -188,7 +210,8 @@ window.hasPermission = function (key, userData = null, userId = null) {
 
     const id = userId || window.RelayDesk?.currentUser || null;
 
-    if (id === "A000") return true;
+    if (String(id || "").trim().toUpperCase() === "A000" ||
+        String(id || "").trim().toUpperCase() === "A009") return true;
 
     const data = userData || window.RelayDesk?.currentUserData || {};
 
@@ -196,7 +219,7 @@ window.hasPermission = function (key, userData = null, userId = null) {
 };
 
 // Does the currently logged-in user get into the Admin Panel at all
-// (A000, or anyone granted canAccessAdminPanel)?
+// (Owner accounts, or anyone granted canAccessAdminPanel)?
 window.hasAdminAccess = function () {
     return window.RelayDesk?.currentUser === "A000" ||
            window.hasPermission("canAccessAdminPanel");
@@ -217,10 +240,12 @@ window.isOwnerOrAbove = function (userId = null) {
 
     const id = userId || window.RelayDesk?.currentUser || null;
 
-    if (id === "A000") return true;
+    const normalizedId = String(id || "").trim().toUpperCase();
+
+    if (normalizedId === "A000" || normalizedId === "A009") return true;
 
     const data = window.RelayDesk?.currentUserData || {};
-    return getEffectivePermissionLevel(data, id) === "Owner";
+    return getEffectivePermissionLevel(data, normalizedId) === "Owner";
 };
 
 // ===========================================
