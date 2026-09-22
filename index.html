@@ -380,16 +380,6 @@ media-src 'self';">
         <button type="button" class="dashboardModeTab" data-dashboard-view="safety" role="tab" aria-selected="false">🦺 Safety Dashboard</button>
     </nav>
 
-    <!-- ================================= -->
-    <!-- SHARED END-OF-SHIFT REPORT FORMATTER -->
-    <!-- Shared by Dispatch + Safety dashboard views -->
-    <!-- ================================= -->
-
-    <div class="reportFormatterColumn" data-tab-panel="stats">
-        <!-- workspace.js mounts the formatter into this stable placeholder. -->
-        <div id="reportFormatterPanel"></div>
-    </div>
-
     <div id="dashboardDispatchArea">
     <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
 
@@ -416,6 +406,12 @@ media-src 'self';">
 
         <!-- MAIN DASHBOARD -->
         <!-- ================================= -->
+
+        <!-- Shared End-of-Shift Report Formatter — intentionally the leftmost dashboard column. -->
+        <div class="reportFormatterColumn" data-tab-panel="stats">
+            <!-- workspace.js mounts the formatter into this stable placeholder. -->
+            <div id="reportFormatterPanel"></div>
+        </div>
 
         <div class="card">
 
