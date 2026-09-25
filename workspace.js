@@ -1438,7 +1438,7 @@ window.groupLoadsHierarchy = function (loads) {
 
     const deptOrder = [
         ...window.LOAD_DEPARTMENTS.filter(d => deptMap.has(d)),
-        ...(deptMap.has(NO_DEPT) ? [NO_DEPT] : [])
+        ...(deptMap.has(NO_DEPT) && !window.LOAD_DEPARTMENTS.includes(NO_DEPT) ? [NO_DEPT] : [])
     ];
 
     return deptOrder.map(dept => {
@@ -1873,6 +1873,10 @@ function bindLoadModal() {
         if (driverComboState.department === "Other") {
             reloadDriverOptionsForDepartment("Other");
         }
+    });
+
+    document.addEventListener("driverListsChanged", () => {
+        if (driverComboState.department) reloadDriverOptionsForDepartment(driverComboState.department);
     });
 
     bindLoadModalVridAutoDetect();
