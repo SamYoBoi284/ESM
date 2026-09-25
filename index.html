@@ -381,6 +381,7 @@ media-src 'self';">
         <button type="button" class="dashboardModeTab" data-dashboard-view="safety" role="tab" aria-selected="false">🦺 Safety Dashboard</button>
     </nav>
 
+    <div id="dashboardViewStage">
     <div id="dashboardDispatchArea">
     <div id="loadChangeNotifications" class="loadChangeNotifications"></div>
 
@@ -790,6 +791,13 @@ media-src 'self';">
                     <input id="safetyDriverSearchInput" type="search" placeholder="Find a driver..." autocomplete="off">
                     <button type="button" id="safetyDriverSearchClear" class="smallButton" aria-label="Clear driver search">✕</button>
                 </div>
+                <div class="safetySortRow">
+                    <label for="safetyDriverSort">Sort Drivers</label>
+                    <select id="safetyDriverSort" class="safetyDriverSort">
+                        <option value="az">A–Z</option>
+                        <option value="za">Z–A</option>
+                    </select>
+                </div>
                 <div class="mobileSafetyQuickActions">
                     <button type="button" class="smallButton" id="mobileSafetyAnnouncementsBtn">📢 Announcements</button>
                     <button type="button" class="smallButton" id="mobileSafetyChatBtn">💬 Team Chat</button>
@@ -801,7 +809,7 @@ media-src 'self';">
                 <div class="workspaceEmpty">Loading Safety Dashboard...</div>
             </div>
         </div>
-    </div>
+    </div> <!-- /dashboardViewStage -->
 
     <!-- ================================= -->
     <!-- QUICK ACTIONS BAR (cut out of Personal Performance card, Phase 6) -->
@@ -910,6 +918,7 @@ media-src 'self';">
                     <label class="settingsLabel"><input type="checkbox" class="settingsInput" data-setting="rememberLogin"> <span data-en="Remember login" data-ar="تذكر تسجيل الدخول">Remember login</span></label>
 
                     <div class="settingsButtonRow">
+                        <button id="manageDriverListsBtn" class="settingsActionButton hidden" type="button">🚚 Manage Driver Lists</button>
                         <button id="clearCacheBtn" class="settingsActionButton" type="button" data-en="Clear local cache" data-ar="مسح الذاكرة المؤقتة المحلية">Clear local cache</button>
                         <button id="resetSettingsBtn" class="settingsActionButton" type="button" data-en="Reset all settings to default" data-ar="إعادة ضبط جميع الإعدادات للوضع الافتراضي">Reset all settings to default</button>
                     </div>
@@ -2656,9 +2665,11 @@ media-src 'self';">
 <!-- ================================= -->
 
 <div id="otherDriversModal" class="modalOverlay hidden">
-    <div class="modalBox">
-        <h3>🚚 Edit Other Department Drivers</h3>
-        <p class="settingsHint">These names are shared across ESM. Add, rename, or remove drivers without updating the app.</p>
+    <div class="modalBox driverListEditorModalBox">
+        <h3>🚚 Manage Department Drivers</h3>
+        <p class="settingsHint">Driver lists are shared across ESM. Add, rename, or remove drivers here without rebuilding the app.</p>
+        <label for="driverListEditorDepartment">Department</label>
+        <select id="driverListEditorDepartment"></select>
         <hr>
         <div id="otherDriversEditorList"></div>
         <div class="modalButtons">
