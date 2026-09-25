@@ -140,7 +140,6 @@
         if (!container) return;
         const h = calculateStored(raw);
         const confirmed = !!h.confirmedAt;
-
         container.innerHTML =
             '<div class="safetyHosStatusRow">' +
                 '<span class="safetyHosStatus safetyHosStatus-' + statusClass(h.status) + '">' +
@@ -149,9 +148,9 @@
                 '<button type="button" class="smallButton safetyHosEditBtn">⏱ HOS</button>' +
             '</div>' +
             '<div class="safetyHosTimers">' +
-                '<div class="safetyHosTimer ' + urgency(h.shiftRemaining) + '"><span>Shift</span><strong>' + formatTime(h.shiftRemaining / 1000) + '</strong></div>' +
-                '<div class="safetyHosTimer ' + urgency(h.driveRemaining) + '"><span>DR</span><strong>' + formatTime(h.driveRemaining / 1000) + '</strong></div>' +
-                '<div class="safetyHosTimer ' + urgency(h.breakRemaining) + '"><span>Break</span><strong>' + formatTime(h.breakRemaining / 1000) + '</strong></div>' +
+                '<div class="safetyHosTimer safetyHosTimerShift ' + urgency(h.shiftRemaining) + '"><span>Shift</span><strong>' + formatTime(h.shiftRemaining / 1000) + '</strong></div>' +
+                '<div class="safetyHosTimer safetyHosTimerDrive ' + urgency(h.driveRemaining) + '"><span>DR</span><strong>' + formatTime(h.driveRemaining / 1000) + '</strong></div>' +
+                '<div class="safetyHosTimer safetyHosTimerBreak ' + urgency(h.breakRemaining) + '"><span>Break</span><strong>' + formatTime(h.breakRemaining / 1000) + '</strong></div>' +
             '</div>' +
             '<div class="safetyHosMeta">' +
                 (confirmed ? "Confirmed " + new Date(h.confirmedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Enter HOS values and confirm to start") +
@@ -265,6 +264,8 @@
             driveRemaining: drive * 60000,
             breakRemaining: brk * 60000,
             confirmedAt: now,
+            shiftElapsedAtSave: 0,
+            shiftElapsedBeforeConfirm: 0,
             statusChangedAt: now,
             updatedAt: now,
             updatedBy: window.RelayDesk?.currentUser || ""
