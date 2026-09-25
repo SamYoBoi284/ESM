@@ -720,30 +720,47 @@
         return "dashboardScreen";
     }
 
+    let settingsAnimating = false;
+
     function openSettingsScreen() {
         const screen = document.getElementById("settingsScreen");
-        if (!screen) return;
-
-        screen.dataset.origin = currentVisibleScreenId();
+        if (!screen || settingsAnimating) return;
+        const origin = currentVisibleScreenId();
+        const target = document.getElementById(origin);
+        screen.dataset.origin = origin;
+        settingsAnimating = true;
 
         document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
+        target?.classList.remove("hidden");
+        target?.classList.add("settingsOriginSlideRight");
         screen.classList.remove("hidden");
+        screen.classList.add("settingsExpandIn");
         screen.scrollTop = 0;
+
+        setTimeout(() => {
+            target?.classList.remove("settingsOriginSlideRight");
+            screen.classList.remove("settingsExpandIn");
+            settingsAnimating = false;
+        }, 380);
     }
 
     function closeSettingsScreen() {
         const screen = document.getElementById("settingsScreen");
-        if (!screen) return;
-
+        if (!screen || settingsAnimating) return;
         const origin = screen.dataset.origin || "dashboardScreen";
-        screen.classList.add("hidden");
-
         const target = document.getElementById(origin);
-        if (target) {
-            target.classList.remove("hidden");
-        } else {
-            document.getElementById("loginScreen")?.classList.remove("hidden");
-        }
+        settingsAnimating = true;
+
+        target?.classList.remove("hidden");
+        target?.classList.add("settingsReturnFromLeft");
+        screen.classList.add("settingsCollapseOut");
+
+        setTimeout(() => {
+            screen.classList.add("hidden");
+            screen.classList.remove("settingsCollapseOut");
+            target?.classList.remove("settingsReturnFromLeft");
+            settingsAnimating = false;
+        }, 380);
     }
 
     function bindTabs() {
@@ -771,6 +788,12 @@
         document.getElementById("openSettingsBtn")?.addEventListener("click", () => openSettingsScreen());
         document.getElementById("topBarSettingsBtn")?.addEventListener("click", () => openSettingsScreen());
         document.getElementById("settingsBackBtn")?.addEventListener("click", () => closeSettingsScreen());
+
+        const driverBtn = document.getElementById("manageDriverListsBtn");
+        if (driverBtn) {
+            driverBtn.classList.toggle("hidden", !window.hasPermission?.("canManageEmployees"));
+            driverBtn.addEventListener("click", () => window.openOtherDriversEditor?.("STS"));
+        }
     }
 
     // ===========================================
