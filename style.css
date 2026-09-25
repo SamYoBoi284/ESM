@@ -6278,3 +6278,9 @@ label.settingsLabel[for] {
 /* Safety search/sort are dashboard controls, not mobile-only controls. */
 .safetyDashboardCard .mobileSafetyTools{display:block}
 .safetyDashboardCard .mobileSafetyQuickActions{display:none}
+
+.screenTransitionDownOut,.screenTransitionDownIn{animation-duration:.36s;animation-timing-function:cubic-bezier(.22,.61,.36,1);animation-fill-mode:forwards}
+.screenTransitionDownOut{animation-name:esmScreenDownOut}
+.screenTransitionDownIn{animation-name:esmScreenDownIn}
+@keyframes esmScreenDownOut{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:.98}}
+@keyframes esmScreenDownIn{from{transform:translateY(-100%);opacity:.98}to{transform:translateY(0);opacity:1}}
