@@ -106,36 +106,62 @@
         setActiveDashboardView(savedView === "safety" ? "safety" : "dispatch", { persist: false });
     }
 
-    function setActiveDashboardView(view, { persist = true } = {}) {
+    let dashboardTransitioning = false;
+
+    function setActiveDashboardView(view, { persist = true, animate = true } = {}) {
         const normalized = view === "safety" ? "safety" : "dispatch";
         const tabs = document.getElementById("dashboardModeTabs");
         const dispatch = document.getElementById("dashboardDispatchArea");
         const safety = document.getElementById("safetyDashboardArea");
-
+        const stage = document.getElementById("dashboardViewStage");
         if (!tabs || !dispatch || !safety) return;
 
         const combined = !tabs.classList.contains("hidden");
-
-        // Never allow the Safety view to be selected while the dashboard
-        // content setting is Dispatch-only.
         const active = combined ? normalized : "dispatch";
+        const current = dispatch.classList.contains("hidden") ? "safety" : "dispatch";
 
-        dispatch.classList.toggle("hidden", active !== "dispatch");
-        safety.classList.toggle("hidden", active !== "safety");
+        const finish = () => {
+            dispatch.classList.toggle("hidden", active !== "dispatch");
+            safety.classList.toggle("hidden", active !== "safety");
+            [dispatch, safety].forEach(el => el.classList.remove("dashboardSlideInLeft","dashboardSlideInRight","dashboardSlideOutLeft","dashboardSlideOutRight"));
+            stage?.classList.remove("dashboardTransitioning");
+            dashboardTransitioning = false;
+        };
+
+        if (active !== current && animate && stage && !dashboardTransitioning) {
+            dashboardTransitioning = true;
+            dispatch.classList.remove("hidden");
+            safety.classList.remove("hidden");
+            stage.classList.add("dashboardTransitioning");
+
+            if (active === "safety") {
+                dispatch.classList.add("dashboardSlideOutLeft");
+                safety.classList.add("dashboardSlideInRight");
+            } else {
+                safety.classList.add("dashboardSlideOutRight");
+                dispatch.classList.add("dashboardSlideInLeft");
+            }
+
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                dispatch.classList.toggle("dashboardSlideOutLeft", active === "safety");
+                dispatch.classList.toggle("dashboardSlideInLeft", active === "dispatch");
+                safety.classList.toggle("dashboardSlideInRight", active === "safety");
+                safety.classList.toggle("dashboardSlideOutRight", active === "dispatch");
+            }));
+            setTimeout(finish, 360);
+        } else {
+            finish();
+        }
 
         tabs.querySelectorAll("[data-dashboard-view]").forEach(btn => {
             const isActive = btn.dataset.dashboardView === active;
             btn.classList.toggle("active", isActive);
             btn.setAttribute("aria-selected", isActive ? "true" : "false");
         });
-
         if (persist) {
             try { localStorage.setItem(ACTIVE_DASHBOARD_VIEW_KEY, active); } catch (e) {}
         }
-
-        if (active === "safety") {
-            window.SafetyDashboard?.initialize?.();
-        }
+        if (active === "safety") window.SafetyDashboard?.initialize?.();
     }
 
     window.applyDashboardComposition = applyDashboardComposition;
