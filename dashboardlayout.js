@@ -125,11 +125,13 @@
             safety.classList.toggle("hidden", active !== "safety");
             [dispatch, safety].forEach(el => el.classList.remove("dashboardSlideInLeft","dashboardSlideInRight","dashboardSlideOutLeft","dashboardSlideOutRight"));
             stage?.classList.remove("dashboardTransitioning");
+            if (stage) stage.style.height = "";
             dashboardTransitioning = false;
         };
 
         if (active !== current && animate && stage && !dashboardTransitioning) {
             dashboardTransitioning = true;
+            stage.style.height = Math.max(dispatch.offsetHeight, safety.offsetHeight) + "px";
             dispatch.classList.remove("hidden");
             safety.classList.remove("hidden");
             stage.classList.add("dashboardTransitioning");
