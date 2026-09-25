@@ -6274,3 +6274,7 @@ label.settingsLabel[for] {
     animation:esmModalExpandCenter .28s cubic-bezier(.22,.61,.36,1) both;
 }
 .modal.modalClosing .safetyHosModalBox{animation-direction:reverse}
+
+/* Safety search/sort are dashboard controls, not mobile-only controls. */
+.safetyDashboardCard .mobileSafetyTools{display:block}
+.safetyDashboardCard .mobileSafetyQuickActions{display:none}
