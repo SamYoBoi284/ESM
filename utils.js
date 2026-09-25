@@ -173,26 +173,41 @@ function showMessage(message = "", color = "white") {
 // ===========================================
 
 function showScreen(screenId) {
-
     const screens = document.querySelectorAll(".screen");
-
     if (!screens.length) {
         console.error("❌ No screens found");
         return;
     }
 
-    screens.forEach(screen => {
-        screen.classList.add("hidden");
-    });
-
     const target = $(screenId);
-
     if (!target) {
         console.error(`❌ Screen not found: ${screenId}`);
         return;
     }
 
+    const current = Array.from(screens).find(screen => !screen.classList.contains("hidden"));
+    const special = ["adminScreen", "devPanelScreen"].includes(screenId) &&
+        current && current !== target && current.id !== "loginScreen";
+
+    if (!special) {
+        screens.forEach(screen => screen.classList.add("hidden"));
+        target.classList.remove("hidden");
+        return;
+    }
+
+    screens.forEach(screen => {
+        if (screen !== current && screen !== target) screen.classList.add("hidden");
+    });
+    current.classList.remove("hidden");
     target.classList.remove("hidden");
+    current.classList.add("screenTransitionUpOut");
+    target.classList.add("screenTransitionUpIn");
+
+    setTimeout(() => {
+        current.classList.add("hidden");
+        current.classList.remove("screenTransitionUpOut");
+        target.classList.remove("screenTransitionUpIn");
+    }, 380);
 }
 
 
@@ -283,3 +298,50 @@ window.initPanelCollapseToggles = function () {
     window.bindPanelCollapseToggle("workspaceSectionToggleBtn", "workspaceSectionBody", "relaydesk_collapse_workspace");
     window.bindPanelCollapseToggle("stsTeamToggleBtn", "colleaguesBox", "relaydesk_collapse_stsTeam");
 };
+
+// Global modal open/close animation. The current focused control is used as
+// the origin when a modal opens (e.g. Add Load expands from its button).
+(function () {
+    function isModal(el) {
+        return el instanceof HTMLElement && el.matches(".modalOverlay, .modal");
+    }
+    function setOrigin(el) {
+        const active = document.activeElement;
+        if (!(active instanceof HTMLElement) || active === el) return;
+        const r = active.getBoundingClientRect();
+        if (r.width && r.height) {
+            el.style.setProperty("--modal-origin-x", (r.left + r.width / 2) + "px");
+            el.style.setProperty("--modal-origin-y", (r.top + r.height / 2) + "px");
+        }
+    }
+    function openAnim(el) {
+        if (el.dataset.modalAnimating === "true") return;
+        el.dataset.modalAnimating = "true";
+        setOrigin(el);
+        el.classList.add("modalOpening");
+        setTimeout(() => { el.classList.remove("modalOpening"); delete el.dataset.modalAnimating; }, 280);
+    }
+    function closeAnim(el) {
+        if (el.dataset.modalAnimating === "true") return;
+        el.dataset.modalAnimating = "true";
+        el.classList.remove("hidden");
+        el.classList.add("modalClosing");
+        setTimeout(() => {
+            el.classList.remove("modalClosing");
+            el.classList.add("hidden");
+            delete el.dataset.modalAnimating;
+        }, 280);
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(m => {
+                if (m.type !== "attributes" || m.attributeName !== "class") return;
+                const el = m.target;
+                if (!isModal(el) || el.dataset.modalAnimating === "true") return;
+                if (el.classList.contains("hidden")) closeAnim(el);
+                else openAnim(el);
+            });
+        });
+        observer.observe(document.body, {subtree:true,attributes:true,attributeFilter:["class"]});
+    });
+})();
