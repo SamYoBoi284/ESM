@@ -5814,7 +5814,9 @@ label.settingsLabel[for] {
 }
 
 .safetyDashboardArea {
-    width: min(1500px, 100%);
+    width: 100%;
+    max-width: none;
+    align-self: stretch;
 }
 
 .safetyDashboardCard {
@@ -6216,7 +6218,7 @@ label.settingsLabel[for] {
 /* ===========================================
    SAFETY / DASHBOARD TRANSITIONS + POLISH
 =========================================== */
-#dashboardViewStage{position:relative;width:100%;min-height:0;overflow:hidden}
+#dashboardViewStage{position:relative;width:100%;align-self:stretch;min-height:0;overflow:hidden}
 #dashboardViewStage.dashboardTransitioning{min-height:1px}
 #dashboardViewStage.dashboardTransitioning>#dashboardDispatchArea,#dashboardViewStage.dashboardTransitioning>#safetyDashboardArea{position:absolute;inset:0;width:100%}
 #dashboardViewStage.dashboardTransitioning>#dashboardDispatchArea{z-index:2}
