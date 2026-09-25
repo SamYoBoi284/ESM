@@ -320,8 +320,8 @@ window.initPanelCollapseToggles = function () {
         }
     }
     function openAnim(el) {
-        if (el.dataset.modalAnimating === "true") return;
-        el.dataset.modalAnimating = "true";
+        if (el.dataset.modalAnimating) return;
+        el.dataset.modalAnimating = "opening";
         setOrigin(el);
         el.classList.add("modalOpening");
         setTimeout(() => {
@@ -331,8 +331,8 @@ window.initPanelCollapseToggles = function () {
         }, 280);
     }
     function closeAnim(el) {
-        if (el.dataset.modalAnimating === "true") return;
-        el.dataset.modalAnimating = "true";
+        if (el.dataset.modalAnimating) return;
+        el.dataset.modalAnimating = "closing";
         el.classList.remove("hidden");
         el.classList.add("modalClosing");
         setTimeout(() => {
@@ -347,7 +347,7 @@ window.initPanelCollapseToggles = function () {
             mutations.forEach(m => {
                 if (m.type !== "attributes" || m.attributeName !== "class") return;
                 const el = m.target;
-                if (!isModal(el) || el.dataset.modalAnimating === "true") return;
+                if (!isModal(el) || el.dataset.modalAnimating) return;
                 if (el.classList.contains("hidden")) closeAnim(el);
                 else openAnim(el);
             });
