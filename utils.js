@@ -212,7 +212,7 @@ function showScreen(screenId) {
         current.classList.add("hidden");
         current.classList.remove(outClass);
         target.classList.remove(inClass);
-    }, 380);
+    }, 550);
 }
 
 
