@@ -150,7 +150,7 @@
                 safety.classList.toggle("dashboardSlideInRight", active === "safety");
                 safety.classList.toggle("dashboardSlideOutRight", active === "dispatch");
             }));
-            setTimeout(finish, 360);
+            setTimeout(finish, 520);
         } else {
             finish();
         }
