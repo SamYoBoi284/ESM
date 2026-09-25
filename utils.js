@@ -186,10 +186,12 @@ function showScreen(screenId) {
     }
 
     const current = Array.from(screens).find(screen => !screen.classList.contains("hidden"));
-    const special = ["adminScreen", "devPanelScreen"].includes(screenId) &&
+    const forward = ["adminScreen", "devPanelScreen"].includes(screenId) &&
         current && current !== target && current.id !== "loginScreen";
+    const reverse = current && ["adminScreen", "devPanelScreen"].includes(current.id) &&
+        screenId === "dashboardScreen";
 
-    if (!special) {
+    if (!forward && !reverse) {
         screens.forEach(screen => screen.classList.add("hidden"));
         target.classList.remove("hidden");
         return;
@@ -200,13 +202,16 @@ function showScreen(screenId) {
     });
     current.classList.remove("hidden");
     target.classList.remove("hidden");
-    current.classList.add("screenTransitionUpOut");
-    target.classList.add("screenTransitionUpIn");
+
+    const outClass = forward ? "screenTransitionUpOut" : "screenTransitionDownOut";
+    const inClass = forward ? "screenTransitionUpIn" : "screenTransitionDownIn";
+    current.classList.add(outClass);
+    target.classList.add(inClass);
 
     setTimeout(() => {
         current.classList.add("hidden");
-        current.classList.remove("screenTransitionUpOut");
-        target.classList.remove("screenTransitionUpIn");
+        current.classList.remove(outClass);
+        target.classList.remove(inClass);
     }, 380);
 }
 
