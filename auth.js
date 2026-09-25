@@ -456,6 +456,7 @@ function applyAdminPanelButtonVisibility() {
 
     if (allowed) {
 
+        document.getElementById("manageDriverListsBtn")?.classList.remove("hidden");
         adminPanelBtn.classList.remove("hidden");
 
         adminPanelBtn.onclick = () => {
@@ -468,6 +469,7 @@ function applyAdminPanelButtonVisibility() {
         };
 
     } else {
+        document.getElementById("manageDriverListsBtn")?.classList.add("hidden");
         adminPanelBtn.classList.add("hidden");
     }
 }
