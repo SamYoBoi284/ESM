@@ -181,10 +181,6 @@
             const key = card.dataset.safetyKey;
             const hos = card.querySelector(".safetyHos");
             window.SafetyHOS?.renderSummary(hos, entries[key]?.hos || {});
-            card.querySelector(".safetyHosEditBtn")?.addEventListener("click", () => {
-                const driver = card.dataset.safetyDriver || key;
-                window.SafetyHOS?.open(key, driver, entries[key]?.hos || {}, patch => saveEntry(key, { hos: patch }));
-            });
             card.querySelector(".safetyPti")?.addEventListener("change", e => {
                 saveEntry(key, { pti: e.target.checked }).catch(err => console.error("Safety PTI save failed:", err));
             });
@@ -308,6 +304,17 @@
         if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
         const safety = document.getElementById("safetyDashboardArea");
         if (safety && !safety.classList.contains("hidden")) window.setActiveDashboardView?.("dispatch");
+    });
+
+    document.addEventListener("click", e => {
+        const btn = e.target.closest?.(".safetyHosEditBtn");
+        if (!btn) return;
+        const card = btn.closest(".safetyDriverCard");
+        const key = card?.dataset.safetyKey;
+        if (!card || !key) return;
+        const driver = card.dataset.safetyDriver || key;
+        const entry = window.__SAFETY_ENTRIES__?.[key] || {};
+        window.SafetyHOS?.open(key, driver, entry.hos || {}, patch => saveEntry(key, { hos: patch }));
     });
 
     document.addEventListener("otherDriversChanged", () => {
