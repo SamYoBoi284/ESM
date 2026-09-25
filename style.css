@@ -6212,3 +6212,56 @@ label.settingsLabel[for] {
         flex-direction: column;
     }
 }
+
+/* ===========================================
+   SAFETY / DASHBOARD TRANSITIONS + POLISH
+=========================================== */
+#dashboardViewStage{position:relative;width:100%;min-height:0;overflow:hidden}
+#dashboardViewStage.dashboardTransitioning{min-height:1px}
+#dashboardViewStage.dashboardTransitioning>#dashboardDispatchArea,#dashboardViewStage.dashboardTransitioning>#safetyDashboardArea{position:absolute;inset:0;width:100%}
+#dashboardViewStage.dashboardTransitioning>#dashboardDispatchArea{z-index:2}
+#dashboardViewStage.dashboardTransitioning>#safetyDashboardArea{z-index:1}
+.dashboardSlideInLeft,.dashboardSlideInRight,.dashboardSlideOutLeft,.dashboardSlideOutRight{transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .34s ease;will-change:transform,opacity}
+.dashboardSlideInLeft{transform:translateX(-100%);opacity:.98}.dashboardSlideInRight{transform:translateX(100%);opacity:.98}
+.dashboardSlideOutLeft,.dashboardSlideOutRight{transform:translateX(0);opacity:1}
+.dashboardTransitioning .dashboardSlideInLeft{transform:translateX(0)}
+.dashboardTransitioning .dashboardSlideInRight{transform:translateX(0)}
+.dashboardTransitioning .dashboardSlideOutLeft{transform:translateX(-100%);opacity:.98}
+.dashboardTransitioning .dashboardSlideOutRight{transform:translateX(100%);opacity:.98}
+.safetySortRow{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.safetySortRow label{margin:0;font-size:12px;color:var(--text-muted)}
+.safetyDriverSort{width:auto;min-width:100px;margin:0;padding:8px 34px 8px 10px;font-size:12px}
+.safetyDriverCard .safetyHosEditBtn{position:relative;z-index:3;pointer-events:auto}
+.safetyHosTimerShift{border-color:rgba(70,150,255,.9)}
+.safetyHosTimerDrive{border-color:rgba(65,190,105,.9)}
+.safetyHosTimerBreak{border-color:rgba(230,165,55,.92)}
+.driverListEditorModalBox{width:min(620px,92vw);max-height:82vh}
+.driverListEditorModalBox #driverListEditorDepartment{margin-bottom:12px}
+.driverListEditorModalBox #otherDriversEditorList{max-height:48vh;overflow-y:auto;padding-right:4px}
+
+/* Settings / Admin / Developer screen transitions */
+.screenTransitionUpOut,.screenTransitionUpIn,.settingsOriginSlideRight,.settingsExpandIn,.settingsReturnFromLeft,.settingsCollapseOut{will-change:transform,opacity,clip-path}
+.screenTransitionUpOut{animation:esmScreenUpOut .36s cubic-bezier(.22,.61,.36,1) forwards}
+.screenTransitionUpIn{animation:esmScreenUpIn .36s cubic-bezier(.22,.61,.36,1) forwards}
+@keyframes esmScreenUpOut{from{transform:translateY(0);opacity:1}to{transform:translateY(-100%);opacity:.98}}
+@keyframes esmScreenUpIn{from{transform:translateY(100%);opacity:.98}to{transform:translateY(0);opacity:1}}
+.settingsOriginSlideRight{animation:esmSettingsOriginOut .38s cubic-bezier(.22,.61,.36,1) forwards}
+.settingsExpandIn{animation:esmSettingsExpandIn .38s cubic-bezier(.22,.61,.36,1) forwards;transform-origin:top left}
+.settingsReturnFromLeft{animation:esmSettingsReturnIn .38s cubic-bezier(.22,.61,.36,1) forwards}
+.settingsCollapseOut{animation:esmSettingsCollapseOut .38s cubic-bezier(.22,.61,.36,1) forwards;transform-origin:top left}
+@keyframes esmSettingsOriginOut{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:.98}}
+@keyframes esmSettingsExpandIn{from{clip-path:circle(0% at 0 0);opacity:.92}to{clip-path:circle(145% at 0 0);opacity:1}}
+@keyframes esmSettingsReturnIn{from{transform:translateX(-100%);opacity:.98}to{transform:translateX(0);opacity:1}}
+@keyframes esmSettingsCollapseOut{from{clip-path:circle(145% at 0 0);opacity:1}to{clip-path:circle(0% at 0 0);opacity:.92}}
+
+/* Modal expand / reverse animation */
+.modalOverlay.modalOpening,.modalOverlay.modalClosing{display:flex!important}
+.modalOverlay.modalOpening .modalBox,.modalOverlay.modalClosing .modalBox{transform-origin:var(--modal-origin-x,50vw) var(--modal-origin-y,50vh);animation:esmModalExpand .28s cubic-bezier(.22,.61,.36,1) both}
+.modalOverlay.modalClosing .modalBox{animation-direction:reverse}
+@keyframes esmModalExpand{from{transform:scale(.08);opacity:.15}to{transform:scale(1);opacity:1}}
+.modalOverlay.modalOpening{animation:esmModalShadeIn .28s ease both}
+.modalOverlay.modalClosing{animation:esmModalShadeIn .28s ease both reverse;pointer-events:none}
+@keyframes esmModalShadeIn{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,.65)}}
+#safetyHosModal:not(.hidden) .safetyHosModalBox{animation:esmModalExpandCenter .28s cubic-bezier(.22,.61,.36,1) both}
+@keyframes esmModalExpandCenter{from{transform:scale(.08);opacity:.1}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){#dashboardViewStage *,.screenTransitionUpOut,.screenTransitionUpIn,.settingsOriginSlideRight,.settingsExpandIn,.settingsReturnFromLeft,.settingsCollapseOut,.modalOverlay.modalOpening .modalBox,.modalOverlay.modalClosing .modalBox{animation:none!important;transition:none!important}}
