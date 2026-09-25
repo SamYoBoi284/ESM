@@ -51,7 +51,9 @@ window.DRIVER_LISTS = {
         "Fredrick",
         "Timothy Harris",
         "Thomas Ayinde",
-        "Ahmad Qwayder"
+        "Ahmad Qwayder",
+        "Abdurraziq",
+        "Emad"
     ],
 
     "iTour": [
@@ -86,40 +88,13 @@ window.DRIVER_LISTS = {
         "Diah"
     ],
 
+    "Shabwah": [
+        "Mohammad Aljunaidi",
+        "Mohammad Yaqoub"
+    ],
+
     "Other": [
-        "Ashraf",
-        "Mohammad Farhat",
-        "Timothy Walker",
-        "Mario",
-        "Sari",
-        "Abdi",
-        "Mustafa",
-        "Kareem",
-        "Amirah",
-        "Faisal",
-        "Mahmoud Chaker",
-        "Mahmoud Hasan",
-        "Mike Alsayed",
-        "Layth Ayyad",
-        "Yasir",
-        "Shanard",
-        "Shadi",
-        "Fredrick",
-        "Timothy Harris",
-        "Thomas Ayinde",
-        "Ahmad Qwayder",
-        "Abdallah Yousef",
-        "Abdulwahab Mohjazi",
-        "Housam",
-        "Atif",
-        "Mahdi",
-        "Adel",
-        "Mohammad Omar",
-        "Haytham",
-        "Hamed Milhem",
-        "Adam",
-        "Jehad",
-        "Diah"
+        
     ]
     
 };

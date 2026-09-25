@@ -540,7 +540,7 @@ Notes:
         // (Renamed from DIVISION_ORDER — Phase 2 item 5. Kept as a plain
         // mirror of window.LOAD_DEPARTMENTS + "Other" for anything that
         // still references this property.)
-        DEPARTMENT_ORDER: ["STS", "iTour", "F&F", "JB Hunt", "MSL", "Other"],
+        DEPARTMENT_ORDER: ["STS", "iTour", "F&F", "JB Hunt", "MSL", "Shabwah", "Other"],
 
         // Per-department note formatter — resolves the note text to show
         // under one department's section of the report.
@@ -1373,7 +1373,7 @@ async function loadWorkspace() {
 // backward compatible so no migration is needed on existing load docs) —
 // only the label changes. LOAD_DIVISIONS is kept as an alias in case
 // anything else in the app still references the old name.
-window.LOAD_DEPARTMENTS = ["STS", "iTour", "F&F", "JB Hunt", "MSL", "Other"];
+window.LOAD_DEPARTMENTS = ["STS", "iTour", "F&F", "JB Hunt", "MSL", "Shabwah", "Other"];
 window.LOAD_DIVISIONS = window.LOAD_DEPARTMENTS;
 
 // Phase 2 item 6: VRID is a type dropdown (Trip / Load / Block-Contract)
