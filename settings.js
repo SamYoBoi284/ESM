@@ -739,9 +739,10 @@
 
         setTimeout(() => {
             target?.classList.remove("settingsOriginSlideRight");
+            target?.classList.add("hidden");
             screen.classList.remove("settingsExpandIn");
             settingsAnimating = false;
-        }, 380);
+        }, 560);
     }
 
     function closeSettingsScreen() {
@@ -760,7 +761,7 @@
             screen.classList.remove("settingsCollapseOut");
             target?.classList.remove("settingsReturnFromLeft");
             settingsAnimating = false;
-        }, 380);
+        }, 560);
     }
 
     function bindTabs() {
@@ -1897,7 +1898,7 @@
         updateIdleBreakComputedDisplay(currentSettings.idleWarningMinutes + 1);
         applyIdleDetectionGating();
 
-        window.addEventListener("keydown", handleGlobalShortcuts);
+        document.addEventListener("keydown", handleGlobalShortcuts, true);
     }
 
     if (document.readyState === "loading") {
