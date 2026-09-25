@@ -328,7 +328,7 @@ window.initPanelCollapseToggles = function () {
             el.classList.remove("modalOpening");
             el.dataset.modalAnimating = "done";
             setTimeout(() => delete el.dataset.modalAnimating, 0);
-        }, 280);
+        }, 400);
     }
     function closeAnim(el) {
         if (el.dataset.modalAnimating) return;
@@ -340,7 +340,7 @@ window.initPanelCollapseToggles = function () {
             el.classList.add("hidden");
             el.dataset.modalAnimating = "done";
             setTimeout(() => delete el.dataset.modalAnimating, 0);
-        }, 280);
+        }, 400);
     }
     document.addEventListener("DOMContentLoaded", () => {
         const observer = new MutationObserver(mutations => {
