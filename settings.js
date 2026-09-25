@@ -752,16 +752,22 @@
         const target = document.getElementById(origin);
         settingsAnimating = true;
 
-        target?.classList.remove("hidden");
-        target?.classList.add("settingsReturnFromLeft");
+        // Let Settings finish collapsing before the returning screen begins
+        // its reverse animation. This prevents the two surfaces from being
+        // visibly stacked during the handoff.
         screen.classList.add("settingsCollapseOut");
+
+        setTimeout(() => {
+            target?.classList.remove("hidden");
+            target?.classList.add("settingsReturnFromLeft");
+        }, 260);
 
         setTimeout(() => {
             screen.classList.add("hidden");
             screen.classList.remove("settingsCollapseOut");
             target?.classList.remove("settingsReturnFromLeft");
             settingsAnimating = false;
-        }, 560);
+        }, 820);
     }
 
     function bindTabs() {
