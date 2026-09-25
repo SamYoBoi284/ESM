@@ -201,18 +201,29 @@ function showScreen(screenId) {
         if (screen !== current && screen !== target) screen.classList.add("hidden");
     });
     current.classList.remove("hidden");
-    target.classList.remove("hidden");
 
     const outClass = forward ? "screenTransitionUpOut" : "screenTransitionDownOut";
     const inClass = forward ? "screenTransitionUpIn" : "screenTransitionDownIn";
     current.classList.add(outClass);
-    target.classList.add(inClass);
+
+    // On the way back, finish most of the outgoing screen's motion before
+    // revealing the destination. This keeps Admin/Developer from visually
+    // overlapping the returning Dashboard.
+    if (reverse) {
+        setTimeout(() => {
+            target.classList.remove("hidden");
+            target.classList.add(inClass);
+        }, 260);
+    } else {
+        target.classList.remove("hidden");
+        target.classList.add(inClass);
+    }
 
     setTimeout(() => {
         current.classList.add("hidden");
         current.classList.remove(outClass);
         target.classList.remove(inClass);
-    }, 550);
+    }, reverse ? 820 : 550);
 }
 
 
