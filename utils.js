@@ -319,7 +319,11 @@ window.initPanelCollapseToggles = function () {
         el.dataset.modalAnimating = "true";
         setOrigin(el);
         el.classList.add("modalOpening");
-        setTimeout(() => { el.classList.remove("modalOpening"); delete el.dataset.modalAnimating; }, 280);
+        setTimeout(() => {
+            el.classList.remove("modalOpening");
+            el.dataset.modalAnimating = "done";
+            setTimeout(() => delete el.dataset.modalAnimating, 0);
+        }, 280);
     }
     function closeAnim(el) {
         if (el.dataset.modalAnimating === "true") return;
@@ -329,7 +333,8 @@ window.initPanelCollapseToggles = function () {
         setTimeout(() => {
             el.classList.remove("modalClosing");
             el.classList.add("hidden");
-            delete el.dataset.modalAnimating;
+            el.dataset.modalAnimating = "done";
+            setTimeout(() => delete el.dataset.modalAnimating, 0);
         }, 280);
     }
     document.addEventListener("DOMContentLoaded", () => {
