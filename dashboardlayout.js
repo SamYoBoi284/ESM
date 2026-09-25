@@ -136,21 +136,36 @@
             safety.classList.remove("hidden");
             stage.classList.add("dashboardTransitioning");
 
+            const returningToDispatch = active === "dispatch";
+
             if (active === "safety") {
                 dispatch.classList.add("dashboardSlideOutLeft");
                 safety.classList.add("dashboardSlideInRight");
             } else {
                 safety.classList.add("dashboardSlideOutRight");
-                dispatch.classList.add("dashboardSlideInLeft");
+                // Keep Dispatch hidden briefly so Safety has time to leave
+                // before the returning dashboard begins its reverse motion.
+                dispatch.classList.add("hidden");
             }
 
             requestAnimationFrame(() => requestAnimationFrame(() => {
-                dispatch.classList.toggle("dashboardSlideOutLeft", active === "safety");
-                dispatch.classList.toggle("dashboardSlideInLeft", active === "dispatch");
-                safety.classList.toggle("dashboardSlideInRight", active === "safety");
-                safety.classList.toggle("dashboardSlideOutRight", active === "dispatch");
+                if (returningToDispatch) {
+                    setTimeout(() => {
+                        dispatch.classList.remove("hidden");
+                        dispatch.classList.add("dashboardSlideInLeft");
+                        requestAnimationFrame(() => {
+                            dispatch.classList.remove("dashboardSlideInLeft");
+                        });
+                    }, 260);
+                    safety.classList.add("dashboardSlideOutRight");
+                } else {
+                    dispatch.classList.toggle("dashboardSlideOutLeft", true);
+                    dispatch.classList.toggle("dashboardSlideInLeft", false);
+                    safety.classList.toggle("dashboardSlideInRight", true);
+                    safety.classList.toggle("dashboardSlideOutRight", false);
+                }
             }));
-            setTimeout(finish, 520);
+            setTimeout(finish, returningToDispatch ? 820 : 520);
         } else {
             finish();
         }
