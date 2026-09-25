@@ -6221,7 +6221,7 @@ label.settingsLabel[for] {
 #dashboardViewStage.dashboardTransitioning>#dashboardDispatchArea,#dashboardViewStage.dashboardTransitioning>#safetyDashboardArea{position:absolute;inset:0;width:100%}
 #dashboardViewStage.dashboardTransitioning>#dashboardDispatchArea{z-index:2}
 #dashboardViewStage.dashboardTransitioning>#safetyDashboardArea{z-index:1}
-.dashboardSlideInLeft,.dashboardSlideInRight,.dashboardSlideOutLeft,.dashboardSlideOutRight{transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .34s ease;will-change:transform,opacity}
+.dashboardSlideInLeft,.dashboardSlideInRight,.dashboardSlideOutLeft,.dashboardSlideOutRight{transition:transform .52s cubic-bezier(.22,.61,.36,1),opacity .52s ease;will-change:transform,opacity}
 .dashboardSlideInLeft{transform:translateX(-100%);opacity:.98}.dashboardSlideInRight{transform:translateX(100%);opacity:.98}
 .dashboardSlideOutLeft,.dashboardSlideOutRight{transform:translateX(0);opacity:1}
 .dashboardTransitioning .dashboardSlideInLeft{transform:translateX(0)}
@@ -6241,14 +6241,14 @@ label.settingsLabel[for] {
 
 /* Settings / Admin / Developer screen transitions */
 .screenTransitionUpOut,.screenTransitionUpIn,.settingsOriginSlideRight,.settingsExpandIn,.settingsReturnFromLeft,.settingsCollapseOut{will-change:transform,opacity,clip-path}
-.screenTransitionUpOut{animation:esmScreenUpOut .36s cubic-bezier(.22,.61,.36,1) forwards}
-.screenTransitionUpIn{animation:esmScreenUpIn .36s cubic-bezier(.22,.61,.36,1) forwards}
+.screenTransitionUpOut{animation:esmScreenUpOut .55s cubic-bezier(.22,.61,.36,1) forwards}
+.screenTransitionUpIn{animation:esmScreenUpIn .55s cubic-bezier(.22,.61,.36,1) forwards}
 @keyframes esmScreenUpOut{from{transform:translateY(0);opacity:1}to{transform:translateY(-100%);opacity:.98}}
 @keyframes esmScreenUpIn{from{transform:translateY(100%);opacity:.98}to{transform:translateY(0);opacity:1}}
-.settingsOriginSlideRight{animation:esmSettingsOriginOut .38s cubic-bezier(.22,.61,.36,1) forwards}
-.settingsExpandIn{animation:esmSettingsExpandIn .38s cubic-bezier(.22,.61,.36,1) forwards;transform-origin:top left}
-.settingsReturnFromLeft{animation:esmSettingsReturnIn .38s cubic-bezier(.22,.61,.36,1) forwards}
-.settingsCollapseOut{animation:esmSettingsCollapseOut .38s cubic-bezier(.22,.61,.36,1) forwards;transform-origin:top left}
+.settingsOriginSlideRight{animation:esmSettingsOriginOut .56s cubic-bezier(.22,.61,.36,1) forwards}
+.settingsExpandIn{animation:esmSettingsExpandIn .56s cubic-bezier(.22,.61,.36,1) forwards;transform-origin:top left}
+.settingsReturnFromLeft{animation:esmSettingsReturnIn .56s cubic-bezier(.22,.61,.36,1) forwards}
+.settingsCollapseOut{animation:esmSettingsCollapseOut .56s cubic-bezier(.22,.61,.36,1) forwards;transform-origin:top left}
 @keyframes esmSettingsOriginOut{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:.98}}
 @keyframes esmSettingsExpandIn{from{clip-path:circle(0% at 0 0);opacity:.92}to{clip-path:circle(145% at 0 0);opacity:1}}
 @keyframes esmSettingsReturnIn{from{transform:translateX(-100%);opacity:.98}to{transform:translateX(0);opacity:1}}
@@ -6256,13 +6256,13 @@ label.settingsLabel[for] {
 
 /* Modal expand / reverse animation */
 .modalOverlay.modalOpening,.modalOverlay.modalClosing{display:flex!important}
-.modalOverlay.modalOpening .modalBox,.modalOverlay.modalClosing .modalBox{transform-origin:var(--modal-origin-x,50vw) var(--modal-origin-y,50vh);animation:esmModalExpand .28s cubic-bezier(.22,.61,.36,1) both}
+.modalOverlay.modalOpening .modalBox,.modalOverlay.modalClosing .modalBox{transform-origin:var(--modal-origin-x,50vw) var(--modal-origin-y,50vh);animation:esmModalExpand .40s cubic-bezier(.22,.61,.36,1) both}
 .modalOverlay.modalClosing .modalBox{animation-direction:reverse}
 @keyframes esmModalExpand{from{transform:scale(.08);opacity:.15}to{transform:scale(1);opacity:1}}
-.modalOverlay.modalOpening{animation:esmModalShadeIn .28s ease both}
-.modalOverlay.modalClosing{animation:esmModalShadeIn .28s ease both reverse;pointer-events:none}
+.modalOverlay.modalOpening{animation:esmModalShadeIn .40s ease both}
+.modalOverlay.modalClosing{animation:esmModalShadeIn .40s ease both reverse;pointer-events:none}
 @keyframes esmModalShadeIn{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,.65)}}
-#safetyHosModal:not(.hidden) .safetyHosModalBox{animation:esmModalExpandCenter .28s cubic-bezier(.22,.61,.36,1) both}
+#safetyHosModal:not(.hidden) .safetyHosModalBox{animation:esmModalExpandCenter .40s cubic-bezier(.22,.61,.36,1) both}
 @keyframes esmModalExpandCenter{from{transform:scale(.08);opacity:.1}to{transform:scale(1);opacity:1}}
 @media (prefers-reduced-motion:reduce){#dashboardViewStage *,.screenTransitionUpOut,.screenTransitionUpIn,.settingsOriginSlideRight,.settingsExpandIn,.settingsReturnFromLeft,.settingsCollapseOut,.modalOverlay.modalOpening .modalBox,.modalOverlay.modalClosing .modalBox{animation:none!important;transition:none!important}}
 
@@ -6271,7 +6271,7 @@ label.settingsLabel[for] {
     position:fixed!important;inset:0;z-index:9000;
 }
 .modal.modalOpening .safetyHosModalBox,.modal.modalClosing .safetyHosModalBox{
-    animation:esmModalExpandCenter .28s cubic-bezier(.22,.61,.36,1) both;
+    animation:esmModalExpandCenter .40s cubic-bezier(.22,.61,.36,1) both;
 }
 .modal.modalClosing .safetyHosModalBox{animation-direction:reverse}
 
@@ -6279,7 +6279,7 @@ label.settingsLabel[for] {
 .safetyDashboardCard .mobileSafetyTools{display:block}
 .safetyDashboardCard .mobileSafetyQuickActions{display:none}
 
-.screenTransitionDownOut,.screenTransitionDownIn{animation-duration:.36s;animation-timing-function:cubic-bezier(.22,.61,.36,1);animation-fill-mode:forwards}
+.screenTransitionDownOut,.screenTransitionDownIn{animation-duration:.55s;animation-timing-function:cubic-bezier(.22,.61,.36,1);animation-fill-mode:forwards}
 .screenTransitionDownOut{animation-name:esmScreenDownOut}
 .screenTransitionDownIn{animation-name:esmScreenDownIn}
 @keyframes esmScreenDownOut{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:.98}}
