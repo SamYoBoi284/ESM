@@ -6265,3 +6265,12 @@ label.settingsLabel[for] {
 #safetyHosModal:not(.hidden) .safetyHosModalBox{animation:esmModalExpandCenter .28s cubic-bezier(.22,.61,.36,1) both}
 @keyframes esmModalExpandCenter{from{transform:scale(.08);opacity:.1}to{transform:scale(1);opacity:1}}
 @media (prefers-reduced-motion:reduce){#dashboardViewStage *,.screenTransitionUpOut,.screenTransitionUpIn,.settingsOriginSlideRight,.settingsExpandIn,.settingsReturnFromLeft,.settingsCollapseOut,.modalOverlay.modalOpening .modalBox,.modalOverlay.modalClosing .modalBox{animation:none!important;transition:none!important}}
+
+/* Keep animated full-screen screens layered during the transition. */
+.screenTransitionUpOut,.screenTransitionUpIn,.settingsOriginSlideRight,.settingsExpandIn,.settingsReturnFromLeft,.settingsCollapseOut{
+    position:fixed!important;inset:0;z-index:9000;
+}
+.modal.modalOpening .safetyHosModalBox,.modal.modalClosing .safetyHosModalBox{
+    animation:esmModalExpandCenter .28s cubic-bezier(.22,.61,.36,1) both;
+}
+.modal.modalClosing .safetyHosModalBox{animation-direction:reverse}
