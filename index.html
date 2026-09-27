@@ -78,6 +78,7 @@ media-src 'self';">
     <!-- Firebase -->
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore-compat.js"></script>
+    <script defer src="esm-assistant.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-auth-compat.js"></script>
     <!-- Storage (chat image attachments) -->
     <script defer src="https://www.gstatic.com/firebasejs/10.12.4/firebase-storage-compat.js"></script>
@@ -680,6 +681,8 @@ media-src 'self';">
                                 + Add
 
                             </button>
+
+                            <button id="esmAssistantOpenBtn" class="smallButton" type="button" title="ESM Assistant">🤖 AI</button>
 
                         </div>
 
@@ -2573,6 +2576,11 @@ media-src 'self';">
 <!-- ================================= -->
 
 <!-- ================================= -->
+<!-- ESM AI-LOOKING ASSISTANT -->
+<!-- ================================= -->
+<div id="esmAssistantModal" class="modalOverlay hidden" aria-hidden="true"><div class="modalBox esmAssistantModalBox"><h3>🤖 ESM Assistant</h3><p class="esmAssistantHint">Paste Relay text or type “add the following loads:”. Trips stay together; separate Load IDs become a mass import.</p><textarea id="esmAssistantInput" class="esmAssistantInput" placeholder="Type a command or paste Relay loads..."></textarea><div id="esmAssistantResponse" class="esmAssistantResponse">Ready.</div><div class="modalButtons"><button id="esmAssistantRunBtn" type="button">✨ Analyze</button><button id="esmAssistantCloseBtn" type="button">Close</button></div></div></div>
+
+<!-- ================================= -->
 <!-- LOAD MODAL (Add + Edit, V51) -->
 <!-- ================================= -->
 
@@ -2581,6 +2589,8 @@ media-src 'self';">
 
         <h3 id="loadModalTitle">📦 Add Load</h3>
         <hr>
+
+        <div id="loadModalBatchBody" class="hidden"><div class="esmBatchFooter"><span id="loadModalBatchStatus">0/0 confirmed</span><div class="modalButtons"><button id="loadModalBatchAddBtn" type="button" disabled>➕ Add Loads</button><button id="loadModalBatchCancelBtn" type="button">Cancel</button></div></div></div>
 
         <button type="button" id="loadModalImportRelayBtn" class="smallButton" data-en="📋 Import Relay Copy" data-ar="📋 استيراد نسخة Relay">📋 Import Relay Copy</button>
         <div class="fieldErrorMsg" id="loadModalImportRelayError"></div>
