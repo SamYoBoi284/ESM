@@ -32,10 +32,12 @@ function contentHeight(){var c=canvas();return c?c.clientHeight:700}
 function u(v){return v*(S?S.uiScale:1.25)}
 function size(){
  var c=canvas();if(!c)return;
- var r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);
- c.width=Math.max(360,Math.floor(r.width*d));c.height=Math.max(420,Math.floor(r.height*d));
- c.style.width=r.width+"px";c.style.height=r.height+"px";
- var x=c.getContext("2d");x.setTransform(d,0,0,d,0,0);
+ var stage=c.parentElement;if(!stage)return;
+ var r=stage.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);
+ var w=Math.max(360,Math.floor(r.width)),h=Math.max(420,Math.floor(r.height));
+ c.style.width=w+"px";c.style.height=h+"px";
+ c.width=Math.floor(w*d);c.height=Math.floor(h*d);
+ var x=c.getContext("2d");if(x)x.setTransform(d,0,0,d,0,0);
 }
 function spawnBall(seed){
  var c=canvas(),w=c?c.clientWidth:900;
