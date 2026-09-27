@@ -1520,6 +1520,7 @@ function saveLoad(load) {
     RelayDesk.bookedLoads = RelayDesk.bookedLoads || [];
     RelayDesk.bookedLoads.push(load);
     renderBookedLoads();
+    window.dispatchEvent(new CustomEvent("esm:loadSaved", { detail: load }));
 
     // Settings feature: "Highlight newly booked loads" (Load Management).
     // Same reasoning as editLoad()'s timeout below — without this the
