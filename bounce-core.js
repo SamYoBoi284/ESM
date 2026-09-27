@@ -50,7 +50,10 @@ function importSaveFile(){
     S.crit=Math.max(0,Math.min(70,Math.floor(Number(d.crit)||0)));
     S.shards=Math.max(0,Number(d.shards)||0);S.prestigeLevel=Math.max(0,Number(d.prestigeLevel)||0);
     S.uiScale=[.95,1.25,1.45].reduce(function(a,v){return Math.abs(v-(Number(d.uiScale)||1.25))<Math.abs(a-(Number(d.uiScale)||1.25))?v:a},1.25);
-    S.ballColor=typeof d.ballColor==="string"?d.ballColor:"#ffa63a";S.selectedSkin=Math.max(0,Math.floor(Number(d.selectedSkin)||0));
+    if(typeof d.ballColor==="string")S.ballColor=d.ballColor;
+    else if(typeof d.ballColor==="number"){var bc=d.ballColor>>>0;S.ballColor="#"+((bc>>16)&255).toString(16).padStart(2,"0")+((bc>>8)&255).toString(16).padStart(2,"0")+(bc&255).toString(16).padStart(2,"0");}
+    else S.ballColor="#ffa63a";
+    S.selectedSkin=Math.max(0,Math.floor(Number(d.selectedSkin)||0));
     if(S.selectedSkin>0&&!isSkinUnlocked(S.selectedSkin-1))S.selectedSkin=0;
     S.lines=[];S.balls=[];S.popups=[];S.buyPanelOffset=0;spawnBall(0);save();size();render();
    }catch(e){window.alert("That file is not a valid Bounce//Core save.");}
