@@ -680,11 +680,7 @@ media-src 'self';">
 
                                 + Add
 
-                            </button>
-
-                            <button id="esmAssistantOpenBtn" class="smallButton" type="button" title="ESM Assistant">🤖 AI</button>
-
-                        </div>
+                            </button></div>
 
                         <div id="bookedLoads" class="bookedLoads">
 
@@ -2576,9 +2572,40 @@ media-src 'self';">
 <!-- ================================= -->
 
 <!-- ================================= -->
-<!-- ESM AI-LOOKING ASSISTANT -->
+<!-- GLOBAL ESM ASSISTANT -->
 <!-- ================================= -->
-<div id="esmAssistantModal" class="modalOverlay hidden" aria-hidden="true"><div class="modalBox esmAssistantModalBox"><h3>🤖 ESM Assistant</h3><p class="esmAssistantHint">Paste Relay text or type “add the following loads:”. Trips stay together; separate Load IDs become a mass import.</p><textarea id="esmAssistantInput" class="esmAssistantInput" placeholder="Type a command or paste Relay loads..."></textarea><div id="esmAssistantResponse" class="esmAssistantResponse">Ready.</div><div class="modalButtons"><button id="esmAssistantRunBtn" type="button">✨ Analyze</button><button id="esmAssistantCloseBtn" type="button">Close</button></div></div></div>
+<div id="esmAssistantDock" class="esmAssistantDock hidden" aria-live="polite">
+    <button id="esmAssistantLauncher" class="esmAssistantLauncher" type="button" title="Open ESM Assistant" aria-label="Open ESM Assistant">✦</button>
+
+    <section id="esmAssistantPanel" class="esmAssistantPanel hidden" aria-label="ESM Assistant">
+        <header class="esmAssistantHeader">
+            <div class="esmAssistantIdentity">
+                <div class="esmAssistantSpark">✦</div>
+                <div>
+                    <div class="esmAssistantTitleRow">
+                        <strong>Assistant</strong>
+                        <span class="esmAssistantBeta">BETA</span>
+                    </div>
+                    <small>ESM Workspace Helper</small>
+                </div>
+            </div>
+            <button id="esmAssistantCloseBtn" class="esmAssistantMinimize" type="button" title="Minimize Assistant" aria-label="Minimize Assistant">−</button>
+        </header>
+
+        <div id="esmAssistantMessages" class="esmAssistantMessages">
+            <div class="esmAssistantBubble assistant">
+                <strong>Hey — I’m the ESM Assistant.</strong>
+                <span>I can help with Relay imports, mass loads, current workspace searches, and ESM actions.</span>
+            </div>
+        </div>
+
+        <div class="esmAssistantComposer">
+            <textarea id="esmAssistantInput" class="esmAssistantInput" rows="2" placeholder="Search or ask anything..."></textarea>
+            <button id="esmAssistantRunBtn" class="esmAssistantSend" type="button" title="Send" aria-label="Send">➤</button>
+        </div>
+        <div class="esmAssistantFooter">Beta • Verify output before acting</div>
+    </section>
+</div>
 
 <!-- ================================= -->
 <!-- LOAD MODAL (Add + Edit, V51) -->
