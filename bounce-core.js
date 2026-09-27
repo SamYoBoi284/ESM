@@ -9,7 +9,7 @@ var SKIN_MILESTONES=[1000,5000,10000,20000,35000,40000,50000,75000,100000];
 var SKIN_NAMES=["Heavy Ball","Glitch Ball","Among Us","Octane","Ice Cube","Rock","Bomb","ESM Core","Black Hole"];
 
 function $(id){return document.getElementById(id)}
-function fresh(){return{score:0,runBest:0,multiplier:1,maxBalls:1,maxLines:1,crit:0,shards:0,prestigeLevel:0,uiScale:1.25,ballColor:"#ffa63a",selectedSkin:0,lines:[],balls:[]}}
+function fresh(){return{score:0,runBest:0,multiplier:1,maxBalls:1,maxLines:1,crit:0,shards:0,prestigeLevel:0,uiScale:1.25,ballColor:"#ffa63a",selectedSkin:0,lines:[],balls:[],popups:[],optionsOpen:false}}
 function load(){
  try{
   var x=JSON.parse(localStorage.getItem(KEY)||"null"); x=Object.assign(fresh(),x||{});
@@ -21,7 +21,7 @@ function load(){
   x.shards=Math.max(0,+x.shards||0);
   x.uiScale=[.95,1.25,1.45].reduce(function(a,v){return Math.abs(v-x.uiScale)<Math.abs(a-x.uiScale)?v:a},1.25);
   x.lines=Array.isArray(x.lines)?x.lines.slice(-10):[];
-  x.balls=Array.isArray(x.balls)?x.balls:[]; 
+  x.balls=Array.isArray(x.balls)?x.balls:[]; x.popups=[]; x.optionsOpen=false; 
   if(x.selectedSkin>0&&!isSkinUnlocked(x.selectedSkin-1,x))x.selectedSkin=0;
   return x;
  }catch(e){return fresh()}
@@ -58,7 +58,7 @@ function prestigeGain(){
 function isSkinUnlocked(i,state){state=state||S;return i>=0&&i<SKIN_MILESTONES.length&&state.prestigeLevel>=SKIN_MILESTONES[i]}
 function unlockedSkinCount(){var n=0;for(var i=0;i<SKIN_MILESTONES.length;i++)if(isSkinUnlocked(i))n++;return n}
 function fmt(n){
- if(n<1000)return n===Math.rint(n)?String(Math.floor(n)):n.toFixed(1);
+ if(n<1000)return Math.round(n)===n?String(Math.floor(n)):n.toFixed(1);
  var u=["K","M","B","T","Qa","Qi","Sx","Sp","Oc","No"],i=-1;
  while(n>=1000&&i<u.length-1){n/=1000;i++}
  return (n>=100?n.toFixed(0):n>=10?n.toFixed(1):n.toFixed(2))+u[i]
@@ -240,7 +240,7 @@ function render(){
  var c=canvas();if(!c||!S)return;
  var x=c.getContext("2d"),w=c.clientWidth,h=c.clientHeight;
  x.clearRect(0,0,w,h);x.fillStyle="#070911";x.fillRect(0,0,w,h);
- drawHeader(x);drawArena(x);ensureBalls();updatePhysics((Date.now()-last)/1000);drawBalls(x);drawLines(x);drawBottom(x);drawPopups(x);drawOptionsPanel(x)
+ drawHeader(x);drawArena(x);ensureBalls();drawBalls(x);drawLines(x);drawBottom(x);drawPopups(x);drawOptionsPanel(x)
 }
 function drawBalls(x){S.balls.forEach(function(b){drawBall(x,b)})}
 function frame(now){
