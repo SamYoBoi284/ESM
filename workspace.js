@@ -2468,10 +2468,23 @@ function collectRelayRoutes(lines) {
 
 function flattenRelayStops(routeParts) {
     const stops = [];
-    routeParts.forEach(parts => parts.forEach(point => {
-        const last = stops[stops.length - 1];
-        if (!last || last.toLowerCase() !== point.toLowerCase()) stops.push(point);
-    }));
+    routeParts.forEach((parts, routeIndex) => {
+        parts.forEach((point, pointIndex) => {
+            const last = stops[stops.length - 1];
+
+            // Preserve both endpoints inside a route, including a legitimate
+            // same-facility route such as MDW7 -> MDW7. Only suppress the
+            // repeated origin that begins a later leg when it is exactly the
+            // previous leg's destination.
+            const isRepeatedLegConnection =
+                routeIndex > 0 &&
+                pointIndex === 0 &&
+                last &&
+                last.toLowerCase() === point.toLowerCase();
+
+            if (!isRepeatedLegConnection) stops.push(point);
+        });
+    });
     return stops;
 }
 
@@ -2688,7 +2701,7 @@ function closeLoadModal() {
 
 function clearLoadModalErrors() {
 
-    [loadModalUI.date, loadModalUI.price, loadModalUI.department, loadModalUI.vridNumber, loadModalUI.driverInput].forEach(el =>
+    [loadModalUI.date, loadModalUI.price, loadModalUI.department, loadModalUI.vridNumber, loadModalUI.driverInput, loadModalUI.bookedByInput].forEach(el =>
         el?.classList.remove("fieldError"));
 
     [loadModalUI.dateError, loadModalUI.priceError, loadModalUI.departmentError, loadModalUI.vridNumberError, loadModalUI.driverError, loadModalUI.bookedByError].forEach(el => {
