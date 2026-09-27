@@ -1847,6 +1847,8 @@ function bindLoadModal() {
         driverList: document.getElementById("loadModalDriverListbox"),
         otherDriversBtn: document.getElementById("loadModalOtherDriversBtn"),
         bookedBy: document.getElementById("loadModalBookedBy"),
+        bookedByInput: document.getElementById("loadModalBookedBySearch"),
+        bookedByList: document.getElementById("loadModalBookedByListbox"),
         bookedByError: document.getElementById("loadModalBookedByError"),
         note: document.getElementById("loadModalNote"),
         dateError: document.getElementById("loadModalDateError"),
@@ -1864,6 +1866,7 @@ function bindLoadModal() {
     loadModalUI.cancelBtn?.addEventListener("click", closeLoadModal);
     loadModalUI.department?.addEventListener("change", onLoadModalDepartmentChange);
     bindDriverCombobox();
+    bindBookedByCombobox();
 
     loadModalUI.otherDriversBtn?.addEventListener("click", () => {
         window.openOtherDriversEditor?.();
@@ -2328,26 +2331,35 @@ function bindLoadModalFromToSplit() {
 function parseRelayClipboard(text) {
     const lines = stripRelayNoise(normalizeRelayClipboardLines(text));
     if (!lines.length) return null;
-    const routeParts = collectRelayRoutes(lines);
+
+    const rawRouteParts = collectRelayRoutes(lines);
+    const routeParts = normalizeRelayRouteParts(rawRouteParts);
     const route = routeParts[0] || [];
     const from = route[0] || null;
     const to = route.length > 1 ? route.slice(1).join(" → ") : null;
+
     let pricePerMile = null;
     const pmIdx = lines.findIndex(l => /\$?\s*[\d,]+(?:\.\d+)?\s*\/\s*mi\b/i.test(l));
     if (pmIdx !== -1) {
         const m = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
-        pricePerMile = m ? m[1].replace(/,/g,"") : null; lines.splice(pmIdx,1);
+        pricePerMile = m ? m[1].replace(/,/g, "") : null;
+        lines.splice(pmIdx, 1);
     }
+
     let price = null;
     const priceIdx = lines.findIndex(l => /\$\s*[\d,]+(?:\.\d{2})?/.test(l));
     if (priceIdx !== -1) {
         const m = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
-        price = m ? m[1].replace(/,/g,"") : null; lines.splice(priceIdx,1);
+        price = m ? m[1].replace(/,/g, "") : null;
+        lines.splice(priceIdx, 1);
     }
-    const loadId = lines.find(l => !/\s+to\s+/i.test(l) && !/^t-[a-z0-9]+$/i.test(l) && !/^\$/.test(l)) || null;
+
+    const bookedBy = extractRelayBookedBy(lines);
+    const loadId = extractRelayLoadId(lines);
     const stops = route.length > 2 ? route : [];
-    if (!loadId && !from && !to && !price && !pricePerMile) return null;
-    return { loadId, from, to, stops, price, pricePerMile };
+
+    if (!loadId && !from && !to && !price && !pricePerMile && !bookedBy) return null;
+    return { loadId, from, to, stops, price, pricePerMile, bookedBy };
 }
 
 
@@ -2388,9 +2400,17 @@ function parseRelayClipboard(text) {
 // caller can safely try this parser first.
 function normalizeRelayClipboardLines(text) {
     if (!text) return [];
-    const normalized = String(text).replace(/\r/g, "").replace(/\[[^\]\n]+\]\s*[^:\n]+:\s*/g, "\n");
-    return normalized.split("\n").map(line => line.replace(/^[\u200B-\u200D\uFEFF]+/, "").trim()).filter(Boolean)
-        .filter(line => !/^booked$/i.test(line)).filter(line => !/^#\w+$/.test(line));
+    const normalized = String(text)
+        .replace(/\r/g, "")
+        .replace(/\[[^\]\n]+\]\s*[^:\n]+:\s*/g, "\n");
+
+    return normalized.split("\n")
+        .map(line => line.replace(/^[\u200B-\u200D\uFEFF]+/, "").trim())
+        .filter(Boolean)
+        .filter(line => !/^booked$/i.test(line))
+        // Relay may prefix the dispatcher/booker code with "#". Keep it
+        // instead of discarding it — it is now useful Booked By data.
+        .map(line => line.replace(/^#(?=[A-Z]\d{3,}\s*$)/i, ""));
 }
 
 function stripRelayNoise(lines) {
@@ -2401,6 +2421,45 @@ function stripRelayNoise(lines) {
 
 function extractRelayRouteStops(routeLine) {
     return String(routeLine || "").split(/\s+to\s+/i).map(s => s.trim()).filter(Boolean);
+}
+
+// Relay route descriptions begin with a facility code (for example
+// "MDW6 ROMEOVILLE" or "IGQ1 Harvey, IL 60428"). The load record only
+// needs the facility codename, not the descriptive city/address text.
+function extractRelayFacilityCode(point) {
+    const text = String(point || "").trim();
+    const match = text.match(/^([A-Z]{3}\d)\b/i);
+    return match ? match[1].toUpperCase() : text.split(/\s+/)[0] || null;
+}
+
+function normalizeRelayRouteParts(routeParts) {
+    return routeParts.map(parts => parts.map(extractRelayFacilityCode));
+}
+
+function isRelayEmployeeCode(value) {
+    return /^[A-Z]\d{3,}$/i.test(String(value || "").trim());
+}
+
+function isRelayTripId(value) {
+    return /^T-[A-Z0-9]+$/i.test(String(value || "").trim());
+}
+
+function isRelayLoadId(value) {
+    const valueText = String(value || "").trim();
+    // Normal Relay load IDs are substantially longer than employee codes;
+    // Trip IDs are handled separately.
+    return !!valueText &&
+        !isRelayTripId(valueText) &&
+        !isRelayEmployeeCode(valueText) &&
+        /^[A-Z0-9][A-Z0-9_-]{6,}$/i.test(valueText);
+}
+
+function extractRelayBookedBy(lines) {
+    return lines.find(line => isRelayEmployeeCode(line)) || null;
+}
+
+function extractRelayLoadId(lines) {
+    return lines.find(line => isRelayLoadId(line)) || null;
 }
 
 function collectRelayRoutes(lines) {
@@ -2419,24 +2478,36 @@ function flattenRelayStops(routeParts) {
 function parseRelayClipboardTrip(text) {
     const lines = stripRelayNoise(normalizeRelayClipboardLines(text));
     if (!lines.length) return null;
+
     let pricePerMile = null;
     const pmIdx = lines.findIndex(l => /\$?\s*[\d,]+(?:\.\d+)?\s*\/\s*mi\b/i.test(l));
     if (pmIdx !== -1) {
         const m = lines[pmIdx].match(/\$?\s*([\d,]+(?:\.\d+)?)\s*\/\s*mi\b/i);
-        pricePerMile = m ? m[1].replace(/,/g, "") : null; lines.splice(pmIdx,1);
+        pricePerMile = m ? m[1].replace(/,/g, "") : null;
+        lines.splice(pmIdx, 1);
     }
+
     let price = null;
     const priceIdx = lines.findIndex(l => /\$\s*[\d,]+(?:\.\d{2})?/.test(l));
     if (priceIdx !== -1) {
         const m = lines[priceIdx].match(/\$\s*([\d,]+(?:\.\d{2})?)/);
-        price = m ? m[1].replace(/,/g, "") : null; lines.splice(priceIdx,1);
+        price = m ? m[1].replace(/,/g, "") : null;
+        lines.splice(priceIdx, 1);
     }
-    const routeParts = collectRelayRoutes(lines);
-    if (routeParts.length < 2) return null;
-    const tripId = lines.find(l => /^t-[a-z0-9]+$/i.test(l)) || null;
+
+    const routeParts = normalizeRelayRouteParts(collectRelayRoutes(lines));
+    const tripId = lines.find(isRelayTripId) || null;
+    const bookedBy = extractRelayBookedBy(lines);
+
+    // A Trip can arrive with multiple leg routes, or with a single
+    // stop route and no sub-load IDs. The latter is intentionally valid:
+    // T-11673WL76 + "MDW7 MONEE, I TO MDW7 MONEE, IL 6" still yields
+    // MDW7 -> MDW7.
+    if (!tripId || !routeParts.length) return null;
+
     const stops = flattenRelayStops(routeParts);
-    if (!tripId && !stops.length && !price && !pricePerMile) return null;
-    return { tripId, stops, price, pricePerMile };
+    if (!stops.length && !price && !pricePerMile && !bookedBy) return null;
+    return { tripId, stops, price, pricePerMile, bookedBy };
 }
 
 
@@ -2486,6 +2557,7 @@ function bindLoadModalRelayImport() {
             }
             if (trip.price && loadModalUI.price) loadModalUI.price.value = trip.price;
             if (trip.pricePerMile && loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = trip.pricePerMile;
+            if (trip.bookedBy) setBookedBySelection(trip.bookedBy);
 
             // Roadmap: a Trip import auto-enables "Show these stops in
             // the End-of-Shift Report" — a Trip's report line is always
@@ -2522,6 +2594,7 @@ function bindLoadModalRelayImport() {
         }
         if (parsed.price && loadModalUI.price) loadModalUI.price.value = parsed.price;
         if (parsed.pricePerMile && loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = parsed.pricePerMile;
+        if (parsed.bookedBy) setBookedBySelection(parsed.bookedBy);
     });
 }
 
@@ -2570,7 +2643,7 @@ function openLoadModal(load) {
     if (loadModalUI.vridNumber) loadModalUI.vridNumber.value = load?.vrid || "";
     if (loadModalUI.note) loadModalUI.note.value = load?.note || "";
     if (loadModalUI.bookedBy) {
-        loadModalUI.bookedBy.value = load?.bookedBy || "";
+        setBookedBySelection(load?.bookedBy || "");
     }
 
     // Auto-detect only kicks in for a brand-new load with nothing typed
@@ -2623,27 +2696,148 @@ function clearLoadModalErrors() {
     });
 }
 
+let bookedByComboState = {
+    options: [],
+    filtered: [],
+    highlighted: -1
+};
+
 async function getAvailableBookedByUsers() {
     try {
         const snapshot = await db.collection("users").get();
-        return snapshot.docs
+        const ids = snapshot.docs
             .map(doc => doc.id)
-            .filter(id => id && id !== "A000")
-            .sort((a,b) => a.localeCompare(b));
+            .filter(id => id && id !== "A000");
+
+        if (RelayDesk.currentUser && !ids.includes(RelayDesk.currentUser)) {
+            ids.push(RelayDesk.currentUser);
+        }
+
+        return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
     } catch (err) {
         console.error("Booked By user lookup failed:", err);
-        return [];
+        return RelayDesk.currentUser ? [RelayDesk.currentUser] : [];
     }
 }
 
+function renderBookedByOptions() {
+    const list = loadModalUI.bookedByList;
+    if (!list) return;
+
+    list.innerHTML = "";
+
+    if (!bookedByComboState.filtered.length) {
+        const empty = document.createElement("li");
+        empty.className = "driverComboboxEmpty";
+        empty.textContent = bookedByComboState.options.length ? "No matching users" : "No ESM users found";
+        list.appendChild(empty);
+        return;
+    }
+
+    bookedByComboState.filtered.forEach((id, index) => {
+        const li = document.createElement("li");
+        li.className = "driverComboboxOption" + (index === bookedByComboState.highlighted ? " isHighlighted" : "");
+        li.textContent = id === RelayDesk.currentUser ? `${id} (Me)` : id;
+        li.setAttribute("role", "option");
+        li.dataset.value = id;
+        list.appendChild(li);
+    });
+}
+
+function setBookedBySelection(value) {
+    const normalized = String(value || "").trim();
+    const exists = bookedByComboState.options.some(id => id.toLowerCase() === normalized.toLowerCase());
+    const selected = exists ? bookedByComboState.options.find(id => id.toLowerCase() === normalized.toLowerCase()) : normalized;
+
+    if (loadModalUI.bookedBy) loadModalUI.bookedBy.value = selected || "";
+    if (loadModalUI.bookedByInput) loadModalUI.bookedByInput.value = selected || "";
+    bookedByComboState.highlighted = -1;
+}
+
+function closeBookedByDropdown() {
+    loadModalUI.bookedByList?.classList.add("hidden");
+    loadModalUI.bookedByInput?.setAttribute("aria-expanded", "false");
+}
+
+function openBookedByDropdown() {
+    if (!loadModalUI.bookedByInput || loadModalUI.bookedByInput.disabled) return;
+    bookedByComboState.filtered = bookedByComboState.options.slice();
+    bookedByComboState.highlighted = -1;
+    renderBookedByOptions();
+    loadModalUI.bookedByList?.classList.remove("hidden");
+    loadModalUI.bookedByInput.setAttribute("aria-expanded", "true");
+}
+
+function filterBookedByOptions() {
+    const query = (loadModalUI.bookedByInput?.value || "").trim().toLowerCase();
+    bookedByComboState.filtered = bookedByComboState.options.filter(id => id.toLowerCase().includes(query));
+    bookedByComboState.highlighted = bookedByComboState.filtered.length ? 0 : -1;
+    renderBookedByOptions();
+    loadModalUI.bookedByList?.classList.remove("hidden");
+    loadModalUI.bookedByInput?.setAttribute("aria-expanded", "true");
+}
+
+function bindBookedByCombobox() {
+    const input = loadModalUI.bookedByInput;
+    const list = loadModalUI.bookedByList;
+    if (!input || !list || input.dataset.bound) return;
+    input.dataset.bound = "true";
+
+    input.addEventListener("focus", openBookedByDropdown);
+    input.addEventListener("input", () => {
+        // Typing clears the canonical value until a user confirms an option.
+        loadModalUI.bookedBy.value = "";
+        filterBookedByOptions();
+    });
+    input.addEventListener("keydown", e => {
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (loadModalUI.bookedByList?.classList.contains("hidden")) openBookedByDropdown();
+            else if (bookedByComboState.filtered.length) {
+                bookedByComboState.highlighted = Math.min(bookedByComboState.highlighted + 1, bookedByComboState.filtered.length - 1);
+                renderBookedByOptions();
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (bookedByComboState.filtered.length) {
+                bookedByComboState.highlighted = Math.max(bookedByComboState.highlighted - 1, 0);
+                renderBookedByOptions();
+            }
+        } else if (e.key === "Enter") {
+            if (!loadModalUI.bookedByList?.classList.contains("hidden") && bookedByComboState.highlighted >= 0) {
+                e.preventDefault();
+                setBookedBySelection(bookedByComboState.filtered[bookedByComboState.highlighted]);
+                closeBookedByDropdown();
+            }
+        } else if (e.key === "Escape") {
+            closeBookedByDropdown();
+        }
+    });
+
+    list.addEventListener("mousedown", e => {
+        const option = e.target.closest(".driverComboboxOption");
+        if (!option) return;
+        e.preventDefault();
+        setBookedBySelection(option.dataset.value);
+        closeBookedByDropdown();
+    });
+
+    document.addEventListener("mousedown", e => {
+        if (!e.target.closest("#loadModalBookedByCombobox")) closeBookedByDropdown();
+    });
+}
+
 function refreshBookedByOptions(preferredUser = "") {
-    const select = loadModalUI.bookedBy;
-    if (!select) return;
+    const current = preferredUser || loadModalUI.bookedBy?.value || "";
     getAvailableBookedByUsers().then(ids => {
-        const current = preferredUser || select.value || "";
-        select.innerHTML = `<option value="">Me (${RelayDesk.currentUser || "current user"})</option>` +
-            ids.map(id => `<option value="${escapeHtmlAttr(id)}">${escapeHtmlAttr(id)}</option>`).join("");
-        select.value = current && ids.includes(current) ? current : "";
+        bookedByComboState.options = ids;
+        if (current) {
+            setBookedBySelection(current);
+        } else {
+            setBookedBySelection("");
+        }
+        bookedByComboState.filtered = ids.slice();
+        renderBookedByOptions();
     });
 }
 
@@ -2715,11 +2909,16 @@ async function validateLoadModal() {
         valid = false;
     }
 
+    const bookedByTyped = loadModalUI.bookedByInput?.value?.trim() || "";
     const bookedBy = loadModalUI.bookedBy?.value?.trim() || "";
-    if (bookedBy) {
+    if (bookedByTyped && !bookedBy) {
+        loadModalUI.bookedByInput?.classList.add("fieldError");
+        if (loadModalUI.bookedByError) loadModalUI.bookedByError.textContent = "Select a user from the list.";
+        valid = false;
+    } else if (bookedBy) {
         const validUsers = await getAvailableBookedByUsers();
-        if (!validUsers.includes(bookedBy)) {
-            loadModalUI.bookedBy?.classList.add("fieldError");
+        if (!validUsers.some(id => id.toLowerCase() === bookedBy.toLowerCase())) {
+            loadModalUI.bookedByInput?.classList.add("fieldError");
             if (loadModalUI.bookedByError) loadModalUI.bookedByError.textContent = "Select a valid ESM user.";
             valid = false;
         }

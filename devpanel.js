@@ -736,6 +736,11 @@
 
         document.getElementById("devDiagnosticsRunBtn")?.addEventListener("click", runDevDiagnostics);
 
+        document.getElementById("devPanelManageDriversBtn")?.addEventListener("click", () => {
+            if (!window.isDeveloperAccount()) return;
+            window.openOtherDriversEditor?.();
+        });
+
         document.getElementById("devPanelBackBtn")?.addEventListener("click", closeDevPanel);
         document.getElementById("devPanelSaveBtn")?.addEventListener("click", saveDevPanelConfig);
 

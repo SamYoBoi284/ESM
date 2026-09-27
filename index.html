@@ -1918,6 +1918,19 @@ media-src 'self';">
 
             <hr>
 
+            <section class="devDiagnosticsSection">
+                <div class="devDiagnosticsHeader">
+                    <div>
+                        <h3>🚚 Department Driver Lists</h3>
+                        <p class="settingsHint">Driver lists are shared across ESM. Manage STS, iTour, F&amp;F, J.B Hunt, MSL, Shabwah, and Other without editing source code.</p>
+                    </div>
+                    <button type="button" id="devPanelManageDriversBtn" class="settingsActionButton">⚙️ Manage Drivers</button>
+                </div>
+                <p class="settingsHint">Changes are persisted in Firestore and immediately update the searchable Driver dropdowns. Existing seeded driver names are loaded automatically on first use.</p>
+            </section>
+
+            <hr>
+
             <h3>🧩 Feedback &amp; Feature Requests</h3>
 
             <div class="devFeedbackSearchRow">
@@ -2643,10 +2656,16 @@ media-src 'self';">
         <div class="fieldErrorMsg" id="loadModalDriverError"></div>
         <button type="button" id="loadModalOtherDriversBtn" class="smallButton hidden" data-en="⚙️ Edit Other Drivers" data-ar="⚙️ تعديل سائقي Other">⚙️ Edit Other Drivers</button>
 
-        <label for="loadModalBookedBy" data-en="👤 Booked By" data-ar="👤 حجز بواسطة">👤 Booked By</label>
-        <select id="loadModalBookedBy">
-            <option value="">Me (current user)</option>
-        </select>
+        <label for="loadModalBookedBySearch" data-en="👤 Booked By" data-ar="👤 حجز بواسطة">👤 Booked By</label>
+        <div class="driverCombobox" id="loadModalBookedByCombobox">
+            <input type="text" id="loadModalBookedBySearch" class="driverComboboxInput" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-autocomplete="list"
+                   aria-controls="loadModalBookedByListbox"
+                   placeholder="Select user..." data-en-placeholder="Select user..."
+                   data-ar-placeholder="اختر مستخدمًا...">
+            <input type="hidden" id="loadModalBookedBy">
+            <ul class="driverComboboxList hidden" id="loadModalBookedByListbox" role="listbox" aria-label="Booked By users"></ul>
+        </div>
         <div class="fieldErrorMsg" id="loadModalBookedByError"></div>
 
         <label for="loadModalNote" data-en="📝 Notes" data-ar="📝 ملاحظات">📝 Notes</label>
