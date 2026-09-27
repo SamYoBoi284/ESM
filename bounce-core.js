@@ -406,16 +406,20 @@ function bind(){
   if(!running)return;var p=point(e);
   if(S.optionsOpen){handleOptionsTap(p.x,p.y);return}
   var panelTop=arenaBottom()+u(10)-S.buyPanelOffset;
+  if(S.buyPanelOffset>20){
+   var bulkTop=panelTop+u(402);
+   if(p.y>=bulkTop&&p.y<=bulkTop+u(47*5)){handleTap(p.x,p.y);return}
+  }
   if(p.x>=u(10)&&p.x<=c.clientWidth-u(10)&&p.y>=panelTop&&p.y<=contentHeight()-u(8) &&
-     (p.y<panelTop+u(32)||S.buyPanelOffset>20)){
-    drag=true;off.x=p.x;off.y=p.y;return;
+     p.y<panelTop+u(32)){
+   drag=true;off.x=p.x;off.y=p.y;return;
   }
   if(p.y<arenaTop()||p.y>arenaBottom()){handleTap(p.x,p.y);return}
   drawing=true;preview={x1:p.x,y1:p.y,x2:p.x,y2:p.y};c.setPointerCapture&&c.setPointerCapture(e.pointerId)
  });
  c.addEventListener("pointermove",function(e){
   var p=point(e);
-  if(drag){S.buyPanelOffset=Math.max(0,Math.min(320, S.buyPanelOffset+(off.y-p.y)));off.y=p.y;render();return}
+  if(drag){S.buyPanelOffset=Math.max(0,Math.min(400, S.buyPanelOffset+(off.y-p.y)));off.y=p.y;render();return}
   if(!drawing)return;preview.x2=p.x;preview.y2=p.y
  });
  c.addEventListener("pointerup",function(){if(drag){drag=false;save();return}});
