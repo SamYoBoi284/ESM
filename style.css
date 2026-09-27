@@ -6621,3 +6621,81 @@ label.settingsLabel[for] {
         min-width:54px;
     }
 }
+
+/* ===========================================
+   BOUNCE//CORE PC — embedded ESM module
+   =========================================== */
+.bounceCoreWindow{
+    --bounce-ui-scale:1;
+    position:fixed;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:min(900px,78vw);
+    height:min(680px,78vh);
+    min-width:520px;
+    min-height:390px;
+    max-width:calc(100vw - 24px);
+    max-height:calc(100vh - 24px);
+    z-index:10060;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    resize:both;
+    background:#0b0a11;
+    color:#f5f1ff;
+    border:1px solid rgba(138,92,246,.48);
+    border-radius:14px;
+    box-shadow:0 24px 70px rgba(0,0,0,.58),0 0 34px rgba(138,92,246,.14);
+}
+.bounceCoreWindow.hidden{display:none!important}
+.bounceCoreHeader{
+    flex:0 0 48px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 9px 0 14px;
+    background:linear-gradient(90deg,#161221,#100e18);
+    border-bottom:1px solid rgba(255,255,255,.08);
+    cursor:move;
+    user-select:none;
+}
+.bounceCoreIdentity{display:flex;align-items:center;gap:10px;min-width:0}
+.bounceCoreIcon{font-size:22px;color:#b98cff;text-shadow:0 0 14px #8a5cf6}
+.bounceCoreIdentity strong{display:block;font-size:13px;letter-spacing:.12em}
+.bounceCoreIdentity small{display:block;color:#8f879f;font-size:10px;margin-top:2px}
+.bounceCoreWindowControls{display:flex;gap:3px}
+.bounceCoreWindowControls button{
+    width:28px;height:26px;padding:0;margin:0;border-radius:7px;background:transparent;color:#bdb5cb;
+    font-size:17px;line-height:26px;transform:none;
+}
+.bounceCoreWindowControls button:hover{background:#27212f;color:#fff;transform:none}
+.bounceCoreToolbar{
+    flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 10px;
+    background:#100e16;border-bottom:1px solid rgba(255,255,255,.06)
+}
+.bounceCoreStats{display:flex;gap:8px;flex:1;overflow:auto;white-space:nowrap}
+.bounceCoreStats span{
+    padding:5px 8px;border-radius:7px;background:#181420;color:#9f97aa;font-size:10px
+}
+.bounceCoreStats b{color:#e7ddf5;margin-left:3px}
+.bounceCoreOptionsBtn{width:auto;padding:7px 10px;margin:0;font-size:11px}
+.bounceCoreOptions{
+    display:flex;align-items:center;gap:14px;padding:8px 10px;background:#15121d;
+    border-bottom:1px solid rgba(255,255,255,.06);font-size:11px
+}
+.bounceCoreOptions.hidden{display:none}
+.bounceCoreOptions label{margin:0;display:flex;align-items:center;gap:7px;color:#aaa0b8}
+.bounceCoreOptions input{margin:0;width:auto;padding:0;background:transparent;box-shadow:none}
+#bounceCoreScale{width:100px}
+.bounceCoreOptions button{width:auto;padding:6px 9px;margin-left:auto;font-size:10px}
+.bounceCoreStage{position:relative;flex:1;min-height:0;padding:8px;background:#08070d}
+#bounceCoreCanvas{display:block;width:100%;height:100%;touch-action:none;border:1px solid rgba(138,92,246,.15);border-radius:9px}
+.bounceCoreHint{
+    position:absolute;left:18px;bottom:16px;padding:5px 8px;border-radius:7px;
+    background:rgba(8,7,13,.72);color:#81778d;font-size:10px;pointer-events:none
+}
+@media(max-width:800px){
+    .bounceCoreWindow{min-width:360px;width:92vw;height:78vh}
+    .bounceCoreStats span:nth-child(n+5){display:none}
+}
