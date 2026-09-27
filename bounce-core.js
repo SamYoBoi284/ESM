@@ -241,7 +241,7 @@ function drawBottom(x){
  var gap=u(10),left=u(22),cardW=(w-u(44)-gap*2)/3;
  drawStat(x,left,y+u(12),cardW,"●","BALLS",S.maxBalls+" / 50",S.maxBalls>=50?"MAX":"+"+fmt(costBalls())+" per");
  drawStat(x,left+cardW+gap,y+u(12),cardW,"╱","LINES",S.maxLines+" / 10",S.maxLines>=10?"MAX":"+"+fmt(costLines())+" per");
- drawStat(x,left+(cardW+gap)*2,y+u(12),cardW,"★","MULTIPLIER",S.multiplier+"×","| Buy +1");
+ drawStat(x,left+(cardW+gap)*2,y+u(12),cardW,"★","MULTIPLIER",S.multiplier+"×",S.multiplier>=1000?"MAX":"| Buy +1");
  var lowerY=y+u(142),lowerW=(w-u(44)-gap)/2;
  drawStat(x,left,lowerY,lowerW,"✦","CRIT",S.crit+"% / 70%",S.crit>=70?"MAX":"| Buy +5%");
  drawStat(x,left+lowerW+gap,lowerY,lowerW,"♛","PRESTIGE","✦ "+fmt(S.shards),"| +"+prestigeGain()+" next");
