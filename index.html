@@ -2608,6 +2608,46 @@ media-src 'self';">
 </div>
 
 <!-- ================================= -->
+<!-- BOUNCE//CORE PC — EMBEDDED SECRET MODULE -->
+<!-- ================================= -->
+<div id="bounceCoreWindow" class="bounceCoreWindow hidden" aria-hidden="true">
+    <header id="bounceCoreHeader" class="bounceCoreHeader">
+        <div class="bounceCoreIdentity">
+            <span class="bounceCoreIcon">◈</span>
+            <div>
+                <strong>BOUNCE//CORE</strong>
+                <small>PC • ESM Embedded Module</small>
+            </div>
+        </div>
+        <div class="bounceCoreWindowControls">
+            <button id="bounceCoreHideBtn" type="button" title="Hide — keep running">−</button>
+            <button id="bounceCoreCloseBtn" type="button" title="Close — save state">×</button>
+        </div>
+    </header>
+    <div class="bounceCoreToolbar">
+        <div class="bounceCoreStats">
+            <span>Score <b id="bounceCoreScore">0</b></span>
+            <span>Multiplier <b id="bounceCoreMultiplier">1.00×</b></span>
+            <span>Balls <b id="bounceCoreBalls">1/50</b></span>
+            <span>Crit <b id="bounceCoreCrit">10%</b></span>
+            <span>Lines <b id="bounceCoreLines">0/10</b></span>
+            <span>Skin <b id="bounceCoreSkin">Obsidian Core</b></span>
+        </div>
+        <button id="bounceCoreOptionsBtn" class="bounceCoreOptionsBtn" type="button">⚙ Options</button>
+    </div>
+    <div id="bounceCoreOptions" class="bounceCoreOptions hidden">
+        <label>Line color <input id="bounceCoreLineColor" type="color" value="#8a5cf6"></label>
+        <label>UI scale <input id="bounceCoreScale" type="range" min=".8" max="1.2" step=".05" value="1"></label>
+        <span>Prestige progress: <b id="bounceCorePrestige">0</b></span>
+        <button id="bounceCoreResetBtn" type="button">Reset PC progress</button>
+    </div>
+    <div class="bounceCoreStage">
+        <canvas id="bounceCoreCanvas"></canvas>
+        <div class="bounceCoreHint">Click + drag to draw a line • Max 10 active lines • Sidewalls are always active</div>
+    </div>
+</div>
+
+<!-- ================================= -->
 <!-- LOAD MODAL (Add + Edit, V51) -->
 <!-- ================================= -->
 
