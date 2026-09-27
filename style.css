@@ -6699,3 +6699,9 @@ label.settingsLabel[for] {
     .bounceCoreWindow{min-width:360px;width:92vw;height:78vh}
     .bounceCoreStats span:nth-child(n+5){display:none}
 }
+
+/* Bounce//Core Android-parity PC canvas */
+.bounceCoreWindow{min-width:720px;min-height:620px;width:900px;height:820px;background:#070911;border:1px solid rgba(105,230,255,.18);box-shadow:0 24px 80px rgba(0,0,0,.55),0 0 32px rgba(105,230,255,.08)}
+.bounceCoreStage{position:relative;flex:1;min-height:0;padding:0;background:#070911;overflow:hidden}
+#bounceCoreCanvas{display:block;width:100%;height:100%;touch-action:none;border:0;border-radius:0;background:#070911}
+@media (max-width:900px){.bounceCoreWindow{min-width:360px;width:94vw;height:88vh}}
