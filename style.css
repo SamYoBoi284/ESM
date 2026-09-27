@@ -6286,3 +6286,23 @@ label.settingsLabel[for] {
 .screenTransitionDownIn{animation-name:esmScreenDownIn}
 @keyframes esmScreenDownOut{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:.98}}
 @keyframes esmScreenDownIn{from{transform:translateY(-100%);opacity:.98}to{transform:translateY(0);opacity:1}}
+
+/* ESM AI-looking Assistant + Mass Import */
+.esmAssistantModalBox{width:min(760px,92vw)}
+.esmAssistantInput{min-height:180px;resize:vertical}
+.esmAssistantHint{opacity:.75;font-size:.9rem}
+.esmAssistantResponse{min-height:2.5rem;white-space:pre-wrap;margin:.75rem 0}
+#loadModal .modalBox.massImportMode{width:min(1600px,96vw);max-width:min(1600px,96vw)}
+#loadModal .modalBox.massImportMode>*:not(#loadModalTitle):not(h3):not(hr):not(#loadModalBatchBody){display:none}
+#loadModalBatchBody{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
+#loadModalBatchBody.hidden{display:none}
+.esmBatchCard{min-width:0;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;background:rgba(0,0,0,.12)}
+.esmBatchCard.confirmed{border-color:rgba(80,220,120,.65)}
+.esmBatchCardHeader{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}
+.esmBatchCard label{display:block;margin:8px 0;font-size:.86rem}
+.esmBatchCard input,.esmBatchCard select{width:100%;box-sizing:border-box;margin-top:4px}
+.esmBatchStops{margin:10px 0;font-size:.88rem}
+.esmBatchConfirm{width:100%;margin-top:8px}
+.esmBatchFooter{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px}
+@media(max-width:1100px){#loadModal .modalBox.massImportMode{width:96vw}#loadModalBatchBody{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){#loadModalBatchBody{grid-template-columns:1fr}}
