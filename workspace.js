@@ -2698,6 +2698,9 @@ function closeLoadModal() {
     loadModalEditingId = null;
     loadModalStops = [];
     loadModalVridTypeManualOverride = false;
+    document.querySelector("#loadModal .modalBox")?.classList.remove("massImportMode");
+    document.getElementById("loadModalBatchBody")?.classList.add("hidden");
+    if (loadModalUI.title) loadModalUI.title.textContent = "📦 Add Load";
 }
 
 function clearLoadModalErrors() {
