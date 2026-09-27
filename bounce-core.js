@@ -9,7 +9,7 @@ var SKIN_MILESTONES=[1000,5000,10000,20000,35000,40000,50000,75000,100000];
 var SKIN_NAMES=["Heavy Ball","Glitch Ball","Among Us","Octane","Ice Cube","Rock","Bomb","ESM Core","Black Hole"];
 
 function $(id){return document.getElementById(id)}
-function fresh(){return{score:0,runBest:0,multiplier:1,maxBalls:1,maxLines:1,crit:0,shards:0,prestigeLevel:0,uiScale:1.25,ballColor:"#ffa63a",selectedSkin:0,lines:[],balls:[],popups:[],optionsOpen:false}}
+function fresh(){return{score:0,runBest:0,multiplier:1,maxBalls:1,maxLines:1,crit:0,shards:0,prestigeLevel:0,uiScale:1.25,ballColor:"#ffa63a",selectedSkin:0,lines:[],balls:[],popups:[],optionsOpen:false,buyPanelOffset:0}}
 function load(){
  try{
   var x=JSON.parse(localStorage.getItem(KEY)||"null"); x=Object.assign(fresh(),x||{});
@@ -21,12 +21,44 @@ function load(){
   x.shards=Math.max(0,+x.shards||0);
   x.uiScale=[.95,1.25,1.45].reduce(function(a,v){return Math.abs(v-x.uiScale)<Math.abs(a-x.uiScale)?v:a},1.25);
   x.lines=Array.isArray(x.lines)?x.lines.slice(-10):[];
-  x.balls=Array.isArray(x.balls)?x.balls:[]; x.popups=[]; x.optionsOpen=false; 
+  x.balls=Array.isArray(x.balls)?x.balls:[]; x.popups=[]; x.optionsOpen=false; x.buyPanelOffset=0; 
   if(x.selectedSkin>0&&!isSkinUnlocked(x.selectedSkin-1,x))x.selectedSkin=0;
   return x;
  }catch(e){return fresh()}
 }
 function save(){if(S)try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function exportSaveFile(){
+ var d={score:S.score,runBest:S.runBest,multiplier:S.multiplier,maxBalls:S.maxBalls,maxLines:S.maxLines,crit:S.crit,shards:S.shards,prestigeLevel:S.prestigeLevel,uiScale:S.uiScale,ballColor:S.ballColor,selectedSkin:S.selectedSkin};
+ var blob=new Blob([JSON.stringify({format:"bounce-core-save",version:1,data:d},null,2)],{type:"application/json"});
+ var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="bounce-core-save.json";document.body.appendChild(a);a.click();a.remove();
+ setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+}
+function importSaveFile(){
+ var input=document.createElement("input");input.type="file";input.accept=".json,application/json";
+ input.onchange=function(){
+  var file=input.files&&input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(){
+   try{
+    var root=JSON.parse(reader.result);
+    if(root.format!=="bounce-core-save"||root.version!==1||!root.data)throw new Error("format");
+    var d=root.data;
+    S.score=Math.max(0,Number(d.score)||0);S.runBest=Math.max(0,Number(d.runBest)||0);
+    S.multiplier=Math.max(1,Math.min(1000,Math.floor(Number(d.multiplier)||1)));
+    S.maxBalls=Math.max(1,Math.min(50,Math.floor(Number(d.maxBalls)||1)));
+    S.maxLines=Math.max(1,Math.min(10,Math.floor(Number(d.maxLines)||1)));
+    S.crit=Math.max(0,Math.min(70,Math.floor(Number(d.crit)||0)));
+    S.shards=Math.max(0,Number(d.shards)||0);S.prestigeLevel=Math.max(0,Number(d.prestigeLevel)||0);
+    S.uiScale=[.95,1.25,1.45].reduce(function(a,v){return Math.abs(v-(Number(d.uiScale)||1.25))<Math.abs(a-(Number(d.uiScale)||1.25))?v:a},1.25);
+    S.ballColor=typeof d.ballColor==="string"?d.ballColor:"#ffa63a";S.selectedSkin=Math.max(0,Math.floor(Number(d.selectedSkin)||0));
+    if(S.selectedSkin>0&&!isSkinUnlocked(S.selectedSkin-1))S.selectedSkin=0;
+    S.lines=[];S.balls=[];S.popups=[];S.buyPanelOffset=0;spawnBall(0);save();size();render();
+   }catch(e){window.alert("That file is not a valid Bounce//Core save.");}
+  };
+  reader.readAsText(file);
+ };
+ input.click();
+}
 function canvas(){return $("bounceCoreCanvas")}
 function contentHeight(){var c=canvas();return c?c.clientHeight:700}
 function u(v){return v*(S?S.uiScale:1.25)}
