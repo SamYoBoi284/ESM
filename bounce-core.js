@@ -254,7 +254,7 @@ function drawPopups(x){
 }
 function drawOptionsPanel(x){
  if(!S.optionsOpen)return;
- var w=canvas().clientWidth,panelW=Math.min(u(410),w-u(24)),px=w-panelW-u(12),py=arenaTop()+u(8),h=u(650);
+ var w=canvas().clientWidth,panelW=Math.min(u(410),w-u(24)),px=w-panelW-u(12),py=arenaTop()+u(8),h=u(740);
  round(x,px,py,px+panelW,py+h,u(16),"#04111f");strokeRound(x,px,py,px+panelW,py+h,u(16),"#69e6ff",u(2));
  text(x,"⚙",px+u(28),py+u(48),u(28),"#69e6ff","center",true);
  text(x,"OPTIONS",px+u(70),py+u(48),u(25),"#fff","left",true);
@@ -266,9 +266,14 @@ function drawOptionsPanel(x){
  text(x,"BALL SKINS  •  "+unlockedSkinCount()+"/"+SKIN_NAMES.length+" UNLOCKED",px+u(22),py+u(310),u(16),"#69e6ff","left",true);
  var sw=u(86),sh=u(54),skinSx=px+u(20),skinSy=py+u(332);
  for(var i=0;i<SKIN_NAMES.length;i++){var bx=skinSx+(i%3)*u(126),by=skinSy+Math.floor(i/3)*u(62),un=isSkinUnlocked(i);round(x,bx,by,bx+sw,by+sh,u(10),"#05192c");strokeRound(x,bx,by,bx+sw,by+sh,u(10),un&&S.selectedSkin===i+1?"#69e6ff":"#007dd1",u(2));text(x,un?SKIN_NAMES[i]:"LOCKED",bx+sw/2,by+u(22),u(11),un?"#fff":"#5a6478","center",true);text(x,un?"✓":"✦ "+fmt(SKIN_MILESTONES[i]),bx+sw/2,by+u(42),u(9),un?"#69e6ff":"#788296","center",true)}
- text(x,"UI SCALE",px+u(22),py+u(545),u(18),"#69e6ff","left",true);
+ text(x,"SAVE TRANSFER",px+u(22),py+u(545),u(16),"#69e6ff","left",true);
+ round(x,px+u(20),py+u(555),px+u(190),py+u(605),u(10),"#05192c");
+ round(x,px+u(200),py+u(555),px+u(370),py+u(605),u(10),"#05192c");
+ text(x,"EXPORT SAVE",px+u(105),py+u(587),u(13),"#fff","center",true);
+ text(x,"IMPORT SAVE",px+u(285),py+u(587),u(13),"#fff","center",true);
+ text(x,"UI SCALE",px+u(22),py+u(635),u(16),"#69e6ff","left",true);
  var names=["Small","Normal","Large"],vals=[.95,1.25,1.45],bw=(panelW-u(60))/3;
- for(var j=0;j<3;j++){var bx2=px+u(20)+j*bw+u(7)*j;round(x,bx2,py+u(565),bx2+bw-u(7),py+u(617),u(10),"#05192c");strokeRound(x,bx2,py+u(565),bx2+bw-u(7),py+u(617),u(10),Math.abs(S.uiScale-vals[j])<.01?"#69e6ff":"#007dd1",u(2));text(x,names[j],bx2+(bw-u(7))/2,py+u(599),u(15),"#fff","center",true)}
+ for(var j=0;j<3;j++){var bx2=px+u(20)+j*bw+u(7)*j;round(x,bx2,py+u(655),bx2+bw-u(7),py+u(707),u(10),"#05192c");strokeRound(x,bx2,py+u(565),bx2+bw-u(7),py+u(617),u(10),Math.abs(S.uiScale-vals[j])<.01?"#69e6ff":"#007dd1",u(2));text(x,names[j],bx2+(bw-u(7))/2,py+u(689),u(15),"#fff","center",true)}
 }
 function render(){
  var c=canvas();if(!c||!S)return;
@@ -324,7 +329,11 @@ function handleTap(x,y){
 }
 function handleOptionsTap(x,y){
  var w=canvas().clientWidth,panelW=Math.min(u(410),w-u(24)),px=w-panelW-u(12),py=arenaTop()+u(8);
- if(x<px||x>px+panelW||y<py||y>py+u(650)){S.optionsOpen=false;return}
+ if(x<px||x>px+panelW||y<py||y>py+u(740)){S.optionsOpen=false;return}
+ if(y>py+u(545)&&y<py+u(615)){
+  if(x>=px+u(20)&&x<=px+u(190)){exportSaveFile();return}
+  if(x>=px+u(200)&&x<=px+u(370)){importSaveFile();return}
+ }
  if(y>py+u(85)&&y<py+u(290)){
   var colors=["#f54646","#ffa63a","#ffdc46","#46dc6e","#46dcff","#4678ff","#af5fff","#ff5abf"],sx=px+u(40),sy=py+u(135);
   for(var i=0;i<8;i++){var cx=sx+(i%4)*u(78),cy=sy+Math.floor(i/4)*u(78);if(Math.hypot(x-cx,y-cy)<u(35)){S.ballColor=colors[i];save();return}}
@@ -333,7 +342,7 @@ function handleOptionsTap(x,y){
   var ssx=px+u(20),ssy=py+u(332);
   for(var j=0;j<9;j++){var bx=ssx+(j%3)*u(126),by=ssy+Math.floor(j/3)*u(62);if(x>=bx&&x<=bx+u(86)&&y>=by&&y<=by+u(54)&&isSkinUnlocked(j)){S.selectedSkin=j+1;save();return}}
  }
- if(y>py+u(545)&&y<py+u(635)){
+ if(y>py+u(625)&&y<py+u(725)){
   var bw=(panelW-u(60))/3;
   for(var k=0;k<3;k++){var bx2=px+u(20)+k*bw+u(7)*k;if(x>=bx2&&x<=bx2+bw-u(7)){S.uiScale=[.95,1.25,1.45][k];size();save();return}}
  }
