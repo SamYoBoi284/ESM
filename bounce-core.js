@@ -44,7 +44,7 @@ function importSaveFile(){
     if(root.format!=="bounce-core-save"||root.version!==1||!root.data)throw new Error("format");
     var d=root.data;
     S.score=Math.max(0,Number(d.score)||0);S.runBest=Math.max(0,Number(d.runBest)||0);
-    S.multiplier=Math.max(1,Math.min(1000,Math.floor(Number(d.multiplier)||1)));
+    S.multiplier=Math.max(1,Math.floor(Number(d.multiplier)||1));
     S.maxBalls=Math.max(1,Math.min(50,Math.floor(Number(d.maxBalls)||1)));
     S.maxLines=Math.max(1,Math.min(10,Math.floor(Number(d.maxLines)||1)));
     S.crit=Math.max(0,Math.min(70,Math.floor(Number(d.crit)||0)));
@@ -241,7 +241,7 @@ function drawBottom(x){
  var gap=u(10),left=u(22),cardW=(w-u(44)-gap*2)/3;
  drawStat(x,left,y+u(12),cardW,"●","BALLS",S.maxBalls+" / 50",S.maxBalls>=50?"MAX":"+"+fmt(costBalls())+" per");
  drawStat(x,left+cardW+gap,y+u(12),cardW,"╱","LINES",S.maxLines+" / 10",S.maxLines>=10?"MAX":"+"+fmt(costLines())+" per");
- drawStat(x,left+(cardW+gap)*2,y+u(12),cardW,"★","MULTIPLIER",S.multiplier+"×",S.multiplier>=1000?"MAX":"| Buy +1");
+ drawStat(x,left+(cardW+gap)*2,y+u(12),cardW,"★","MULTIPLIER",S.multiplier+"×","| Buy +1");
  var lowerY=y+u(142),lowerW=(w-u(44)-gap)/2;
  drawStat(x,left,lowerY,lowerW,"✦","CRIT",S.crit+"% / 70%",S.crit>=70?"MAX":"| Buy +5%");
  drawStat(x,left+lowerW+gap,lowerY,lowerW,"♛","PRESTIGE","✦ "+fmt(S.shards),"| +"+prestigeGain()+" next");
@@ -330,11 +330,11 @@ function stop(){running=false;if(raf)cancelAnimationFrame(raf);raf=0}
 
 function maxAffordableBalls(){var n=0,f=S.score;while(n<50-S.maxBalls){var c=250*Math.pow(1.42,S.maxBalls+n-1);if(f<c)break;f-=c;n++}return n}
 function maxAffordableLines(){var n=0,f=S.score;while(n<10-S.maxLines){var c=500*Math.pow(1.85,S.maxLines+n-1);if(f<c)break;f-=c;n++}return n}
-function maxAffordableMultiplier(){var n=0,f=S.score;while(n<1000-S.multiplier){var c=Math.max(8,12*Math.pow(1.012,S.multiplier+n-1));if(f<c)break;f-=c;n++}return n}
+function maxAffordableMultiplier(){var n=0,f=S.score;while(true){var c=Math.max(8,12*Math.pow(1.012,S.multiplier+n-1));if(f<c)break;f-=c;n++}return n}
 function maxAffordableCrit(){var n=0,f=S.score;while(n<(70-S.crit)/5){var c=900*Math.pow(1.55,(S.crit+n*5)/5);if(f<c)break;f-=c;n++}return n}
 function buyBallsN(n){for(var i=0;i<n&&S.maxBalls<50;i++){var c=costBalls();if(S.score<c)break;S.score-=c;S.maxBalls++;spawnBall(Math.random())}save();render()}
 function buyLinesN(n){for(var i=0;i<n&&S.maxLines<10;i++){var c=costLines();if(S.score<c)break;S.score-=c;S.maxLines++}save();render()}
-function buyMultiplierN(n){for(var i=0;i<n&&S.multiplier<1000;i++){var c=costMultiplier();if(S.score<c)break;S.score-=c;S.multiplier++}save();render()}
+function buyMultiplierN(n){for(var i=0;i<n;i++){var c=costMultiplier();if(S.score<c)break;S.score-=c;S.multiplier++}save();render()}
 function buyCritN(n){for(var i=0;i<n&&S.crit<70;i++){var c=costCrit();if(S.score<c)break;S.score-=c;S.crit=Math.min(70,S.crit+5)}save();render()}
 function bulkBuy(type,amount){
  if(type===0)buyBallsN(amount===Infinity?maxAffordableBalls():amount);
