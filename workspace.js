@@ -1537,7 +1537,7 @@ function saveLoad(load) {
     // just never arrived. Booking a load is the one write that other
     // screens' live listeners depend on seeing immediately, so it goes
     // straight to Firestore now instead of waiting its turn. ----
-    saveLoadDirect(uid, load).catch(err => {
+    return saveLoadDirect(uid, load).catch(err => {
         console.error("saveLoad: direct Firestore write failed:", err);
         window.showToast?.(
             window.I18N ? window.I18N.t("workspace.loadSaveFailed") : "Failed to save load — check your connection.",
