@@ -87,7 +87,24 @@ input.disabled=!dept.value;
 input.placeholder=dept.value?"Select driver...":"Select department first...";
 input.addEventListener("focus",function(){renderBatchDriverOptions(card);list.classList.remove("hidden");input.setAttribute("aria-expanded","true");});
 input.addEventListener("input",function(){renderBatchDriverOptions(card);list.classList.remove("hidden");input.setAttribute("aria-expanded","true");});
-input.addEventListener("keydown",function(e){if(e.key==="Escape"){list.classList.add("hidden");input.setAttribute("aria-expanded","false");}});
+input.addEventListener("keydown",function(e){
+if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+e.preventDefault();
+var opts=Array.from(list.querySelectorAll(".driverComboboxOption"));
+if(list.classList.contains("hidden")){renderBatchDriverOptions(card);list.classList.remove("hidden");input.setAttribute("aria-expanded","true");opts=Array.from(list.querySelectorAll(".driverComboboxOption"));}
+if(opts.length){
+var active=opts.findIndex(function(o){return o.classList.contains("isHighlighted");});
+active=e.key==="ArrowDown"?Math.min(active+1,opts.length-1):Math.max(active-1,0);
+opts.forEach(function(o){o.classList.remove("isHighlighted");});
+opts[active].classList.add("isHighlighted");
+}
+}else if(e.key==="Enter"){
+var highlighted=list.querySelector(".driverComboboxOption.isHighlighted");
+if(highlighted){e.preventDefault();input.value=highlighted.dataset.value;list.classList.add("hidden");input.setAttribute("aria-expanded","false");}
+}else if(e.key==="Escape"){
+if(!list.classList.contains("hidden")){e.preventDefault();list.classList.add("hidden");input.setAttribute("aria-expanded","false");}
+}
+});
 dept.addEventListener("change",function(){
 input.value="";
 input.disabled=!dept.value;
@@ -117,7 +134,7 @@ body.appendChild(c);
 
 var dept=c.querySelector(".esmBatchDepartment");
 if(l.division&&window.LOAD_DEPARTMENTS?.includes(l.division))dept.value=l.division;else dept.value="STS";
-bindBatchDriver(c,l.driver||"");
+var batchDrivers=getBatchDrivers(dept.value);var initialDriver=(l.driver&&batchDrivers.some(function(n){return String(n).toLowerCase()===String(l.driver).toLowerCase();}))?l.driver:"";bindBatchDriver(c,initialDriver);
 
 c.querySelector(".esmBatchConfirm").onclick=function(){read(i);batch[i]._confirmed=!batch[i]._confirmed;paint(i);};
 c.querySelectorAll("input,select").forEach(function(e){e.addEventListener("input",function(){batch[i]._confirmed=false;paint(i);});e.addEventListener("change",function(){batch[i]._confirmed=false;paint(i);});});
@@ -166,7 +183,7 @@ if(!batch.length||batch.some(function(x){return !x._confirmed;}))return;
 var seen={};
 for(var i=0;i<batch.length;i++){
 var l=batch[i];
-if(!l.vrid||seen[l.vrid.toUpperCase()]||!l.date||!l.division||!l.price||Number(l.price)<=0||(l.vridType!=="Trip"&&(!l.from||!l.to))){
+if(!l.vrid||seen[l.vrid.toUpperCase()]||!l.date||!l.division||!l.price||Number(l.price)<=0||(l.vridType!=="Trip"&&(!l.from||!l.to))||(l.driver&&!getBatchDrivers(l.division).some(function(n){return String(n).toLowerCase()===String(l.driver).toLowerCase();}))){
 alert("Complete required fields and make sure every VRID is unique.");return;
 }
 seen[l.vrid.toUpperCase()]=1;
