@@ -2547,20 +2547,25 @@ function bindLoadModalRelayImport() {
             return;
         }
 
-        // Trip blobs (2+ route lines) are tried first — a single-load
-        // blob only ever has one route line, so this never misfires on
-        // the existing single-load format below.
+        // Manual clipboard import must use the exact same horizontal
+        // confirmation workspace as the Assistant when the clipboard
+        // contains multiple Relay loads. Previously only the Assistant
+        // path called openBatch(), so pasting the same block manually
+        // fell back to the single-load modal.
+        const assistantParsed = window.ESMAssistant?.parse?.(text);
+        if (assistantParsed?.kind === "mass" && assistantParsed.loads?.length > 1) {
+            closeLoadModal();
+            window.ESMAssistant.openBatch(assistantParsed.loads, "mass");
+            return;
+        }
+
+        // Trip blobs are still handled by the dedicated Trip parser.
         const trip = parseRelayClipboardTrip(text);
         if (trip) {
             if (trip.tripId && loadModalUI.vridNumber) {
                 loadModalUI.vridNumber.value = trip.tripId;
                 loadModalUI.vridNumber.dispatchEvent(new Event("input"));
             }
-            // Force VRID Type to Trip (and reveal the stops list) here
-            // explicitly rather than relying on detectVridTypeFromNumber
-            // picking it up from the "T-" prefix — a Trip ID that
-            // doesn't start with "T-" would otherwise leave the modal
-            // showing From/To instead of the stops it just filled.
             if (loadModalUI.vridType) {
                 loadModalUI.vridType.value = "Trip";
                 onLoadModalVridTypeChange();
@@ -2572,13 +2577,7 @@ function bindLoadModalRelayImport() {
             if (trip.price && loadModalUI.price) loadModalUI.price.value = trip.price;
             if (trip.pricePerMile && loadModalUI.pricePerMile) loadModalUI.pricePerMile.value = trip.pricePerMile;
             if (trip.bookedBy) setBookedBySelection(trip.bookedBy);
-
-            // Roadmap: a Trip import auto-enables "Show these stops in
-            // the End-of-Shift Report" — a Trip's report line is always
-            // meant to show its stop chain, not a blank From/To, so
-            // there's no reason to leave this off after an auto-fill.
             if (loadModalUI.includeStopsToggle) loadModalUI.includeStopsToggle.checked = true;
-
             return;
         }
 
@@ -2592,7 +2591,6 @@ function bindLoadModalRelayImport() {
 
         if (parsed.loadId && loadModalUI.vridNumber) {
             loadModalUI.vridNumber.value = parsed.loadId;
-            // Keep the existing VRID-type auto-detect (bindLoadModalVridAutoDetect) in sync.
             loadModalUI.vridNumber.dispatchEvent(new Event("input"));
         }
         if (parsed.from && loadModalUI.from) loadModalUI.from.value = parsed.from;
@@ -2611,7 +2609,6 @@ function bindLoadModalRelayImport() {
         if (parsed.bookedBy) setBookedBySelection(parsed.bookedBy);
     });
 }
-
 
 
 function openLoadModal(load) {
