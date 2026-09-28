@@ -8,7 +8,33 @@ function isTrip(x){return /^T-[A-Z0-9]+$/i.test(String(x||"").trim());}
 function isLoad(x){var s=String(x||"").trim();return !!s&&!isTrip(s)&&!isEmp(s)&&/^[A-Z0-9][A-Z0-9_-]{6,}$/i.test(s);}
 function fac(x){var m=String(x||"").trim().match(/^([A-Z]{3}\d)\b/i);return m?m[1].toUpperCase():String(x||"").trim().split(/\s+/)[0]||"";}
 function driverFromLines(a){var x=a.find(function(v){return /^driver\s*:/i.test(String(v||""));});return x?x.replace(/^driver\s*:/i,"").trim():"";}
-function resolveDriverDept(name){name=String(name||"").trim();if(!name)return{driver:"",department:""};var all=window.DriverLists&&window.DriverLists.getAll?window.DriverLists.getAll():window.DRIVER_LISTS||{};var matches=[];Object.keys(all||{}).forEach(function(dept){(all[dept]||[]).forEach(function(v){if(String(v).trim().toLowerCase()===name.toLowerCase())matches.push({driver:v,department:dept});});});return matches.length===1?matches[0]:{driver:name,department:matches.length>1?"":""};}
+function fuzzyNameNorm(v){return String(v||"").toLowerCase().replace(/[^a-z0-9]+/g,"").trim();}
+function fuzzyEdit(a,b){var m=a.length,n=b.length;if(!m)return n;if(!n)return m;var p=Array(n+1),q=Array(n+1),i,j;for(j=0;j<=n;j++)p[j]=j;for(i=1;i<=m;i++){q[0]=i;for(j=1;j<=n;j++)q[j]=Math.min(q[j-1]+1,p[j]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));var z=p;p=q;q=z;}return p[n];}
+function resolveDriverDept(name){
+name=String(name||"").trim();
+if(!name)return{driver:"",department:""};
+var all=window.DriverLists&&window.DriverLists.getAll?window.DriverLists.getAll():window.DRIVER_LISTS||{};
+var q=fuzzyNameNorm(name),candidates=[];
+Object.keys(all||{}).forEach(function(dept){(all[dept]||[]).forEach(function(v){
+var raw=String(v||"").trim(),n=fuzzyNameNorm(raw);if(!n)return;
+var score=0;
+if(n===q)score=1.0;
+else if(n.indexOf(q)>=0||q.indexOf(n)>=0)score=.94;
+else {
+var d=fuzzyEdit(q,n),mx=Math.max(q.length,n.length);score=mx?1-d/mx:0;
+}
+// Favor a meaningful token/substring match so "Aljunaidi" resolves to
+// "Mohammad Al Junaidi" instead of falling back to STS.
+if(score>=.55)candidates.push({driver:raw,department:dept,score:score});
+});});
+candidates.sort(function(a,b){return b.score-a.score;});
+if(candidates.length){
+var best=candidates[0],second=candidates[1];
+// Accept the closest match when it is reasonably strong and clearly ahead.
+if(best.score>=.72 && (!second||best.score-second.score>=.04))return{driver:best.driver,department:best.department};
+}
+return{driver:name,department:""};
+}
 function parseBlock(a){var routes=a.filter(function(x){return /\s+to\s+/i.test(x);}).map(function(x){return x.split(/\s+to\s+/i).map(fac);});if(!routes.length)return null;var r=routes[0],p=a.find(function(x){return /^\$\s*[\d,]+(?:\.\d+)?\s*$/.test(x);}),pm=a.find(function(x){return /^\$?\s*[\d,]+(?:\.\d+)?\s*\/\s*mi/i.test(x);}),dr=driverFromLines(a),resolved=resolveDriverDept(dr);return{vrid:a.find(isLoad)||"",vridType:"Load",from:r[0]||"",to:r[r.length-1]||"",stops:r.length>2?r:[],price:p?(p.match(/[\d,]+(?:\.\d+)?/)||[""])[0].replace(/,/g,""):"",pricePerMile:pm?(pm.match(/[\d,]+(?:\.\d+)?/)||[""])[0].replace(/,/g,""):"",bookedBy:a.find(isEmp)||"",driver:resolved.driver,division:resolved.department};}
 function parse(t){var a=norm(t),trip=window.parseRelayClipboardTrip&&window.parseRelayClipboardTrip(t);if(trip){var td=driverFromLines(a),tr=resolveDriverDept(td);return{kind:"trip",loads:[{vrid:trip.tripId,vridType:"Trip",stops:trip.stops||[],price:trip.price||"",pricePerMile:trip.pricePerMile||"",bookedBy:trip.bookedBy||"",driver:tr.driver,division:tr.department}]};}var starts=[];a.forEach(function(x,i){if(isLoad(x))starts.push(i);});if(!starts.length&&window.parseRelayClipboard){var one=window.parseRelayClipboard(t);if(one){var od=driverFromLines(a),or=resolveDriverDept(od);return{kind:"single",loads:[{vrid:one.loadId||"",vridType:"Load",from:one.from||"",to:one.to||"",stops:one.stops||[],price:one.price||"",pricePerMile:one.pricePerMile||"",bookedBy:one.bookedBy||"",driver:or.driver,division:or.department}]};}}var out=starts.map(function(s,i){return parseBlock(a.slice(s,starts[i+1]===undefined?a.length:starts[i+1]));}).filter(Boolean);return{kind:out.length>1?"mass":"single",loads:out};}
 function openAI(){var d=$("esmAssistantDock"),p=$("esmAssistantPanel");if(!d||!p)return;d.classList.remove("hidden");p.classList.remove("hidden");var i=$("esmAssistantInput");if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
