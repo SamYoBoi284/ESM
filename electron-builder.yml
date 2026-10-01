@@ -17,8 +17,12 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
 
+# Keep node-llama-cpp's JavaScript package inside app.asar so Node's
+# package/ESM resolution can find node-llama-cpp/dist/index.js.
+# Only native .node binaries need to live outside ASAR.
 asarUnpack:
-  - "node_modules/node-llama-cpp/**/*"
+  - "**/*.node"
+
 extraResources:
   - from: "models"
     to: "models"
