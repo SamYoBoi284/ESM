@@ -665,6 +665,14 @@ app.on("window-all-closed", () => {
     }
 });
 
+// Sync AI cleanup: release any native llama.cpp resources when ESM exits,
+// even if the Sync AI panel is still open at shutdown.
+app.on("before-quit", () => {
+    syncAi.unload().catch((error) => {
+        console.warn("Sync AI shutdown cleanup failed:", error);
+    });
+});
+
 // Bridge renderer notifications into Electron's native notification API.
 ipcMain.handle("notify", async (_event, options = {}) => {
     if (!Notification.isSupported()) {

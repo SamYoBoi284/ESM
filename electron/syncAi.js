@@ -81,7 +81,7 @@ async function load() {
         llama = await getLlama({
             build: "never",
             skipDownload: true,
-            gpu: "auto"
+            gpu: false
         });
 
         model = await llama.loadModel({ modelPath });
