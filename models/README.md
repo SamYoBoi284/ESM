@@ -1,20 +1,13 @@
-# ESM Local LLM Models
+# Sync AI model
 
-This directory is for the local GGUF model used by the ESM hybrid AI experiment.
+Place the bundled Sync AI model in this directory:
 
-Recommended first model:
+`qwen2.5-0.5b-instruct-q4_k_m.gguf`
 
-- Qwen2.5-0.5B-Instruct-GGUF
-- First choice: `qwen2.5-0.5b-instruct-q4_k_m.gguf`
+ESM loads this GGUF only when the **Sync AI** panel is opened and disposes the native model/context when the panel is closed.
 
-The Q4_K_M file is about 491 MB according to the Qwen model repository. Do not upload the GGUF as a normal Git blob: GitHub rejects files over 100 MB. Use Git LFS or keep the model outside the repository and configure the local server to point at it.
+The model is intentionally tracked with Git LFS because it is a large binary. Do not upload it to the normal Git object store.
 
-Expected local filename:
+The Electron installer copies the model to its packaged `resources/models` directory so the model is delivered with ESM.
 
-`models/qwen2.5-0.5b-instruct-q4_k_m.gguf`
-
-The ESM renderer talks to a local llama.cpp OpenAI-compatible server at:
-
-`http://127.0.0.1:8080/v1`
-
-The model itself never receives ESM credentials or Firebase access. ESM sends only the current user message, short conversation history, and a small amount of visible UI context to the local server.
+The native runtime is provided by `node-llama-cpp`; ESM does not launch `llama-server.exe`, a localhost server, or a PowerShell AI process.
