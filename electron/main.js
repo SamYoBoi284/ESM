@@ -13,6 +13,7 @@ const os = require("os");
 const { app, BrowserWindow, ipcMain, Notification, Tray, Menu, shell, dialog, powerMonitor, clipboard } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const updateLogger = require("./updateLogger");
+const syncAi = require("./syncAi");
 
 let mainWindow;
 let tray = null;
@@ -791,3 +792,13 @@ ipcMain.handle("get-app-info", () => {
         userDataPath: app.getPath("userData")
     };
 });
+
+// ===========================================
+// SYNC AI — EMBEDDED LOCAL LLAMA.CPP
+// ===========================================
+// Sync AI owns the local model lifecycle. Nothing is loaded at ESM startup;
+// the renderer explicitly opens/closes the model with the assistant panel.
+ipcMain.handle("sync-ai-open", async () => syncAi.load());
+ipcMain.handle("sync-ai-close", async () => syncAi.unload());
+ipcMain.handle("sync-ai-status", async () => syncAi.status());
+ipcMain.handle("sync-ai-prompt", async (_event, payload = {}) => syncAi.prompt(payload));
