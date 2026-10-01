@@ -110,4 +110,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
         ipcRenderer.on("update-notification-clicked", handler);
         return () => ipcRenderer.removeListener("update-notification-clicked", handler);
     }
+
+    // Sync AI — embedded local llama.cpp / Qwen runtime.
+    // The model is loaded only while the Sync AI panel is open.
+    syncAiOpen: () => ipcRenderer.invoke("sync-ai-open"),
+    syncAiClose: () => ipcRenderer.invoke("sync-ai-close"),
+    syncAiStatus: () => ipcRenderer.invoke("sync-ai-status"),
+    syncAiPrompt: (payload = {}) => ipcRenderer.invoke("sync-ai-prompt", payload),
+
 });
