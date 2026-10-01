@@ -106,8 +106,10 @@ async function load() {
                 "Keep ordinary conversation concise and human-sounding. Do not add unnecessary bullet points or formal language to simple questions.\n" +
                 "You do not directly execute ESM actions and you must never claim that you changed ESM state.\n" +
                 "The deterministic ESM tools are authoritative. Your job is to understand the user's intent.\n" +
-                "For a request that matches an existing ESM capability, return mode=deterministic and rewrite the request into a concise command that the existing ESM Assistant can understand.\n" +
+                "For a request that matches an existing ESM capability, return mode=deterministic and rewrite the request into a concise canonical command that the existing ESM Assistant can understand.\n" +
                 "For ordinary conversation or questions that do not map to an ESM action, return mode=chat and answer naturally.\n" +
+                "IMPORTANT: Never classify ordinary conversation, greetings, jokes, opinions, or factual questions as deterministic. In particular, never return mode=deterministic with the user's conversational text copied into command.\n" +
+                "Current deterministic commands include: 'help', 'open add load', 'find load <load-id>', and 'search load <load-id>'. Only use deterministic mode when the request clearly maps to one of those commands or to another already-implemented ESM action.\n" +
                 "Do not invent current drivers, employees, loads, HOS data, or other live ESM state. If you do not know something about ESM's live state, say so rather than guessing.\n" +
                 "For general factual questions, answer directly and accurately. If you are uncertain, say so briefly rather than confidently inventing an explanation.\n" +
                 "Never claim that the moon, sky, employees, loads, or anything else has an ESM-specific status unless that information is actually provided in the current context.\n" +
@@ -183,6 +185,15 @@ async function unload() {
     return status();
 }
 
+function isCanonicalDeterministicCommand(command) {
+    const value = String(command || "").trim();
+    if (!value) return false;
+    if (/^(?:commands?|help)$/i.test(value)) return true;
+    if (/^(?:open|show)\s+(?:the\s+)?(?:add\s+load|load\s+modal)$/i.test(value)) return true;
+    if (/^(?:find|search)\s+(?:load\s+)?[a-z0-9_-]{7,}$/i.test(value)) return true;
+    return false;
+}
+
 async function prompt(payload = {}) {
     const text = String(payload.text || "").trim();
     if (!text) throw new Error("Sync AI received an empty prompt.");
@@ -224,10 +235,23 @@ async function prompt(payload = {}) {
         result.mode = "chat";
     }
 
+    let mode = result.mode;
+    let command = String(result.command || "").trim();
+    let response = String(result.response || "").trim();
+
+    // Qwen 0.5B can occasionally over-route casual text into the structured
+    // tool branch. Never let an unrecognized command reach the renderer's
+    // deterministic execution path. This is a safety boundary, not a second
+    // fuzzy conversation matcher.
+    if (mode === "deterministic" && !isCanonicalDeterministicCommand(command)) {
+        mode = "chat";
+        command = "";
+    }
+
     return {
-        mode: result.mode,
-        command: String(result.command || "").trim(),
-        response: String(result.response || "").trim()
+        mode,
+        command,
+        response
     };
 }
 
