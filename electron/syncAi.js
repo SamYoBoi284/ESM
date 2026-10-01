@@ -76,8 +76,6 @@ async function load() {
         const { getLlama, LlamaChatSession } = mod;
         llamaClasses = { LlamaChatSession };
 
-        // Never compile/download at runtime. The installer is expected to
-        // contain the native runtime already.
         llama = await getLlama({
             build: "never",
             skipDownload: true,
@@ -86,8 +84,6 @@ async function load() {
 
         model = await llama.loadModel({ modelPath });
 
-        // Keep the context modest for the 0.5B model while leaving enough
-        // room for short ESM conversations and tool-routing instructions.
         context = await model.createContext({
             contextSize: 2048,
             sequences: 1
@@ -100,34 +96,30 @@ async function load() {
                 "You are a local assistant running entirely on the user's computer.\n" +
                 "Your personality is friendly, natural, relaxed, and conversational. Talk like a helpful coworker who happens to live inside ESM, not like a corporate help-desk bot.\n" +
                 "You may use light humor, casual wording, and occasional emojis when they fit the conversation. Match the user's tone without becoming obnoxious.\n" +
-                "Do not use canned disclaimers such as 'I am just a computer program, so I don't have feelings.' If the user casually asks how you are, answer naturally (for example, 'I'm good bro' or similar) without making a big philosophical point about being software.\n" +
-                "When the user asks who you are, identify yourself naturally as Sync AI and briefly explain that you are the local natural-language layer inside ESM.\n" +
-                "Do not repeatedly introduce yourself, restate your full capabilities, or sound scripted unless the user asks.\n" +
-                "Keep ordinary conversation concise and human-sounding. Do not add unnecessary bullet points or formal language to simple questions.\n" +
-                "You do not directly execute ESM actions and you must never claim that you changed ESM state.\n" +
-                "The deterministic ESM tools are authoritative. Your job is to understand the user's intent.\n" +
-                "For a request that matches an existing ESM capability, return mode=deterministic and rewrite the request into a concise canonical command that the existing ESM Assistant can understand.\n" +
-                "For ordinary conversation or questions that do not map to an ESM action, return mode=chat and answer naturally.\n" +
-                "IMPORTANT: Never classify ordinary conversation, greetings, jokes, opinions, or factual questions as deterministic. In particular, never return mode=deterministic with the user's conversational text copied into command.\n" +
-                "Current deterministic commands include: 'help', 'open add load', 'find load <load-id>', and 'search load <load-id>'. Only use deterministic mode when the request clearly maps to one of those commands or to another already-implemented ESM action.\n" +
-                "Do not invent current drivers, employees, loads, HOS data, or other live ESM state. If you do not know something about ESM's live state, say so rather than guessing.\n" +
-                "For general factual questions, answer directly and accurately. If you are uncertain, say so briefly rather than confidently inventing an explanation.\n" +
-                "Never claim that the moon, sky, employees, loads, or anything else has an ESM-specific status unless that information is actually provided in the current context.\n" +
+                "Never use canned disclaimers such as 'I am just a computer program, so I don't have feelings.' If asked how you are, answer naturally.\n" +
+                "When asked who you are, identify yourself naturally as Sync AI and briefly explain that you are the local natural-language layer inside ESM.\n" +
+                "Do not repeatedly introduce yourself, restate your capabilities, or sound scripted unless asked.\n" +
+                "Keep ordinary conversation concise and human-sounding.\n" +
+                "You do not directly execute ESM actions and must never claim that you changed ESM state.\n" +
+                "The deterministic ESM tools are authoritative. Your job is to understand intent and route clear tool requests.\n" +
+                "For a request that matches an existing ESM capability, return mode=deterministic and rewrite it into one concise canonical command.\n" +
+                "For ordinary conversation, jokes, greetings, opinions, or factual questions that do not map to an ESM action, return mode=chat and answer naturally.\n" +
+                "IMPORTANT ROUTING EXAMPLES: 'open add load', 'open the add load thingy', 'can you open the add load thingy', 'can you open the load thingy', 'show me add load', and 'i need the add load screen' all mean mode=deterministic with command='open add load'.\n" +
+                "IMPORTANT ROUTING EXAMPLES: 'help', 'what commands do you have', and 'what can you do around here' may use mode=deterministic with command='help' only when the user is clearly asking for ESM capabilities.\n" +
+                "IMPORTANT ROUTING EXAMPLES: 'find load ABC12345', 'search for load ABC12345', and 'can you find ABC12345' mean mode=deterministic with the canonical command 'find load ABC12345'.\n" +
+                "Do not classify ordinary conversation as deterministic. Never copy a conversational request into command.\n" +
+                "Current deterministic commands include: 'help', 'open add load', 'find load <load-id>', and 'search load <load-id>'. Only use deterministic mode for a clearly matching implemented ESM action.\n" +
+                "Do not invent current drivers, employees, loads, HOS data, or other live ESM state.\n" +
+                "For general factual questions, answer directly and accurately. If uncertain, say so briefly rather than inventing an explanation.\n" +
                 "Keep responses concise."
         });
 
         grammar = await llama.createGrammarForJsonSchema({
             type: "object",
             properties: {
-                mode: {
-                    enum: ["deterministic", "chat"]
-                },
-                command: {
-                    type: "string"
-                },
-                response: {
-                    type: "string"
-                }
+                mode: { enum: ["deterministic", "chat"] },
+                command: { type: "string" },
+                response: { type: "string" }
             },
             required: ["mode", "command", "response"]
         });
@@ -135,21 +127,16 @@ async function load() {
         return status();
     })().catch(async (error) => {
         lastError = error?.message || String(error);
-
-        // Partial-load cleanup matters: a failed model load must not leave
-        // a half-initialized native context behind.
         try { session?.dispose({ disposeSequence: true }); } catch (_) {}
         try { await context?.dispose?.(); } catch (_) {}
         try { await model?.dispose?.(); } catch (_) {}
         try { await llama?.dispose?.(); } catch (_) {}
-
         session = null;
         context = null;
         model = null;
         grammar = null;
         llama = null;
         llamaClasses = null;
-
         return {
             available: false,
             loading: false,
@@ -166,14 +153,10 @@ async function load() {
 }
 
 async function unload() {
-    // Dispose dependants before their owners. model.dispose() also disposes
-    // its contexts, but explicit session/llama disposal makes the lifecycle
-    // clear and releases native resources as soon as the panel closes.
     try { session?.dispose({ disposeSequence: true }); } catch (_) {}
     try { await context?.dispose?.(); } catch (_) {}
     try { await model?.dispose?.(); } catch (_) {}
     try { await llama?.dispose?.(); } catch (_) {}
-
     session = null;
     context = null;
     model = null;
@@ -181,8 +164,43 @@ async function unload() {
     llama = null;
     llamaClasses = null;
     loadingPromise = null;
-
     return status();
+}
+
+function normalizeToolText(value) {
+    return String(value || "")
+        .toLowerCase()
+        .replace(/[’‘]/g, "'")
+        .replace(/[^a-z0-9_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function extractToolIntent(text) {
+    const value = normalizeToolText(text);
+
+    // Tool-specific language normalization belongs here rather than in the
+    // conversation layer. This is intentionally narrow: it handles natural
+    // variants of implemented tools without fuzzy-matching ordinary chat.
+    if (
+        /\b(?:open|show|bring up|pull up|launch)\b.*\b(?:add load|load modal|load screen|load thingy|load thing)\b/.test(value) ||
+        /\b(?:add load|load modal|load screen|load thingy|load thing)\b.*\b(?:open|show|bring up|pull up)\b/.test(value) ||
+        /\bneed\b.*\badd load\b/.test(value)
+    ) {
+        return "open add load";
+    }
+
+    if (/^(?:commands?|help)$/.test(value) || /\b(?:what can you do|what do you help with)\b/.test(value)) {
+        return "help";
+    }
+
+    const loadMatch = value.match(/\b(?:find|search)(?: for)?(?: load)?\s+([a-z0-9_-]{7,})\b/);
+    if (loadMatch) return "find load " + loadMatch[1];
+
+    const findBare = value.match(/\b(?:can you|could you|please)?\s*(?:find|locate)\s+([a-z0-9_-]{7,})\b/);
+    if (findBare) return "find load " + findBare[1];
+
+    return "";
 }
 
 function isCanonicalDeterministicCommand(command) {
@@ -205,6 +223,15 @@ async function prompt(payload = {}) {
         }
     }
 
+    const directToolCommand = extractToolIntent(text);
+    if (directToolCommand) {
+        return {
+            mode: "deterministic",
+            command: directToolCommand,
+            response: ""
+        };
+    }
+
     const appContext = String(payload.context || "").trim().slice(0, 1200);
     const promptText =
         (appContext
@@ -224,35 +251,26 @@ async function prompt(payload = {}) {
     try {
         result = JSON.parse(raw);
     } catch (_) {
-        result = {
-            mode: "chat",
-            command: "",
-            response: String(raw || "").trim()
-        };
+        result = { mode: "chat", command: "", response: String(raw || "").trim() };
     }
 
-    if (result.mode !== "deterministic" && result.mode !== "chat") {
-        result.mode = "chat";
-    }
+    if (result.mode !== "deterministic" && result.mode !== "chat") result.mode = "chat";
 
     let mode = result.mode;
     let command = String(result.command || "").trim();
     let response = String(result.response || "").trim();
 
-    // Qwen 0.5B can occasionally over-route casual text into the structured
-    // tool branch. Never let an unrecognized command reach the renderer's
-    // deterministic execution path. This is a safety boundary, not a second
-    // fuzzy conversation matcher.
-    if (mode === "deterministic" && !isCanonicalDeterministicCommand(command)) {
-        mode = "chat";
-        command = "";
+    if (mode === "deterministic") {
+        const normalizedIntent = extractToolIntent(text);
+        if (normalizedIntent) {
+            command = normalizedIntent;
+        } else if (!isCanonicalDeterministicCommand(command)) {
+            mode = "chat";
+            command = "";
+        }
     }
 
-    return {
-        mode,
-        command,
-        response
-    };
+    return { mode, command, response };
 }
 
 module.exports = {
