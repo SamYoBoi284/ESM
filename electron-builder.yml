@@ -17,13 +17,14 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
 
-# node-llama-cpp must be shipped as a complete module tree. Its JavaScript
-# entrypoint and package files need to remain available at runtime, while
-# its native binaries must be physically outside app.asar.
+# Keep node-llama-cpp's JavaScript/package tree inside app.asar so the
+# normal package import can resolve it. Only native binaries need to live
+# outside ASAR. Unpacking the entire node-llama-cpp package makes
+# `import("node-llama-cpp")` look inside app.asar/node_modules while the
+# package has actually been moved to app.asar.unpacked.
 asarUnpack:
-  - "node_modules/node-llama-cpp/**"
-  - "node_modules/@node-llama-cpp/**"
   - "**/*.node"
+  - "**/*.dll"
 
 extraResources:
   - from: "models"
