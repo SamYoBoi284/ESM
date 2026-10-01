@@ -2576,35 +2576,30 @@ media-src 'self';">
 <!-- GLOBAL ESM ASSISTANT -->
 <!-- ================================= -->
 <div id="esmAssistantDock" class="esmAssistantDock hidden" aria-live="polite">
-    <button id="esmAssistantLauncher" class="esmAssistantLauncher" type="button" title="Open ESM Assistant" aria-label="Open ESM Assistant">✦</button>
+    <button id="esmAssistantLauncher" class="esmAssistantLauncher" type="button" title="Open Sync AI" aria-label="Open Sync AI">✦</button>
 
-    <section id="esmAssistantPanel" class="esmAssistantPanel hidden" aria-label="ESM Assistant">
+    <section id="esmAssistantPanel" class="esmAssistantPanel hidden" aria-label="Sync AI">
         <header class="esmAssistantHeader">
             <div class="esmAssistantIdentity">
                 <div class="esmAssistantSpark">✦</div>
                 <div>
                     <div class="esmAssistantTitleRow">
-                        <strong>Assistant</strong>
+                        <strong>Sync AI</strong>
                         <span class="esmAssistantBeta">BETA</span>
                     </div>
-                    <small>ESM Workspace Helper</small>
+                    <small>Local ESM AI</small>
                 </div>
             </div>
             <button id="esmAssistantCloseBtn" class="esmAssistantMinimize" type="button" title="Minimize Assistant" aria-label="Minimize Assistant">−</button>
         </header>
 
-        <div id="esmAssistantMessages" class="esmAssistantMessages">
-            <div class="esmAssistantBubble assistant">
-                <strong>Hey — I’m the ESM Assistant.</strong>
-                <span>I can help with Relay imports, mass loads, current workspace searches, and ESM actions.</span>
-            </div>
-        </div>
+        <div id="esmAssistantMessages" class="esmAssistantMessages"></div>
 
         <div class="esmAssistantComposer">
             <textarea id="esmAssistantInput" class="esmAssistantInput" rows="2" placeholder="Search or ask anything..."></textarea>
             <button id="esmAssistantRunBtn" class="esmAssistantSend" type="button" title="Send" aria-label="Send">➤</button>
         </div>
-        <div class="esmAssistantFooter">Beta • Verify output before acting</div>
+        <div class="esmAssistantFooter">Sync AI • Local model • Verify output before acting</div>
     </section>
 </div>
 
