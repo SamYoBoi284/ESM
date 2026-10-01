@@ -332,20 +332,3 @@ initializePresence();
 initTodaysTimersToggle();
 initMonthlyStatsToggle?.();
 window.initPanelCollapseToggles?.();
-
-// ===========================================
-// LOCAL LLM HYBRID BOOTSTRAP
-// ===========================================
-// Loaded as a separate renderer module so the working ESM bootstrap above
-// stays isolated. The module is responsible for waiting until the ESM
-// Assistant DOM exists before installing its optional local-AI routing.
-(function loadESMLocalLLMBridge() {
-    if (document.querySelector('script[data-esm-local-llm="true"]')) return;
-
-    const script = document.createElement("script");
-    script.src = "esm-local-llm.js";
-    script.dataset.esmLocalLlm = "true";
-    script.async = true;
-    script.onerror = (error) => console.warn("ESM Local LLM bridge failed to load:", error);
-    document.head.appendChild(script);
-})();
