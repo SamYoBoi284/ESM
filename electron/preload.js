@@ -1,6 +1,6 @@
 // ===========================================
 // RelayDesk V5
-// electron/preload.js
+electron/preload.js
 // ELECTRON RENDERER BRIDGE
 // ===========================================
 // This preload script exposes a small API to the existing renderer code so
@@ -109,7 +109,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
         const handler = (_event, payload) => callback(payload);
         ipcRenderer.on("update-notification-clicked", handler);
         return () => ipcRenderer.removeListener("update-notification-clicked", handler);
-    }
+    },
 
     // Sync AI — embedded local llama.cpp / Qwen runtime.
     // The model is loaded only while the Sync AI panel is open.
