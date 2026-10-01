@@ -23,7 +23,8 @@
     "release:force": "node scripts/release.js --force"
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "node-llama-cpp": "^3.22.1"
   },
   "devDependencies": {
     "electron": "^34.0.0",
@@ -31,6 +32,7 @@
   },
   "allowScripts": {
     "electron@34.5.8": true,
-    "electron-winstaller@5.4.0": true
+    "electron-winstaller@5.4.0": true,
+    "node-llama-cpp": true
   }
 }
