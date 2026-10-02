@@ -4,7 +4,7 @@ artifactName: ESM-Setup-${version}.exe
 files:
   - "**/*"
   - "!**/.git"
-  - "!**/dist/**"
+  - "!dist/**"
   - "!main.js"
   - "!preload.js"
 win:
@@ -19,9 +19,7 @@ nsis:
 
 # Keep node-llama-cpp's JavaScript/package tree inside app.asar so the
 # normal package import can resolve it. Only native binaries need to live
-# outside ASAR. Unpacking the entire node-llama-cpp package makes
-# `import("node-llama-cpp")` look inside app.asar/node_modules while the
-# package has actually been moved to app.asar.unpacked.
+# outside ASAR.
 asarUnpack:
   - "**/*.node"
   - "**/*.dll"
